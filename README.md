@@ -1,2 +1,3 @@
-# WebFlasher
-O.MG Cable and Plug flashing tool designed to allow easy flashing on WebSerial/WebUSB compatible browsers
+# O.MG WebFlasher Utility
+
+A Web Serial tool for updating your ESP bootloader.
