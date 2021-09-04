@@ -18,6 +18,14 @@ const esp8266FlashSizes = {
     "16MB": 0x90,
 };
 
+const esp32FlashSizes = {
+    "1MB": 0x00,
+    "2MB": 0x10,
+    "4MB": 0x20,
+    "8MB": 0x30,
+    "16MB": 0x40
+};
+
 const flashMode = {
     'qio': 0,
     'qout': 1,
@@ -43,7 +51,11 @@ const FLASH_SECTOR_SIZE = 0x1000;  // Flash sector size, minimum unit of erase.
 const SYNC_PACKET = toByteArray("\x07\x07\x12 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU");
 const CHIP_DETECT_MAGIC_REG_ADDR = 0x40001000;
 const ESP8266 = 0x8266;
+const ESP32 = 0x32;
+const ESP32S2 = 0x3252;
+const ESP32_DATAREGVALUE = 0x15122500;
 const ESP8266_DATAREGVALUE = 0x00062000;
+const ESP32S2_DATAREGVALUE = 0x500;
 
 // Commands supported by ESP8266 ROM bootloader
 const ESP_FLASH_BEGIN = 0x02;
@@ -97,7 +109,9 @@ const MEM_END_ROM_TIMEOUT = 500;
 
 
 const magicValues = {
-    "ESP8266": { "chipId": ESP8266, "magicVal": 0xfff0c101}
+    "ESP8266": { "chipId": ESP8266, "magicVal": 0xfff0c101},
+    "ESP32":  { "chipId": ESP32, "magicVal": 0x00f01d83},
+    "ESP32S2": { "chipId": ESP32S2, "magicVal": 0x000007c6}
 }
 
 
@@ -193,6 +207,20 @@ class EspLoader {
       macAddr[3] = (mac1 >> 8) & 0xFF;
       macAddr[4] = mac1 & 0xFF;
       macAddr[5] = (mac0 >> 24) & 0xFF;
+    } else if (this._chipfamily == ESP32) {
+      macAddr[0] = mac2 >> 8 & 0xFF;
+      macAddr[1] = mac2 & 0xFF;
+      macAddr[2] = mac1 >> 24 & 0xFF;
+      macAddr[3] = mac1 >> 16 & 0xFF;
+      macAddr[4] = mac1 >> 8 & 0xFF;
+      macAddr[5] = mac1 & 0xFF;
+    } else if (this._chipfamily == ESP32S2) {
+      macAddr[0] = mac2 >> 8 & 0xFF;
+      macAddr[1] = mac2 & 0xFF;
+      macAddr[2] = mac1 >> 24 & 0xFF;
+      macAddr[3] = mac1 >> 16 & 0xFF;
+      macAddr[4] = mac1 >> 8 & 0xFF;
+      macAddr[5] = mac1 & 0xFF;
     } else {
       throw("Unknown chip family")
     }
@@ -213,6 +241,10 @@ class EspLoader {
     let baseAddr
     if (this._chipfamily == ESP8266) {
       baseAddr = 0x3FF00050;
+    } else if (this._chipfamily == ESP32) {
+      baseAddr = 0x3FF5A000;
+    } else if (this._chipfamily == ESP32S2) {
+      baseAddr = 0x6001A000;
     } else {
       throw("Don't know what chip this is");
     }
@@ -284,6 +316,12 @@ class EspLoader {
     let chipType = await this.chipType();
     await this._readEfuses();
 
+    if (chipType == ESP32) {
+      return "ESP32";
+    }
+    if (chipType == ESP32S2) {
+      return "ESP32-S2";
+    }
     if (chipType == ESP8266) {
       if (this._efuses[0] & (1 << 4) || this._efuses[2] & (1 << 16)) {
         return "ESP8285";
@@ -309,6 +347,8 @@ class EspLoader {
           statusLen = 2;
       } else if (this._chipfamily == ESP8266) {
           statusLen = 2;
+      } else if ([ESP32, ESP32S2].includes(this._chipfamily)) {
+          statusLen = 4;
       } else {
           if ([2, 4].includes(data.length)) {
               statusLen = data.length;
@@ -674,9 +714,9 @@ class EspLoader {
 
     while (filesize - position > 0) {
       let percentage = Math.floor(100 * (seq + 1) / blocks);
-      /*this.logMsg(
+      this.logMsg(
           "Writing at " + this.toHex(address + seq * flashWriteSize, 8) + "... (" + percentage + " %)"
-      );*/
+      );
       if (this.updateProgress !== null) {
         this.updateProgress(part, percentage);
       }
@@ -684,8 +724,8 @@ class EspLoader {
         block = Array.from(new Uint8Array(binaryData, position, flashWriteSize));
       } else {
         // Pad the last block
-        block = Array.from(new Uint8Array(binaryData, position, filesize - position));
-        block = block.concat(new Array(flashWriteSize - block.length).fill(0xFF));
+//        block = Array.from(new Uint8Array(binaryData, position, filesize - position));
+//        block = block.concat(new Array(flashWriteSize - block.length).fill(0xFF));
       }
       await this.flashBlock(block, seq);
       seq += 1;
@@ -716,6 +756,18 @@ class EspLoader {
   async flashBegin(size=0, offset=0, encrypted=false) {
     let buffer;
     let flashWriteSize = this.getFlashWriteSize();
+    if (!this.IS_STUB) {
+        if ([ESP32, ESP32S2].includes(this._chipfamily)) {
+          await this.checkCommand(ESP_SPI_ATTACH, new Array(8).fill(0));
+        }
+    }
+    if (this._chipfamily == ESP32) {
+      // We are hardcoded for 4MB flash on ESP32
+      buffer = struct.pack(
+          "<IIIIII", 0, this._flashsize, 0x10000, 4096, 256, 0xFFFF
+      )
+      await this.checkCommand(ESP_SPI_SET_PARAMS, buffer);
+    }
     let numBlocks = Math.floor((size + flashWriteSize - 1) / flashWriteSize);
     let eraseSize = this.getEraseSize(offset, size);
 
@@ -730,6 +782,11 @@ class EspLoader {
     buffer = struct.pack(
         "<IIII", eraseSize, numBlocks, flashWriteSize, offset
     );
+    if ([ESP32S2].includes(this._chipfamily) && !this.IS_STUB) {
+      buffer = buffer.concat(struct.pack(
+        "<I", encrypted ? 1 : 0
+      ));
+    }
     this.logMsg(
         "Erase size " + eraseSize + ", blocks " + numBlocks + ", block size " + flashWriteSize + ", offset " + this.toHex(offset, 4) + ", encrypted " + (encrypted ? "yes" : "no")
     );
@@ -839,7 +896,11 @@ class EspLoader {
   }
 
   getStubFile() {
-    if (this._chipfamily == ESP8266) {
+    if (this._chipfamily == ESP32) {
+      return "esp32";
+    } else if (this._chipfamily == ESP32S2) {
+      return "esp32s2";
+    } else if (this._chipfamily == ESP8266) {
       return "esp8266";
     }
   }
@@ -864,6 +925,9 @@ class EspLoader {
 
     let ramBlock = ESP_RAM_BLOCK;
     // We're transferring over USB, right?
+    if ([ESP32S2].includes(this._chipfamily)) {
+      ramBlock = USB_RAM_BLOCK;
+    }
 
     // Upload
     this.logMsg("Uploading stub...")
