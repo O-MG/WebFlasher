@@ -357,7 +357,8 @@ async function clickProgram() {
     console.log("FileOffset3:" + fileOffset[3]);
     console.log("FileOffset4:" + fileOffset[4]);
 
-    var branch = "master";
+    var branch = document.querySelector('#branch').value;
+    console.log("Branch: " + branch);
 
     fileName[0] = "esp_init_data_default_v08.bin";
     fileName[1] = "image.elf-0x00000.bin";
@@ -365,6 +366,7 @@ async function clickProgram() {
     fileName[3] = "page.mpfs";
     fileName[4] = "blank.bin";
 
+  espTool.setPortBaudRate(115200);
   for (let i = 0; i < 5; i++) {
     var arrayBuffer;
     var byteArray;
@@ -385,10 +387,13 @@ async function clickProgram() {
     try {
       let offset = parseInt(fileOffset[i], 16);
       await espTool.flashData(file, offset, i);
-      await sleep(100);
-      logMsg("To run the new firmware, please reset your device.");
+      await sleep(10);
     } catch(e) {
       errorMsg(e);
+      logMsg("Flashing Failed. Please retry, or contact OMG Support via Slack.");
+    }
+    if (i == 5 &&  typeof e !== 'undefined') {
+      logMsg("Flashing Complete. Please move O.MG Cable to a USB port. Then connect to the AP, wait for an IP address to be assigned, and go to http://192.168.4.1/ in your web browser.");
     }
   }
 }
