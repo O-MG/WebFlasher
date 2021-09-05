@@ -44,8 +44,8 @@ const flashFreq = {
 // Flash Size: 1MB
 
 const ESP_ROM_BAUD = 115200;
-const FLASH_WRITE_SIZE = 0x400;
-const STUBLOADER_FLASH_WRITE_SIZE = 0x4000;
+const FLASH_WRITE_SIZE = 0x322;
+const STUBLOADER_FLASH_WRITE_SIZE = 0x322;
 const FLASH_SECTOR_SIZE = 0x1000;  // Flash sector size, minimum unit of erase.
 
 const SYNC_PACKET = toByteArray("\x07\x07\x12 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU");
@@ -71,6 +71,7 @@ const ESP_READ_REG = 0x0A;
 // Some comands supported by ESP32 ROM bootloader (or -8266 w/ stub)
 const ESP_SPI_SET_PARAMS = 0x0B;
 const ESP_SPI_ATTACH = 0x0D;
+const ESP_READ_FLASH_SIZE = 0x9F;
 const ESP_READ_FLASH_SLOW  = 0x0E  // ROM only, much slower than the stub flash read
 const ESP_CHANGE_BAUDRATE = 0x0F;
 const ESP_FLASH_DEFL_BEGIN = 0x10
@@ -232,6 +233,115 @@ class EspLoader {
       this._debugMsg(...values);
     }
   }
+  
+
+  async run_spiflash_command(spiflash_command, data=, read_bits=0){
+    let SPI_USR_COMMAND = (1<<31)>>>0;
+    let SPI_USR_MISO = (1 << 28);
+    let SPI_USR_MOSI = (1 << 27);
+
+    let base = this.SPI_REG_BASE;
+    let SPI_CMD_REG = base + 0x00;
+    let SPI_USR_REG = base + 0x1C;
+    let SPI_USR1_REG = base + 0x20;
+    let SPI_USR2_REG = base + 0x24;
+    let SPI_W0_REG = base + this.SPI_W0_OFFS;
+
+    let SPI_CMD_USR = (1 << 18);
+    let SPI_USR2_DLEN_SHIFT = 28;
+
+    if((read_bits > 32) || (data.length>64)){
+      logError("SPI flash operation is unsupported");
+    }
+
+    let data_bits = data.length * 8;
+    let old_spi_usr = await this.readRegister(SPI_USR_REG);
+    let old_spi_usr2 = await this.readRegister(SPI_USR2_REG);
+    let flags = SPI_USR_COMMAND;
+    if(read_bits > 0){
+      flags |= SPI_USR_MISO;
+    }
+    if(data_bits > 0){
+      flags |= SPI_USR_MOSI;
+    }
+
+    def set_data_lengths(mosi_bits, miso_bits):
+    set_data_lengths(data_bits, read_bits)
+    if(this.SPI_HAS_MOSI_DLEN_REG) {
+      let SPI_MOSI_DLEN_REG = base + 0x28
+      let SPI_MISO_DLEN_REG = base + 0x2C
+      if(mosi_bits > 0){
+        await this.writeRegister(SPI_MOSI_DLEN_REG, mosi_bits - 1);
+      }
+      if(miso_bits > 0){
+        await this.writeRegister(SPI_MISO_DLEN_REG, miso_bits - 1);
+      }
+    } else {
+        let SPI_DATA_LEN_REG = SPI_USR1_REG;
+        let SPI_MOSI_BITLEN_S = 17;
+        let SPI_MISO_BITLEN_S = 8;
+        if (mosi_bits != 0) {
+          mosi_bits - 1;
+        } else {
+          mosi_mask = 0;
+        }
+        if (miso_bits == 0) { 
+          miso_bits - 1;
+        } else {
+          miso_mask = 0;
+        }
+        await this.writeRegister(SPI_DATA_LEN_REG,
+                 (miso_mask << SPI_MISO_BITLEN_S) | (
+                     mosi_mask << SPI_MOSI_BITLEN_S));
+  
+    }                             
+    await this.writeRegister(SPI_USR_REG, flags);
+    await this.writeRegister(SPI_USR2_REG,
+             (7 << SPI_USR2_DLEN_SHIFT) | spiflash_command);
+
+    if(data_bits == 0){
+      await this.writeRegister(SPI_W0_REG, 0)
+    } else {
+      data = this.pad_to(data, 4, b'\00');
+      let struct_pack = "I";
+      for(let i = 0; i<(data.length/4); i++){
+        struct_pack+="I";
+      } 
+      let words = struct.unpack(struct_pack, data);
+      let next_reg = SPI_W0_REG;
+
+      for (let i = 0; i < words.length; i++) {
+        await this.writeRegister(next_reg, word);
+        next_reg += 4;
+      }
+    }       
+    await this.writeRegister(SPI_CMD_REG, SPI_CMD_USR);
+
+
+    for (let i = 0; i < 10; i++) {
+      if(await this.readRegister(SPI_CMD_REG) && SPI_CMD_USER == 0){
+        break;
+      } else {
+        // throw error
+      }
+    }
+
+    let status = await this.readRegister(SPI_W0_REG);
+
+    await this.writeRegister(SPI_USR_REG, old_spi_usr);
+    await this.writeRegister(SPI_USR2_REG, old_spi_usr2);
+    return status
+  }
+
+  pad_to(data,alignment,pad_character=0xFF){
+    let pad_mod = data.length%alignment;
+    if(pad_mod != 0){
+      let tarr = new Uint8Array(pad_mod);
+      tarr.fill(0xFF,0,tarr.length);
+      data.concat(tarr);
+    }
+    return data;
+  }
 
   /**
    * @name _readEfuses
@@ -251,6 +361,7 @@ class EspLoader {
     for (let i = 0; i < 4; i++) {
       this._efuses[i] = await this.readRegister(baseAddr + 4 * i);
     }
+    console.log(this)
   };
 
   /**
@@ -262,10 +373,26 @@ class EspLoader {
       this.debugMsg("Reading from Register " + this.toHex(reg, 8));
     }
     let packet = struct.pack("<I", reg);
-    await this.sendCommand(ESP_READ_REG, packet);
+    await this.sendCommand(ESP_READ_FLASH, packet);
     let [val, data] = await this.getResponse(ESP_READ_REG);
     return val;
   };
+  
+  async readFlashSize() {
+    if (this.debug) {
+      this.debugMsg("Reading from Flash Chip " + this.toHex(reg, 8));
+    }
+    //let packet = struct.pack("<III", "");
+    let part = new Uint8Array(0);
+    await this.sendCommand(ESP_READ_FLASH_SIZE, part);
+    let [val, data] = await this.getResponse(ESP_READ_REG);
+    console.log("DATA START");
+    console.log(val);
+    console.log(data);
+    console.log("DATA END");
+    return val;
+  };
+
 
   /**
    * @name writeRegister
