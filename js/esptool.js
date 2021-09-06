@@ -696,106 +696,149 @@ class EspLoader {
   getFlashWriteSize() {
       return FLASH_WRITE_SIZE;
   };
-  
-  
 
-  async run_spiflash_command(spiflash_command, data=null, read_bits=0){
-    let SPI_USR_COMMAND = (1<<31)>>>0;
-    let SPI_USR_MISO = (1 << 28);
-    let SPI_USR_MOSI = (1 << 27);
+  async run_spiflash_command(spiflash_command, data, read_bits) {
+    // SPI_USR register flags
+    var SPI_USR_COMMAND = (1 << 31);
+    var SPI_USR_MISO    = (1 << 28);
+    var SPI_USR_MOSI    = (1 << 27);
 
-    let base = SPI_REG_BASE;
-    let SPI_CMD_REG = base + 0x00;
-    let SPI_USR_REG = base + 0x1C;
-    let SPI_USR1_REG = base + 0x20;
-    let SPI_USR2_REG = base + 0x24;
-    let SPI_W0_REG = base + SPI_W0_OFFS;
+    // SPI registers, base address differs ESP32* vs 8266
+    var base = this.SPI_REG_BASE;
+    var SPI_CMD_REG = base + 0x00;
+    var SPI_USR_REG       = base + this.SPI_USR_OFFS;
+    var SPI_USR1_REG      = base + this.SPI_USR1_OFFS;
+    var SPI_USR2_REG      = base + this.SPI_USR2_OFFS;
+    var SPI_W0_REG        = base + this.SPI_W0_OFFS;
 
-    let SPI_CMD_USR = (1 << 18);
-    let SPI_USR2_DLEN_SHIFT = 28;
-
-    if((read_bits > 32) || (data.length>64)){
-      logError("SPI flash operation is unsupported");
+    var set_data_lengths;
+    if (this.SPI_MOSI_DLEN_OFFS != null) {
+      set_data_lengths = async(mosi_bits, miso_bits) => {
+        var SPI_MOSI_DLEN_REG = base + this.SPI_MOSI_DLEN_OFFS;
+        var SPI_MISO_DLEN_REG = base + this.SPI_MISO_DLEN_OFFS;
+        if (mosi_bits > 0) {
+          await this.writeRegister(SPI_MOSI_DLEN_REG, (mosi_bits - 1));
+        }
+        if (miso_bits > 0) {
+          await this.writeRegister(SPI_MISO_DLEN_REG, (miso_bits - 1));
+        }
+      };
+    } else {
+      set_data_lengths = async(mosi_bits, miso_bits) => {
+        var SPI_DATA_LEN_REG = SPI_USR1_REG;
+        var SPI_MOSI_BITLEN_S = 17;
+        var SPI_MISO_BITLEN_S = 8;
+        mosi_mask = (mosi_bits === 0) ? 0 : (mosi_bits - 1);
+        miso_mask = (miso_bits === 0) ? 0 : (miso_bits - 1);
+        var val = (miso_mask << SPI_MISO_BITLEN_S) | (mosi_mask << SPI_MOSI_BITLEN_S);
+        await this.writeRegister(SPI_DATA_LEN_REG, val);
+      };
     }
 
-    let data_bits = data.length * 8;
-    let old_spi_usr = await this.readRegister(SPI_USR_REG);
-    let old_spi_usr2 = await this.readRegister(SPI_USR2_REG);
-    let flags = SPI_USR_COMMAND;
-	var mosi_mask;
-    var miso_mask;
-    if(read_bits > 0){
+    var SPI_CMD_USR  = (1 << 18);
+    var SPI_USR2_COMMAND_LEN_SHIFT = 28;
+    if(read_bits > 32) {
+      throw "Reading more than 32 bits back from a SPI flash operation is unsupported";
+    }
+    if (data.length > 64) {
+      throw "Writing more than 64 bytes of data with one SPI command is unsupported";
+    }
+
+    var data_bits = data.length * 8;
+    var old_spi_usr = await this.readRegister(SPI_USR_REG);
+    var old_spi_usr2 = await this.readRegister(SPI_USR2_REG);
+    var flags = SPI_USR_COMMAND;
+    var i;
+    if (read_bits > 0) {
       flags |= SPI_USR_MISO;
     }
-    if(data_bits > 0){
+    if (data_bits > 0) {
       flags |= SPI_USR_MOSI;
     }
- 
-    if(SPI_HAS_MOSI_DLEN_REG) {
-      let SPI_MOSI_DLEN_REG = base + 0x28
-      let SPI_MISO_DLEN_REG = base + 0x2C
-      if(data_bits > 0){
-        await this.writeRegister(SPI_MOSI_DLEN_REG, data_bits - 1);
-      }
-      if(read_bits > 0){
-        await this.writeRegister(SPI_MISO_DLEN_REG, read_bits - 1);
-      }
-    } else {
-
-        let SPI_DATA_LEN_REG = SPI_USR1_REG;
-        let SPI_MOSI_BITLEN_S = 17;
-        let SPI_MISO_BITLEN_S = 8;
-        if (data_bits != 0) {
-          data_bits - 1;
-        } else {
-          mosi_mask = 0;
-        }
-        if (read_bits == 0) { 
-          read_bits - 1;
-        } else {
-          miso_mask = 0;
-        }
-        await this.writeRegister(SPI_DATA_LEN_REG,
-                 (miso_mask << SPI_MISO_BITLEN_S) | (
-                     mosi_mask << SPI_MOSI_BITLEN_S));
-  
-    }                             
+    await set_data_lengths(data_bits, read_bits);
     await this.writeRegister(SPI_USR_REG, flags);
-    await this.writeRegister(SPI_USR2_REG,
-             (7 << SPI_USR2_DLEN_SHIFT) | spiflash_command);
-
-    if(data_bits == 0){
-      await this.writeRegister(SPI_W0_REG, 0)
+    var val = (7 << SPI_USR2_COMMAND_LEN_SHIFT) | spiflash_command;
+    await this.writeRegister(SPI_USR2_REG, val);
+    if (data_bits == 0) {
+      await this.writeRegister(SPI_W0_REG, 0);
     } else {
-      data = this.pad_to(data, 4, 0x00);
-      let struct_pack = "I";
-      for(let i = 0; i<(data.length/4); i++){
-        struct_pack+="I";
-      } 
-      let words = struct.unpack(struct_pack, data);
-      let next_reg = SPI_W0_REG;
-
-      for (let i = 0; i < words.length; i++) {
-        await this.writeRegister(next_reg, word);
+      if (data.length % 4 != 0) {
+        var padding = new Uint8Array(data.length % 4);
+        data = this._appendArray(data, padding);
+      }
+      var next_reg = SPI_W0_REG;
+      for (i = 0 ; i < data.length - 4; i+=4) {
+        val = this._bytearray_to_int(data[i], data[i+1], data[i+2], data[i+3]);
+        await this.writeRegister(next_reg, val);
         next_reg += 4;
       }
-    }       
+    }
     await this.writeRegister(SPI_CMD_REG, SPI_CMD_USR);
-
-
-    for (let i = 0; i < 10; i++) {
-      if(await this.readRegister(SPI_CMD_REG) && SPI_CMD_USER == 0){
+    for (i = 0; i < 10; i++) {
+      val = await this.readRegister(SPI_CMD_REG) & SPI_CMD_USR;
+      if (val == 0) {
         break;
-      } else {
-        // throw error
       }
     }
-
-    let status = await this.readRegister(SPI_W0_REG);
-
+    if (i === 10) {
+      throw "SPI command did not complete in time";
+    }
+    var stat = await this.readRegister(SPI_W0_REG);
     await this.writeRegister(SPI_USR_REG, old_spi_usr);
     await this.writeRegister(SPI_USR2_REG, old_spi_usr2);
-    return status
+    return stat;
+  }
+
+  async read_flash_id() {
+    var SPIFLASH_RDID = 0x9F;
+    var pkt = new Uint8Array(0);
+    return await this.run_spiflash_command(SPIFLASH_RDID, pkt, 24);
+  }
+
+  _short_to_bytearray(i) {
+    return [i & 0xff, (i >> 8) & 0xff];
+  }
+
+  _int_to_bytearray(i) {
+    return [i & 0xff, (i >> 8) & 0xff, (i >> 16) & 0xff, (i >> 24) & 0xff];
+  }
+
+  _bytearray_to_short(i, j) {
+    return (i | (j >> 8));
+  }
+
+  _bytearray_to_int(i, j, k, l) {
+    return (i | (j << 8) | (k << 16) | (l << 24));
+  }
+
+  _appendBuffer(buffer1, buffer2) {
+    var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
+    tmp.set(new Uint8Array(buffer1), 0);
+    tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
+    return tmp.buffer;
+  }
+
+  _appendArray(arr1, arr2) {
+    var c = new Uint8Array(arr1.length + arr2.length);
+    c.set(arr1, 0);
+    c.set(arr2, arr1.length);
+    return c;
+  }
+
+  ui8ToBstr(u8Array) {
+    var i, len = u8Array.length, b_str = "";
+    for (i=0; i<len; i++) {
+      b_str += String.fromCharCode(u8Array[i]);
+    }
+    return b_str;
+  }
+
+  bstrToUi8(bStr) {
+    var i, len = bStr.length, u8_array = new Uint8Array(len);
+    for (var i = 0; i < len; i++) {
+      u8_array[i] = bStr.charCodeAt(i);
+    }
+    return u8_array;
   }
 
   pad_to(data,alignment,pad_character=0xFF){
@@ -806,17 +849,6 @@ class EspLoader {
       data.concat(tarr);
     }
     return data;
-  }
-
-  async flash_id(){
-    if (this.debug) {
-      this.debugMsg("Reading from Flash Chip " + this.toHex(reg, 8));
-    }
-    let SPIFLASH_RDID = 0x9F;
-  	let data = await this.run_spiflash_command(SPIFLASH_RDID, "", 24);
-  	console.log("DATA START");
-  	console.log(data);
-  	console.log("DATA END");
   }
   
   /**
