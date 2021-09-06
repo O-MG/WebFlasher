@@ -728,8 +728,8 @@ class EspLoader {
         var SPI_DATA_LEN_REG = SPI_USR1_REG;
         var SPI_MOSI_BITLEN_S = 17;
         var SPI_MISO_BITLEN_S = 8;
-        mosi_mask = (mosi_bits === 0) ? 0 : (mosi_bits - 1);
-        miso_mask = (miso_bits === 0) ? 0 : (miso_bits - 1);
+        let mosi_mask = (mosi_bits === 0) ? 0 : (mosi_bits - 1);
+        let miso_mask = (miso_bits === 0) ? 0 : (miso_bits - 1);
         var val = (miso_mask << SPI_MISO_BITLEN_S) | (mosi_mask << SPI_MOSI_BITLEN_S);
         await this.writeRegister(SPI_DATA_LEN_REG, val);
       };
