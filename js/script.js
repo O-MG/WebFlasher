@@ -268,7 +268,9 @@ async function clickConnect() {
           base_offset = `0x1fc000`;     
           break;
       }
+      espTool.setBaudrate(115200);
       espTool = await espTool.runStub();
+      
       if (baud != ESP_ROM_BAUD) {
         if (await espTool.chipType() == ESP32) {
           logMsg("WARNING: ESP32 is having issues working at speeds faster than 115200. Continuing at 115200 for now...")
@@ -315,98 +317,108 @@ async function clickDarkMode() {
   saveSetting('darkmode', darkMode.checked);
 }
 
-/**
- * @name clickProgram
- * Click handler for the program button.
- */
-async function clickProgram() {
-    var flashWriteSize = espTool.getFlashWriteSize();
-    console.log("getFlashWriteSize: " + flashWriteSize);
-    logMsg("Flash Size: " + (flashWriteSize/1024) + " MB ");
+async function getFirmwareFiles(branch) {
+	let url_memmap = "https://raw.githubusercontent.com/O-MG/WebFlasher/main/assets/memmap.json";
+    let url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
+    
+    const readUploadedFileAsArrayBuffer = (inputFile) => {
+        const reader = new FileReader();
 
-    var flashSize = flashWriteSize;
-    console.log("FlashSize: " + flashSize);
+        return new Promise((resolve, reject) => {
+            reader.onerror = () => {
+                reader.abort();
+                reject(new DOMException("Problem parsing input file."));
+            };
 
-    var flashSize = 2;
-    console.log("FlashSize: " + flashSize);
-
-    var fileOffset = [];
-    var fileName = [];
-    var sleepTimes = [];
-    var fileData;
-
-    if(flashSize == "1") {
-        fileOffset[0] = "fc000";
-        fileOffset[1] = "00000";
-        fileOffset[2] = "10000";
-        fileOffset[3] = "80000";
-        fileOffset[4] = "7f000";
-    } else if (flashSize == "2") {
-        fileOffset[0] = "1fc000";
-        fileOffset[1] = "00000";
-        fileOffset[2] = "10000";
-        fileOffset[3] = "80000";
-        fileOffset[4] = "7f000";
-    } else {
-        console.log("Unable to determine flash size.");
+            reader.onload = () => {
+                resolve(reader.result);
+            };
+            reader.readAsArrayBuffer(inputFile);
+        });
+    };
+    const getResourceMap = (url) => {
+		return fetch(url, {
+		  method: 'GET',
+		})
+		.then(function(response) {
+		  return response.json();
+		})
+		.then(function(data) {   
+		  return data;
+		})
+	};
+	
+    let url = url_base + "/" + branch + "/firmware/";
+    let files_raw = await getResourceMap(url_memmap);
+    let flash_list = []
+    // tmp
+    let chip_files = files_raw['2048'];
+    
+    for (let i = 0; i < chip_files.length; i++) {
+    	if(!("name" in chip_files[i]) || !("offset" in chip_files[i])){
+    		logMsg("Invalid data, cannot load online flash resources");
+    	}
+    	let request_file = url + chip_files[i]['name'];
+    	console.log(request_file)
+        let tmp = await fetch(request_file).then((response) => {
+            if (response.status >= 400 && response.status < 600) {
+                logMsg("Error! Failed to fetch '" + request_file + "' due to error response " + response.status)
+                throw new Error("Bad response from server");
+            }
+            logMsg("Loaded online version of " + request_file + ". ");
+            return response.blob();
+        }).then((myblob) => myblob).catch((error) => {
+            console.log(error)
+        });
+        if (tmp === undefined) {
+            // missing file
+            logMsg("Invalid file downloaded " + chip_files['name']);
+        } else {
+        	let contents = await readUploadedFileAsArrayBuffer(tmp);
+        	flash_list.push({
+        		'name': chip_files[i]['name'],
+        		'offset': chip_files[i]['offset'],
+        		'data': contents
+        	});
+        	console.log(contents);
+        	console.log("data recvs");
+        	console.log(flash_list);
+        }
     }
+    return flash_list;
+}
 
-    console.log("FileOffset0:" + fileOffset[0]);
-    console.log("FileOffset1:" + fileOffset[1]);
-    console.log("FileOffset2:" + fileOffset[2]);
-    console.log("FileOffset3:" + fileOffset[3]);
-    console.log("FileOffset4:" + fileOffset[4]);
-
-    var branch = document.querySelector('#branch').value;
-    console.log("Branch: " + branch);
-
-    fileName[0] = "esp_init_data_default_v08.bin";
-    fileName[1] = "image.elf-0x00000.bin";
-    fileName[2] = "image.elf-0x10000.bin";
-    fileName[3] = "page.mpfs";
-    fileName[4] = "blank.bin";
-
-  espTool.setPortBaudRate(115200);
-  for (let i = 0; i < 5; i++) {
-    var arrayBuffer;
-    var byteArray;
-    var file = await new Promise(function(resolve, reject) {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', `https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware/${branch}/firmware/${fileName[i]}`, true);
-      xhr.responseType = 'arraybuffer';
-      xhr.onload = function(e) {
-        var arrayBuffer = xhr.response;
-        var byteArray = new Uint8Array(arrayBuffer);
-        resolve(byteArray);
-      };
-      xhr.onerror = function(e) {
-        reject(e);
-      };
-      xhr.send();
-    });
+async function clickProgram() {
+  baudRate.disabled = true;
+  butProgram.disabled = false;
+  
+  // attempt to verify baud
+  espTool.setBaudrate(115200);
+  
+  // and move on
+  let branch = String(document.querySelector('#branch').value);
+  let bins = await getFirmwareFiles(branch);
+  
+  for (let bin of bins) {
     try {
-      let offset = parseInt(fileOffset[i], 16);
-      await espTool.flashData(file, offset, i);
-      await sleep(10);
+      let offset = parseInt(bin['offset'], 16);
+      let contents = bin['data'];
+      let name = bin['name'];
+      await espTool.flashData(contents, offset, name);
+      await sleep(100);
+      logMsg("To run the new firmware, please reset your device.");
     } catch(e) {
       errorMsg(e);
-      logMsg("Flashing Failed. Please retry, or contact OMG Support via Slack.");
-    }
-    if (i == 5 &&  typeof e !== 'undefined') {
-      logMsg("Flashing Complete. Please move O.MG Cable to a USB port. Then connect to the AP, wait for an IP address to be assigned, and go to http://192.168.4.1/ in your web browser.");
     }
   }
-}
-
-function getValidFiles() {
-}
-
-/**
- * @name checkProgrammable
- * Check if the conditions to program the device are sufficient
- */
-async function checkProgrammable() {
-  butProgram.disabled = getValidFiles().length == 0;
+  for (let i=0; i< 4; i++) {
+    firmware[i].disabled = false;
+    offsets[i].disabled = false;
+    progress[i].classList.add("hidden");
+    progress[i].querySelector("div").style.width = "0";
+  }
+  butErase.disabled = false;
+  baudRate.disabled = false;
 }
 
 /**
@@ -429,7 +441,7 @@ async function checkFirmware(event) {
     icon.classList.remove("hidden");
   }
 
-  await checkProgrammable();
+  //await checkProgrammable();
 }
 
 /**
