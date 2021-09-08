@@ -875,9 +875,6 @@ class EspLoader {
       this.logMsg(
           "Writing at " + this.toHex(address + seq * flashWriteSize, 8) + "... (" + percentage + " %)"
       );
-      if (this.updateProgress !== null) {
-        this.updateProgress(part, percentage);
-      }
       if (filesize - position >= flashWriteSize) {
         block = Array.from(new Uint8Array(binaryData, position, flashWriteSize));
       } else {
