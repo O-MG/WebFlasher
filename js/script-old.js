@@ -6,8 +6,22 @@
 let espTool;
 let isConnected = false;
 
-const baudRates = [115200];
-
+const baudRates = [921600, 115200, 230400, 460800];
+const addresses = [
+  	"0xfc000",
+  	"0x00000",
+  	"0x10000",
+  	"0x80000",
+  	"0x7f000"
+  ]
+const files =  [
+	"esp_init_data_default_v08.bin",
+	"image.elf-0x00000.bin",
+	"image.elf-0x10000.bin",
+	"page.mpfs",
+	"blank.bin"
+  ]
+  
 const bufferSize = 512;
 const colors = ['#00a7e9', '#f89521', '#be1e2d'];
 const measurementPeriodId = '0001';
@@ -19,13 +33,17 @@ const baudRate = document.getElementById('baudRate');
 const butClear = document.getElementById('butClear');
 const butProgram = document.getElementById('butProgram');
 const autoscroll = document.getElementById('autoscroll');
+const debugConsole = document.getElementById('debugConsole');
 const lightSS = document.getElementById('light');
 const darkSS = document.getElementById('dark');
 const darkMode = document.getElementById('darkmode');
-const firmware = document.querySelectorAll(".upload .firmware input");
-const progress = document.querySelectorAll(".upload .progress-bar");
-const offsets = document.querySelectorAll('.upload .offset');
+const progress = document.querySelectorAll(".progress-bar");
 const appDiv = document.getElementById('app');
+
+let blobs = [];
+let offsets = [];
+let firmware = [];
+
 
 let base_offset = 0;
 let colorIndex = 0;
@@ -33,6 +51,7 @@ let activePanels = [];
 let bytesReceived = 0;
 let currentBoard;
 let buttonState = 0;
+let readyToFlash = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
   let debug = false;
@@ -54,14 +73,22 @@ document.addEventListener('DOMContentLoaded', () => {
       toggleUIConnected(false);
     });
   });
+  
+  if(String(location.hash).length > 1){
+  	// if on load we have a request, let this handle it 
+  	checkRelease(); // quirk?
+  }
+  window.addEventListener('hashchange', function() {
+  	checkRelease();
+  }, false);
+
   butClear.addEventListener('click', clickClear);
   butProgram.addEventListener('click', clickProgram);
-  for (let i = 0; i < firmware.length; i++) {
-    firmware[i].addEventListener('change', checkFirmware);
+  if(readyToFlash == 1){
+  	checkFirmware();
+  	checkProgrammable();
   }
-  for (let i = 0; i < offsets.length; i++) {
-    offsets[i].addEventListener('change', checkProgrammable);
-  }
+  debugConsole.addEventListener('click', clickDebugConsole);
   autoscroll.addEventListener('click', clickAutoscroll);
   baudRate.addEventListener('change', changeBaudRate);
   darkMode.addEventListener('click', clickDarkMode);
@@ -77,12 +104,60 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAllSettings();
   updateTheme();
   logMsg("WebSerial ESPTool loaded.");
-  downloadFirmware();
+  logMsg("Click on release of firmware you wish to load...");
 });
 
+async function checkRelease(){
+	let uhash = String(location.hash).toLowerCase().replace("#","").trim();
+  	var fhash="";
+  	console.log('User requested release ' + uhash);
+	switch(uhash) {
+	  case "dev":
+		// code block
+		fhash="dev";
+		break;
+	  case "custom":
+		fhash=String(prompt("At the direction of support, please enter a GitHub branch or tag to specify custom firmware to use. Only do this IF requested! (e.g. uitroubleshooting1)")).toLowerCase().trim();
+		if(fhash === ""){
+			alert("Invalid branch, aborting");
+		}
+		break;
+	  default:
+		fhash="master";
+		break;
+		// code block
+	}
+	if(fhash.length>1){
+		downloadFirmware(files,fhash);	
+	}
+}
 
-async function downloadFirmware() {
+async function downloadFirmware(files, branch="master") {
+  let url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware/"
+  let url = url_base + "/" + branch + "/firmware/"
 
+  // TODO: Need to have base for adjustments 
+  for (let i = 0; i < files.length; i++) {
+    let request_file = files[i];
+    console.log(url + request_file);
+	let tmp = await fetch(url + request_file).then((response) => {
+		if (response.status >= 400 && response.status < 600) {
+			logMsg("Error! Failed to fetch '" + request_file + "' due to error response " + response.status)
+	  		throw new Error("Bad response from server");
+		}
+		logMsg("Loaded online version of " + request_file + ". ")
+		return response.blob();
+	}).then((myblob)=>myblob).catch((error) => {
+		console.log(error)
+	});
+	blobs.push({
+		address: addresses[i],
+		//data: myblob,
+		name: request_file,
+		req: tmp,
+		data: ""
+	});
+  }
 }
 
 /**
@@ -107,9 +182,10 @@ function initBaudRate() {
   }
 }
 
-function updateProgress(part, percentage) {
-  let progressBar = progress[part].querySelector("div");
-  progressBar.style.width = percentage + "%";
+function updateProgress(segment, percentage) {
+  let part = (segment + 1.0) * (1/5) ;
+  let progressBar = progress[0].querySelector("div");
+  progressBar.style.width = (part * percentage) + "%";
 }
 
 /**
@@ -218,7 +294,17 @@ function updateTheme() {
   if (darkMode.checked) {
     enableStyleSheet(darkSS, true);
   } else {
-    enableStyleSheet(darkSS, true);
+    enableStyleSheet(darkSS, false);
+  }
+}
+
+function toggleDebugConsole(){
+  if (debugConsole.checked) {
+    log.classList.add('hidden');
+    saveSetting('debugConsole', false);
+  } else {
+    log.classList.remove('hidden');
+    saveSetting('debugConsole', autoscroll.checked);
   }
 }
 
@@ -259,18 +345,18 @@ async function clickConnect() {
       logMsg("Connected to " + await espTool.chipName());
       logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
       var flashWriteSize = espTool.getFlashWriteSize();
+      console.log(flashWriteSize);
+      console.log("Asdfasdfasfasdfas");
       logMsg("Flash Size: " + (flashWriteSize/1024) + " MB ");
       switch(flashWriteSize){
-        case 1024:
-          base_offset = `0xfc000`;     
-          break;
+      	case 1024:
+        	base_offset = `0xfc00`;     
+        	break;
         case 2048:
-          base_offset = `0x1fc000`;     
-          break;
+        	base_offset = `0x1fc000`;     
+        	break;
       }
-      espTool.setBaudrate(115200);
       espTool = await espTool.runStub();
-      
       if (baud != ESP_ROM_BAUD) {
         if (await espTool.chipType() == ESP32) {
           logMsg("WARNING: ESP32 is having issues working at speeds faster than 115200. Continuing at 115200 for now...")
@@ -286,6 +372,7 @@ async function clickConnect() {
     return;
   }
 }
+
 /**
  * @name changeBaudRate
  * Change handler for the Baud Rate selector.
@@ -300,12 +387,23 @@ async function changeBaudRate() {
   }
 }
 
+
+window.addEventListener('hashchange', function() {
+  console.log('user has requested ' + location.hash);
+  
+}, false);
+
+
 /**
  * @name clickAutoscroll
  * Change handler for the Autoscroll checkbox.
  */
 async function clickAutoscroll() {
   saveSetting('autoscroll', autoscroll.checked);
+}
+
+async function clickDebugConsole(){
+  toggleDebugConsole();
 }
 
 /**
@@ -317,101 +415,85 @@ async function clickDarkMode() {
   saveSetting('darkmode', darkMode.checked);
 }
 
-async function getFirmwareFiles(branch) {
-	let url_memmap = "https://raw.githubusercontent.com/O-MG/WebFlasher/main/assets/memmap.json";
-    let url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
-    
-    const readUploadedFileAsArrayBuffer = (inputFile) => {
-        const reader = new FileReader();
-
-        return new Promise((resolve, reject) => {
-            reader.onerror = () => {
-                reader.abort();
-                reject(new DOMException("Problem parsing input file."));
-            };
-
-            reader.onload = () => {
-                resolve(reader.result);
-            };
-            reader.readAsArrayBuffer(inputFile);
-        });
-    };
-    const getResourceMap = (url) => {
-		return fetch(url, {
-		  method: 'GET',
-		})
-		.then(function(response) {
-		  return response.json();
-		})
-		.then(function(data) {   
-		  return data;
-		})
-	};
-	
-    let url = url_base + "/" + branch + "/firmware/";
-    let files_raw = await getResourceMap(url_memmap);
-    let flash_list = []
-    // tmp
-    let chip_files = files_raw['2048'];
-    
-    for (let i = 0; i < chip_files.length; i++) {
-    	if(!("name" in chip_files[i]) || !("offset" in chip_files[i])){
-    		logMsg("Invalid data, cannot load online flash resources");
-    	}
-    	let request_file = url + chip_files[i]['name'];
-    	console.log(request_file)
-        let tmp = await fetch(request_file).then((response) => {
-            if (response.status >= 400 && response.status < 600) {
-                logMsg("Error! Failed to fetch '" + request_file + "' due to error response " + response.status)
-                throw new Error("Bad response from server");
-            }
-            logMsg("Loaded online version of " + request_file + ". ");
-            return response.blob();
-        }).then((myblob) => myblob).catch((error) => {
-            console.log(error)
-        });
-        if (tmp === undefined) {
-            // missing file
-            logMsg("Invalid file downloaded " + chip_files['name']);
-        } else {
-        	let contents = await readUploadedFileAsArrayBuffer(tmp);
-        	flash_list.push({
-        		'name': chip_files[i]['name'],
-        		'offset': chip_files[i]['offset'],
-        		'data': contents
-        	});
-        	console.log(contents);
-        	console.log("data recvs");
-        	console.log(flash_list);
-        }
-    }
-    return flash_list;
-}
-
+/**
+ * @name clickProgram
+ * Click handler for the program button.
+ */
 async function clickProgram() {
-  baudRate.disabled = true;
-  butProgram.disabled = false;
-  
-  // attempt to verify baud
-  //espTool.setBaudrate(115200);
-  
-  // and move on
-  let branch = String(document.querySelector('#branch').value);
-  let bins = await getFirmwareFiles(branch);
-  
-  for (let bin of bins) {
+  let firmware_files = getValidFiles();
+  let i = 0;
+  for (let file of getValidFiles()) {
+    progress[0].classList.remove("hidden");
+    contents = file.data;
+    offset = file.offset;
+    file = file.name;
     try {
-      let offset = parseInt(bin['offset'], 16);
-      let contents = bin['data'];
-      let name = bin['name'];
-      await espTool.flashData(contents, offset, name);
+      let offset = parseInt(offsets[file].value, 16);
+      logMsg("data offset: " + offset)
+      await espTool.flashData(contents, offset, file);
       await sleep(100);
+      logMsg("To run the new firmware, please reset your device.");
     } catch(e) {
+      console.log("error point");
       errorMsg(e);
     }
+    i++;
   }
-  logMsg("To run the new firmware, please reset your device.");
+  progress[0].classList.add("hidden");
+  progress[0].querySelector("div").style.width = "0";
   baudRate.disabled = false;
+  butProgram.disabled = getValidFiles().length == 0;
+}
+
+function getValidFiles() {
+  const readUploadedFileAsArrayBuffer = (inputFile) => {
+    const reader = new FileReader();
+
+    return new Promise((resolve, reject) => {
+      reader.onerror = () => {
+        reader.abort();
+        reject(new DOMException("Problem parsing input file."));
+      };
+
+      reader.onload = () => {
+        resolve(reader.result);
+      };
+      reader.readAsArrayBuffer(inputFile);
+    });
+  };
+  // Get a list of file and offsets
+  // This will be used to check if we have valid stuff
+  // and will also return a list of files to program
+  let validBlobs = [];
+  for (let i = 0; i < blobs.length; i++) {
+  	let offs = parseInt(blobs[i].value, 16);
+  	console.log(blobs[i])
+  	if(blobs[i].req === undefined){
+  		// missing file
+  	} else {
+		if (blobs[i].req.size > 0 && !offsets.includes(offs)) {
+		  firmware.push(blobs[i].name);
+		  offsets.push(offs);
+		  // actually store our data 
+		  let contents = readUploadedFileAsArrayBuffer(blobs[i].req);
+		  blobs[i].data = contents;
+		  console.log(blobs[i].data);
+		  validBlobs.push(blobs[i]);
+		}
+	}
+  }
+  if((validBlobs.length === blobs.length) && (blobs.length>=4)){
+  	readyToFlash=1;
+  }
+  return validBlobs;
+}
+
+/**
+ * @name checkProgrammable
+ * Check if the conditions to program the device are sufficient
+ */
+async function checkProgrammable() {
+  butProgram.disabled = getValidFiles().length == 0;
 }
 
 /**
@@ -419,22 +501,7 @@ async function clickProgram() {
  * Handler for firmware upload changes
  */
 async function checkFirmware(event) {
-  let filename = event.target.value.split("\\" ).pop();
-  let label = event.target.parentNode.querySelector("span");
-  let icon = event.target.parentNode.querySelector("svg");
-  if (filename != "") {
-    if (filename.length > 17) {
-      label.innerHTML = filename.substring(0, 14) + "&hellip;";
-    } else {
-      label.innerHTML = filename;
-    }
-    icon.classList.add("hidden");
-  } else {
-    label.innerHTML = "Choose a file&hellip;";
-    icon.classList.remove("hidden");
-  }
-
-  //await checkProgrammable();
+  await checkProgrammable();
 }
 
 /**
@@ -456,10 +523,8 @@ function convertJSON(chunk) {
 
 function toggleUIToolbar(show) {
   isConnected = show;
-  for (let i=0; i< 4; i++) {
-    progress[i].classList.add("hidden");
-    progress[i].querySelector("div").style.width = "0";
-  }
+  progress[0].classList.add("hidden");
+  progress[0].querySelector("div").style.width = "0";
   if (show) {
     appDiv.classList.add("connected");
   } else {
@@ -480,6 +545,7 @@ function toggleUIConnected(connected) {
 function loadAllSettings() {
   // Load all saved settings or defaults
   autoscroll.checked = loadSetting('autoscroll', true);
+  debugConsole.checked = loadSetting('debugConsole', true);
   baudRate.value = loadSetting('baudrate', baudRates[0]);
   darkMode.checked = loadSetting('darkmode', true);
 }
