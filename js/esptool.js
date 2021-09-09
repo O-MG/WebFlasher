@@ -45,7 +45,7 @@ const flashFreq = {
 
 const ESP_ROM_BAUD = 115200;
 const FLASH_WRITE_SIZE = 0x400;
-const STUBLOADER_FLASH_WRITE_SIZE = 0x4000;
+const STUBLOADER_FLASH_WRITE_SIZE = 0x400;
 const FLASH_SECTOR_SIZE = 0x1000;  // Flash sector size, minimum unit of erase.
 
 const SYNC_PACKET = toByteArray("\x07\x07\x12 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU");
@@ -925,7 +925,8 @@ class EspLoader {
     }
     let numBlocks = Math.floor((size + flashWriteSize - 1) / flashWriteSize);
     let eraseSize = this.getEraseSize(offset, size);
-
+	console.log("erase: "+ eraseSize);
+	console.log("writeBlocks: " + numBlocks);
     let timeout;
     if (this.IS_STUB) {
       timeout = DEFAULT_TIMEOUT;
