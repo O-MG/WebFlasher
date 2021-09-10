@@ -6,26 +6,6 @@ let inputStream;
 let outputStream;
 let inputBuffer = [];
 
-const esp8266FlashSizes = {
-    "512KB": 0x00,
-    "256KB": 0x10,
-    "1MB": 0x20,
-    "2MB": 0x30,
-    "4MB": 0x40,
-    "2MB-c1": 0x50,
-    "4MB-c1": 0x60,
-    "8MB": 0x80,
-    "16MB": 0x90,
-};
-
-const esp32FlashSizes = {
-    "1MB": 0x00,
-    "2MB": 0x10,
-    "4MB": 0x20,
-    "8MB": 0x30,
-    "16MB": 0x40
-};
-
 const flashMode = {
     'qio': 0,
     'qout': 1,
@@ -633,6 +613,35 @@ class EspLoader {
   getFlashWriteSize() {
       return FLASH_WRITE_SIZE;
   };
+  
+  async getFlashID(){ 
+
+      // try to read data if its unset
+      var lfuse;
+      if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
+        await this._readEfuses();
+        lfuse=this._efuses[3];
+      }
+      // try to read one more time before doing defaults
+      var mem_size;
+      if(lfuse===undefined){
+        mem_size=0x1;
+      } else {
+        mem_size = (lfuse&0xFF000000)>>24;
+      }
+      var bytes_size;
+      switch(mem_size){
+        case 0x4:
+            //STUBLOADER_FLASH_WRITE_SIZE=0x4000;
+            bytes_size = 4096;
+        break;
+        case 0x0:
+            //STUBLOADER_FLASH_WRITE_SIZE=0x400;
+            bytes_size = 1024;
+        break;
+      }
+      return bytes_size;
+  }
 
   async run_spiflash_command(spiflash_command, data, read_bits) {
     // SPI_USR register flags

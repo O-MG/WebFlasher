@@ -258,16 +258,9 @@ async function clickConnect() {
       let baud = parseInt(baudRate.value);
       logMsg("Connected to " + await espTool.chipName());
       logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
-      var flashWriteSize = espTool.getFlashWriteSize();
+      var flashWriteSize = await espTool.getFlashID();
+      console.log(flashWriteSize);
       logMsg("Flash Size: " + (flashWriteSize/1024) + " MB ");
-      switch(flashWriteSize){
-        case 1024:
-          base_offset = `0xfc000`;     
-          break;
-        case 2048:
-          base_offset = `0x1fc000`;     
-          break;
-      }
       espTool.setBaudrate(115200);
       espTool = await espTool.runStub();
       
@@ -351,9 +344,14 @@ async function getFirmwareFiles(branch) {
     let url = url_base + "/" + branch + "/firmware/";
     let files_raw = await getResourceMap(url_memmap);
     let flash_list = []
-    // tmp
+    let chip_flash_size = await espTool.getFlashID();
     let chip_files = files_raw['2048'];
-    
+    if(chip_flash_size in files_raw){
+    	console.log("flash size: " + chip_flash_size);
+    	chip_files = files_raw[chip_flash_size];
+    } else {
+    	logMsg("Error, invalid flash size found " + chip_flash_size);
+    }
     for (let i = 0; i < chip_files.length; i++) {
     	if(!("name" in chip_files[i]) || !("offset" in chip_files[i])){
     		logMsg("Invalid data, cannot load online flash resources");
