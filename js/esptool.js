@@ -617,11 +617,11 @@ class EspLoader {
   async getFlashID(){ 
 
       // try to read data if its unset
-      var lfuse;
       if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
         await this._readEfuses();
-        lfuse=this._efuses[3];
       }
+      let lfuse=this._efuses[3];
+      console.log(this._efuses);
       // try to read one more time before doing defaults
       var mem_size;
       if(lfuse===undefined){
@@ -629,11 +629,12 @@ class EspLoader {
       } else {
         mem_size = (lfuse&0xFF000000)>>24;
       }
+      console.log("detected memory is " + mem_size );
       var bytes_size;
       switch(mem_size){
         case 0x4:
             //STUBLOADER_FLASH_WRITE_SIZE=0x4000;
-            bytes_size = 4096;
+            bytes_size = 2048;
         break;
         case 0x0:
             //STUBLOADER_FLASH_WRITE_SIZE=0x400;
