@@ -218,7 +218,7 @@ function updateTheme() {
   if (darkMode.checked) {
     enableStyleSheet(darkSS, true);
   } else {
-    enableStyleSheet(darkSS, true);
+    enableStyleSheet(darkSS, false);
   }
 }
 
