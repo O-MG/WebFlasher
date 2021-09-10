@@ -389,14 +389,11 @@ async function getFirmwareFiles(branch) {
 async function clickProgram() {
   baudRate.disabled = true;
   butProgram.disabled = false;
-  
-  // attempt to verify baud
-  //espTool.setBaudrate(115200);
-  
+ 
   // and move on
   let branch = String(document.querySelector('#branch').value);
   let bins = await getFirmwareFiles(branch);
-  
+  logMsg("Flashing firmware based on code branch " + branch + ". ");
   for (let bin of bins) {
     try {
       let offset = parseInt(bin['offset'], 16);

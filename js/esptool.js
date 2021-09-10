@@ -562,7 +562,7 @@ class EspLoader {
   }
 
   async setBaudrate(baud) {
-    this.logMsg("Baud rate can only change on ESP32 and ESP32-S2");
+    this.logMsg("Baud rate set to 115200");
   };
 
   /**
