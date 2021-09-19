@@ -406,7 +406,7 @@ async function clickProgram() {
   // and move on
   let branch = String(document.querySelector('#branch').value);
   let bins = await getFirmwareFiles(branch);
-  console.llg(bins);
+  console.log(bins);
   logMsg("Flashing firmware based on code branch " + branch + ". ");
   for (let bin of bins) {
     try {
