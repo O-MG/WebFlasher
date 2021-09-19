@@ -12,6 +12,8 @@ const bufferSize = 512;
 const colors = ['#00a7e9', '#f89521', '#be1e2d'];
 const measurementPeriodId = '0001';
 
+const eraseFillByte = 0xee;
+
 const maxLogLength = 100;
 const log = document.getElementById('log');
 const butConnect = document.getElementById('butConnect');
@@ -33,6 +35,7 @@ let activePanels = [];
 let bytesReceived = 0;
 let currentBoard;
 let buttonState = 0;
+let debugState = false;
 
 document.addEventListener('DOMContentLoaded', () => {
   let debug = false;
@@ -40,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
   location.search.substr(1).split("&").forEach(function(item) {getParams[item.split("=")[0]] = item.split("=")[1]})
   if (getParams["debug"] !== undefined) {
     debug = getParams["debug"] == "1" || getParams["debug"].toLowerCase() == "true";
+    debugState = debug;
   }
 
   espTool = new EspLoader({
@@ -259,7 +263,6 @@ async function clickConnect() {
       logMsg("Connected to " + await espTool.chipName());
       logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
       var flashWriteSize = await espTool.getFlashID();
-      console.log(flashWriteSize);
       logMsg("Flash Size: " + (flashWriteSize/1024) + " MB ");
       espTool.setBaudrate(115200);
       espTool = await espTool.runStub();
@@ -310,7 +313,7 @@ async function clickDarkMode() {
   saveSetting('darkmode', darkMode.checked);
 }
 
-async function getFirmwareFiles(branch) {
+async function getFirmwareFiles(branch,erase=false,bytes=0x00) {
 	let url_memmap = "https://raw.githubusercontent.com/O-MG/WebFlasher/main/assets/memmap.json";
     let url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
     
@@ -347,7 +350,9 @@ async function getFirmwareFiles(branch) {
     let chip_flash_size = await espTool.getFlashID();
     let chip_files = files_raw['2048'];
     if(chip_flash_size in files_raw){
-    	console.log("flash size: " + chip_flash_size);
+    	if(debugState){
+	    	console.log("flash size: " + chip_flash_size);
+	    }
     	chip_files = files_raw[chip_flash_size];
     } else {
     	logMsg("Error, invalid flash size found " + chip_flash_size);
@@ -357,7 +362,9 @@ async function getFirmwareFiles(branch) {
     		logMsg("Invalid data, cannot load online flash resources");
     	}
     	let request_file = url + chip_files[i]['name'];
-    	console.log(request_file)
+    	if(debugState){
+    	    	console.log(request_file);
+    	}
         let tmp = await fetch(request_file).then((response) => {
             if (response.status >= 400 && response.status < 600) {
                 logMsg("Error! Failed to fetch '" + request_file + "' due to error response " + response.status)
@@ -373,14 +380,20 @@ async function getFirmwareFiles(branch) {
             logMsg("Invalid file downloaded " + chip_files['name']);
         } else {
         	let contents = await readUploadedFileAsArrayBuffer(tmp);
+        	let content_length = contents.byteLength;
+        	// if we want to "erase", we set this to be true
+        	if(erase){
+        		contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
+        	}
         	flash_list.push({
         		'name': chip_files[i]['name'],
         		'offset': chip_files[i]['offset'],
         		'data': contents
         	});
-        	console.log(contents);
-        	console.log("data recvs");
-        	console.log(flash_list);
+        	if(debugState){
+	        	console.log("data queried for flash");
+	        	console.log(flash_list);
+	        }
         }
     }
     return flash_list;
@@ -393,7 +406,32 @@ async function clickProgram() {
   // and move on
   let branch = String(document.querySelector('#branch').value);
   let bins = await getFirmwareFiles(branch);
+  console.llg(bins);
   logMsg("Flashing firmware based on code branch " + branch + ". ");
+  for (let bin of bins) {
+    try {
+      let offset = parseInt(bin['offset'], 16);
+      let contents = bin['data'];
+      let name = bin['name'];
+      await espTool.flashData(contents, offset, name);
+      await sleep(1000);
+    } catch(e) {
+      errorMsg(e);
+    }
+  }
+  logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
+  baudRate.disabled = false;
+}
+
+async function clickErase() {
+  baudRate.disabled = true;
+  butProgram.disabled = false;
+ 
+  // and move on
+  let branch = String(document.querySelector('#branch').value);
+  let bins = await getFirmwareFiles(branch,true,eraseFillByte);
+  console.log(bins);
+  logMsg("Erasing based on block sizes based on code branch " + branch + " with " + eraseFillByte);
   for (let bin of bins) {
     try {
       let offset = parseInt(bin['offset'], 16);
@@ -405,9 +443,10 @@ async function clickProgram() {
       errorMsg(e);
     }
   }
-  logMsg("To run the new firmware, please reset your device.");
-  baudRate.disabled = false;
+  logMsg("Erasing complete, please continue with flash process after cycling");
 }
+
+
 
 /**
  * @name checkFirmware
