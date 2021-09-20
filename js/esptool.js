@@ -6,43 +6,6 @@ let inputStream;
 let outputStream;
 let inputBuffer = [];
 
-const esp8266FlashSizes = {
-    "512KB": 0x00,
-    "256KB": 0x10,
-    "1MB": 0x20,
-    "2MB": 0x30,
-    "4MB": 0x40,
-    "2MB-c1": 0x50,
-    "4MB-c1": 0x60,
-    "8MB": 0x80,
-    "16MB": 0x90,
-};
-
-const esp32FlashSizes = {
-    "1MB": 0x00,
-    "2MB": 0x10,
-    "4MB": 0x20,
-    "8MB": 0x30,
-    "16MB": 0x40
-};
-
-const flashMode = {
-    'qio': 0,
-    'qout': 1,
-    'dio': 2,
-    'dout': 3
-};
-
-const flashFreq = {
-    '40m': 0,
-    '80m': 0xf
-}
-
-// Defaults
-// Flash Frequency: 40m
-// Flash Mode: qio
-// Flash Size: 1MB
-
 const ESP_ROM_BAUD = 115200;
 const FLASH_WRITE_SIZE = 0x400;
 const STUBLOADER_FLASH_WRITE_SIZE = 0x4000;
