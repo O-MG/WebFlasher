@@ -260,6 +260,8 @@ async function clickConnect() {
       toggleUIToolbar(true);
       appDiv.classList.add("connected");
       let baud = parseInt(baudRate.value);
+      // get our chip info 
+      await espTool.chipType();
       logMsg("Connected to " + await espTool.chipName());
       logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
       var flashWriteSize = await espTool.getFlashID();
