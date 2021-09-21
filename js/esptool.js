@@ -665,6 +665,20 @@ class EspLoader {
       return (0x1000*mem_size);
   }
   
+  async getFlashMB(){ 
+      let size = this.getFlashID();
+      switch(size){
+      
+      	case (0x1000*0x4):
+      		return "2MB";
+      		break;
+      	case (0x1000*0x1):
+      		return "1MB";
+      		break
+      }
+  }
+  
+
   /**
    * @name getFlashWriteSize
    * Get the Flash write size based on the chip

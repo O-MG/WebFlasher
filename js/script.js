@@ -264,8 +264,8 @@ async function clickConnect() {
       await espTool.chipType();
       logMsg("Connected to " + await espTool.chipName());
       logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
-      var flashWriteSize = await espTool.getFlashID();
-      logMsg("Flash Size: " + (flashWriteSize/1024) + " MB ");
+      var flashWriteSize = espTool.getFlashMB();
+      logMsg("Flash Size: " + flashWriteSize);
       espTool.setBaudrate(115200);
       espTool = await espTool.runStub();
       
