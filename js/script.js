@@ -261,12 +261,12 @@ async function clickConnect() {
       appDiv.classList.add("connected");
       let baud = parseInt(baudRate.value);
       // get our chip info 
-      await espTool.chipType();
+     
       logMsg("Connected to " + await espTool.chipName());
       logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
-      var flashWriteSize = espTool.getFlashMB();
+      var flashWriteSize = await espTool.getFlashMB();
       logMsg("Flash Size: " + flashWriteSize);
-      espTool.setBaudrate(115200);
+      //espTool.setBaudrate(115200);
       espTool = await espTool.runStub();
       
       if (baud != ESP_ROM_BAUD) {

@@ -81,14 +81,11 @@ const magicValues = {
 class EspLoader {
   constructor(params) {
     this._chipfamily = null;
+    this._flash_size = 4*1024*1024;
     this.readTimeout = 3000;  // Arbitrary number for now. This should be set more dynamically in the sendCommand function
     this._efuses = new Array(4).fill(0);
     this._flashsize = 4 * 1024 * 1024;
-    if (this.isFunction(params.updateProgress)) {
-      this.updateProgress = params.updateProgress
-    } else {
-      this.updateProgress = null
-    }
+    this.updateProgress = null;
 
     if (this.isFunction(params.logMsg)) {
       this.logMsg = params.logMsg
@@ -649,26 +646,31 @@ class EspLoader {
 
   async getFlashID(){ 
       // try to read data if its unset
-      if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
-        await this._readEfuses();
-      }
-      let lfuse=this._efuses[3];
-      console.log(this._efuses);
-      // try to read one more time before doing defaults
-      var mem_size;
-      if(lfuse===undefined){
-        mem_size=0x1;
-      } else {
-        mem_size = (lfuse&0xFF000000)>>24;
-      }
-      console.log("detected memory is " + mem_size );
-      return (0x1000*mem_size);
+      if(!this._flash_size){
+		  if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
+			//await this._readEfuses();
+			console.log("error unable to fetch chip id");
+		  }
+		  let lfuse=this._efuses[3];
+		  console.log(this._efuses);
+		  // try to read one more time before doing defaults
+		  var mem_size;
+		  if(lfuse===undefined){
+			mem_size=0x1;
+		  } else {
+			mem_size = (lfuse&0xFF000000)>>24;
+		  }
+	  this._flashsize = 1024*1024*mem_size;
+	  this._flash_size = (0x1000*mem_size);
+	}
+	let m = this._flashsize;
+	console.log("detected memory is " + m);
+    return (0x1000*m);
   }
   
   async getFlashMB(){ 
-      let size = this.getFlashID();
+      let size = await this.getFlashID();
       switch(size){
-      
       	case (0x1000*0x4):
       		return "2MB";
       		break;
