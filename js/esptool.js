@@ -81,11 +81,15 @@ const magicValues = {
 class EspLoader {
   constructor(params) {
     this._chipfamily = null;
-    this._flash_size = 4*1024*1024;
+    this._flash_size;
     this.readTimeout = 3000;  // Arbitrary number for now. This should be set more dynamically in the sendCommand function
     this._efuses = new Array(4).fill(0);
     this._flashsize = 4 * 1024 * 1024;
-    this.updateProgress = null;
+    if (this.isFunction(params.updateProgress)) {
+      this.updateProgress = params.updateProgress
+    } else {
+      this.updateProgress = null;
+    }
 
     if (this.isFunction(params.logMsg)) {
       this.logMsg = params.logMsg
@@ -372,8 +376,9 @@ class EspLoader {
    * output stream.
    */
   async connect() {
-    // - Request a port and open a connection.
-    port = await navigator.serial.requestPort();
+    // - Request a port and open a connection.=
+    const filter = { usbVendorId: 0x10c4 };
+    port = await navigator.serial.requestPort({ filters: [filter] });
 
     // - Wait for the port to open.toggleUIConnected
     if (this.getChromeVersion() < 86) {
@@ -677,6 +682,9 @@ class EspLoader {
       	case (0x1000*0x1):
       		return "1MB";
       		break
+      	case 0x0:
+      		return "1MB";
+      		break
       }
   }
   
@@ -706,8 +714,8 @@ class EspLoader {
     let address = offset;
     let position = 0;
     let stamp = Date.now();
-    let flashWriteSize = await this.getFlashWriteSize();
-
+    let flashWriteSize = this._flashsize;
+    
     while (filesize - position > 0) {
       let percentage = Math.floor(100 * (seq + 1) / blocks);
       this.logMsg(
