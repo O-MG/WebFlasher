@@ -3,7 +3,7 @@
 /* global EspLoader, ESP_ROM_BAUD, port, reader, inputBuffer */
 'use strict';
 
-let espTool;
+var espTool;
 let isConnected = false;
 
 const baudRates = [115200];
@@ -261,11 +261,13 @@ async function clickConnect() {
       appDiv.classList.add("connected");
       let baud = parseInt(baudRate.value);
       // get our chip info 
-     
       logMsg("Connected to " + await espTool.chipName());
+      console.log(espTool);
       logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
-      var flashWriteSize = await espTool.getFlashMB();
-      logMsg("Flash Size: " + flashWriteSize);
+      console.log(espTool);
+      var flashSize = await espTool.getFlashMB();
+      logMsg("Flash Size: " + flashSize);
+      console.log(espTool);
       //espTool.setBaudrate(115200);
       espTool = await espTool.runStub();
       
@@ -277,12 +279,14 @@ async function clickConnect() {
         }
       }
     }
+    console.log(espTool);
   } catch(e) {
     errorMsg(e);
     await disconnect();
     toggleUIConnected(false);
     return;
   }
+console.log(espTool);
 }
 /**
  * @name changeBaudRate
@@ -350,7 +354,7 @@ async function getFirmwareFiles(branch,erase=false,bytes=0x00) {
     let files_raw = await getResourceMap(url_memmap);
     let flash_list = []
     let chip_flash_size = await espTool.getFlashID();
-    let chip_files = files_raw['2048'];
+    let chip_files = files_raw[chip_flash_size];
     if(chip_flash_size in files_raw){
     	if(debugState){
 	    	console.log("flash size: " + chip_flash_size);
