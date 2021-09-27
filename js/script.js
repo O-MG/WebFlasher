@@ -270,7 +270,10 @@ async function clickConnect() {
       console.log(espTool);
       //espTool.setBaudrate(115200);
       espTool = await espTool.runStub();
-      
+      // annoyingly we have to run this again after initial setting
+      await espTool.chipType();
+      await espTool.chipName();
+      // and proceed 
       if (baud != ESP_ROM_BAUD) {
         if (await espTool.chipType() == ESP32) {
           logMsg("WARNING: ESP32 is having issues working at speeds faster than 115200. Continuing at 115200 for now...")
