@@ -12,7 +12,7 @@ const bufferSize = 512;
 const colors = ['#00a7e9', '#f89521', '#be1e2d'];
 const measurementPeriodId = '0001';
 
-const eraseFillByte = 0xee;
+const eraseFillByte = 0x00;
 
 const maxLogLength = 100;
 const log = document.getElementById('log');
@@ -422,6 +422,11 @@ async function clickProgram() {
       let offset = parseInt(bin['offset'], 16);
       let contents = bin['data'];
       let name = bin['name'];
+      // erase
+      
+      //contents = ((new Uint8Array(contents.byteLength)).fill(0x00)).buffer;
+      //await espTool.flashData(contents, offset, name); 
+      // write
       await espTool.flashData(contents, offset, name);
       await sleep(1000);
     } catch(e) {
@@ -430,6 +435,11 @@ async function clickProgram() {
   }
   logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
   baudRate.disabled = false;
+}
+
+async function eraseSection(offset,ll=1024,b=0x00){
+	let contents = ((new Uint8Array(ll)).fill(b)).buffer;
+    return await espTool.flashData(contents, offset, 'blank.bin'); 
 }
 
 async function clickErase() {
