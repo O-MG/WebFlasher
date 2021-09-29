@@ -89,3 +89,9 @@ input {
 .progress-bar {
   border-color: #fff;
 }
+
+#log {
+  background-color:#000;
+  color:#cecece;
+  border: 20px solid #000;
+}
