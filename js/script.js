@@ -437,7 +437,7 @@ async function clickProgram() {
   baudRate.disabled = false;
 }
 
-async function eraseSection(offset,ll=1024,b=0x00){
+async function eraseSection(offset,ll=1024,b=0xff){
 	let contents = ((new Uint8Array(ll)).fill(b)).buffer;
     return await espTool.flashData(contents, offset, 'blank.bin'); 
 }
