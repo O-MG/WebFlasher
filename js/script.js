@@ -41,6 +41,24 @@ let doPreWriteErase = true;
 const url_memmap = "assets/memmap.json";
 const url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
 
+
+// sourced from
+// https://codereview.stackexchange.com/questions/20136/uint8array-indexof-method-that-allows-to-search-for-byte-sequences
+Uint8Array.prototype.indexOfString = function(searchElements, fromIndex) {
+    fromIndex = fromIndex || 0;
+    var index = Array.prototype.indexOf.call(this, searchElements[0], fromIndex);
+    if(searchElements.length === 1 || index === -1) {
+        return index;
+    }
+    for(var i = index, j = 0; j < searchElements.length && i < this.length; i++, j++) {
+        if(this[i] !== searchElements[j]) {
+            return this.indexOfString(searchElements, index + 1);
+        }
+    }
+    return (i === index + searchElements.length) ? index : -1;
+};
+
+
 document.addEventListener('DOMContentLoaded', () => {
     let debug = false;
     var getParams = {}
@@ -88,13 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAllSettings();
     updateTheme();
     logMsg("WebSerial ESPTool loaded.");
-    downloadFirmware();
 });
 
 
-async function downloadFirmware() {
 
-}
+
 
 /**
  * @name connect
@@ -432,18 +448,27 @@ async function clickProgram() {
     let branch = String(document.querySelector('#branch').value);
     let bins = await getFirmwareFiles(branch);
     if (debugState) {
-        console.log("debug memory dump");
+        console.log("debug orig memory dump");
         console.log(bins);
     }
+    logMsg("Flashing firmware based on code branch " + branch + ". ");
     // erase 
     if (doPreWriteErase) {
+    	logMsg("Erasing flash before performing writes. This may take some time... ");
         if (debugState) {
             console.log("performing flash erase before writing");
         }
         await eraseFlash();
+        logMsg("Erasing complete, continuing with flash process");
     }
+    // update the bins with patching
+    logMsg("Attempting to perform bit-patching on firmware");
+    bins = await patchFlash(bins);
+    if (debugState) {
+        console.log("debug patched memory dump");
+        console.log(bins);
+    }    
     // continue
-    logMsg("Flashing firmware based on code branch " + branch + ". ");
     for (let bin of bins) {
         try {
             let offset = parseInt(bin['offset'], 16);
@@ -460,6 +485,45 @@ async function clickProgram() {
     baudRate.disabled = false;
 }
 
+async function patchFlash(bin_list){
+	// only work on lists
+	const findBase330 = (orig_data,search,replacement) => {
+		mod_array = new Uint8Array(orig_data);
+		let pos = mod_array.indexOfString(search);
+		if(pos>-1){
+			if(debugState){
+				console.log("found match at " + pos + " for data ");
+				console.log(orig_data);
+				console.log(search);
+			}
+			let re_pos = 0;
+			for (let i = pos; i < pos+replacement.length; i++){
+				mod_array[i]=replacement[re_pos];
+				re_pos+=1;
+			}
+			// reset again just in case? 
+			re_pos=0;
+		}
+		// and send back
+		return mod_array.buffer;
+	}
+	// not the most elegant way of doing things 
+	if(debugState){
+		console.log("original data");
+		console.log(bin_list);
+	}
+	for(let i = 0; i<bin_list.length;i++){
+		let orig_bin = bin_list[i];
+		if(debugState){
+			console.log("found matching binary at write offset " +  orig_bin.offset + " with file name " + orig_bin.name);
+		}
+		if(orig_bin.offset == '0x00000'){
+			// replace the data
+			bin_list[i].data = findBase330(orig_bin.data,[0,32],[3,30]);
+		}
+	}
+	return bin_list
+}
 
 async function eraseFlash() {
     await eraseSection(0x00000, 1022976, 0xff);
