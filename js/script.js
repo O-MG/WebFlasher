@@ -527,7 +527,7 @@ async function patchFlash(bin_list){
 
 async function eraseFlash() {
     await eraseSection(0x00000, 1022976, 0xff);
-    await eraseSection(0x1fcf0d, 966910, 0x00);
+    //await eraseSection(0x1fcf0d, 966910, 0x00);
 }
 
 async function eraseSection(offset, ll = 1024, b = 0xff) {
