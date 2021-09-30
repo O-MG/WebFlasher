@@ -320,6 +320,7 @@ class EspLoader {
     }
 
     if (data === null || data.length < statusLen) {
+      this.logMsg("Error, flashing failed, please reload web page and try again");
       throw("Didn't get enough status bytes");
     }
     let status = data.slice(-statusLen, data.length);

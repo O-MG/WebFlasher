@@ -488,7 +488,7 @@ async function clickProgram() {
 async function patchFlash(bin_list){
 	// only work on lists
 	const findBase330 = (orig_data,search,replacement) => {
-		mod_array = new Uint8Array(orig_data);
+		let mod_array = new Uint8Array(orig_data);
 		let pos = mod_array.indexOfString(search);
 		if(pos>-1){
 			if(debugState){
