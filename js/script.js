@@ -416,16 +416,15 @@ async function clickProgram() {
   let branch = String(document.querySelector('#branch').value);
   let bins = await getFirmwareFiles(branch);
   console.log(bins);
+  // erase 
+  await eraseFlash();
+  // continue
   logMsg("Flashing firmware based on code branch " + branch + ". ");
   for (let bin of bins) {
     try {
       let offset = parseInt(bin['offset'], 16);
       let contents = bin['data'];
       let name = bin['name'];
-      // erase
-      
-      //contents = ((new Uint8Array(contents.byteLength)).fill(0x00)).buffer;
-      //await espTool.flashData(contents, offset, name); 
       // write
       await espTool.flashData(contents, offset, name);
       await sleep(1000);
@@ -435,6 +434,12 @@ async function clickProgram() {
   }
   logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
   baudRate.disabled = false;
+}
+
+
+async function eraseFlash() {
+	await eraseSection(0x00000,1022976,0xff);
+	await eraseSection(0x1fcf0d,966910,0x00);
 }
 
 async function eraseSection(offset,ll=1024,b=0xff){
