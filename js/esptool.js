@@ -6,27 +6,10 @@ let inputStream;
 let outputStream;
 let inputBuffer = [];
 
-const flashMode = {
-    'qio': 0,
-    'qout': 1,
-    'dio': 2,
-    'dout': 3
-};
-
-const flashFreq = {
-    '40m': 0,
-    '80m': 0xf
-}
-
-// Defaults
-// Flash Frequency: 40m
-// Flash Mode: qio
-// Flash Size: 1MB
-
 const ESP_ROM_BAUD = 115200;
 const FLASH_WRITE_SIZE = 0x400;
-const STUBLOADER_FLASH_WRITE_SIZE = 0x400;
-const FLASH_SECTOR_SIZE = 0x400;  // Flash sector size, minimum unit of erase.
+const STUBLOADER_FLASH_WRITE_SIZE = 0x4000;
+const FLASH_SECTOR_SIZE = 0x1000;  // Flash sector size, minimum unit of erase.
 
 const SYNC_PACKET = toByteArray("\x07\x07\x12 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU");
 const CHIP_DETECT_MAGIC_REG_ADDR = 0x40001000;
@@ -47,10 +30,6 @@ const ESP_MEM_DATA = 0x07;
 const ESP_SYNC = 0x08;
 const ESP_WRITE_REG = 0x09;
 const ESP_READ_REG = 0x0A;
-
-const SPI_REG_BASE = 0x60000200;
-const SPI_W0_OFFS = 0x40;
-const SPI_HAS_MOSI_DLEN_REG = false;
 
 // Some comands supported by ESP32 ROM bootloader (or -8266 w/ stub)
 const ESP_SPI_SET_PARAMS = 0x0B;
@@ -93,12 +72,15 @@ const MEM_END_ROM_TIMEOUT = 500;
 
 
 const magicValues = {
-    "ESP8266": { "chipId": ESP8266, "magicVal": 0xfff0c101}}
+    "ESP8266": { "chipId": ESP8266, "magicVal": 0xfff0c101},
+    "ESP32":  { "chipId": ESP32, "magicVal": 0x00f01d83},
+    "ESP32S2": { "chipId": ESP32S2, "magicVal": 0x000007c6}
+}
 
 
 class EspLoader {
   constructor(params) {
-    this._chipfamily = ESP8266;
+    this._chipfamily = null;
     this.readTimeout = 3000;  // Arbitrary number for now. This should be set more dynamically in the sendCommand function
     this._efuses = new Array(4).fill(0);
     this._flashsize = 4 * 1024 * 1024;
@@ -171,23 +153,40 @@ class EspLoader {
     let mac2 = this._efuses[2];
     let mac3 = this._efuses[3];
     let oui;
+    if (this._chipfamily == ESP8266) {
+      if (mac3 != 0) {
+        oui = [(mac3 >> 16) & 0xFF, (mac3 >> 8) & 0xFF, mac3 & 0xFF];
+      } else if (((mac1 >> 16) & 0xFF) == 0) {
+        oui = [0x18, 0xFE, 0x34];
+      } else if (((mac1 >> 16) & 0xFF) == 1) {
+        oui = [0xAC, 0xD0, 0x74];
+      } else {
+        throw("Couldnt determine OUI");
+      }
 
-    if (mac3 != 0) {
-      oui = [(mac3 >> 16) & 0xFF, (mac3 >> 8) & 0xFF, mac3 & 0xFF];
-    } else if (((mac1 >> 16) & 0xFF) == 0) {
-      oui = [0x18, 0xFE, 0x34];
-    } else if (((mac1 >> 16) & 0xFF) == 1) {
-      oui = [0xAC, 0xD0, 0x74];
+      macAddr[0] = oui[0];
+      macAddr[1] = oui[1];
+      macAddr[2] = oui[2];
+      macAddr[3] = (mac1 >> 8) & 0xFF;
+      macAddr[4] = mac1 & 0xFF;
+      macAddr[5] = (mac0 >> 24) & 0xFF;
+    } else if (this._chipfamily == ESP32) {
+      macAddr[0] = mac2 >> 8 & 0xFF;
+      macAddr[1] = mac2 & 0xFF;
+      macAddr[2] = mac1 >> 24 & 0xFF;
+      macAddr[3] = mac1 >> 16 & 0xFF;
+      macAddr[4] = mac1 >> 8 & 0xFF;
+      macAddr[5] = mac1 & 0xFF;
+    } else if (this._chipfamily == ESP32S2) {
+      macAddr[0] = mac2 >> 8 & 0xFF;
+      macAddr[1] = mac2 & 0xFF;
+      macAddr[2] = mac1 >> 24 & 0xFF;
+      macAddr[3] = mac1 >> 16 & 0xFF;
+      macAddr[4] = mac1 >> 8 & 0xFF;
+      macAddr[5] = mac1 & 0xFF;
     } else {
-      throw("Couldnt determine OUI");
+      throw("Unknown chip family")
     }
-
-    macAddr[0] = oui[0];
-    macAddr[1] = oui[1];
-    macAddr[2] = oui[2];
-    macAddr[3] = (mac1 >> 8) & 0xFF;
-    macAddr[4] = mac1 & 0xFF;
-    macAddr[5] = (mac0 >> 24) & 0xFF;
     return macAddr;
   };
 
@@ -203,7 +202,15 @@ class EspLoader {
    */
   async _readEfuses() {
     let baseAddr
-    baseAddr = 0x3FF00050;
+    if (this._chipfamily == ESP8266) {
+      baseAddr = 0x3FF00050;
+    } else if (this._chipfamily == ESP32) {
+      baseAddr = 0x3FF5A000;
+    } else if (this._chipfamily == ESP32S2) {
+      baseAddr = 0x6001A000;
+    } else {
+      throw("Don't know what chip this is");
+    }
     for (let i = 0; i < 4; i++) {
       this._efuses[i] = await this.readRegister(baseAddr + 4 * i);
     }
@@ -244,7 +251,10 @@ class EspLoader {
    * ESP32 or ESP8266 based on which chip type we're talking to
    */
   async chipType() {
-    return ESP8266;
+    if (this._chipfamily === null) {
+      this._chipfamily = await this.detectChip()
+    }
+    return this._chipfamily;
   };
 
 
@@ -269,6 +279,12 @@ class EspLoader {
     let chipType = await this.chipType();
     await this._readEfuses();
 
+    if (chipType == ESP32) {
+      return "ESP32";
+    }
+    if (chipType == ESP32S2) {
+      return "ESP32-S2";
+    }
     if (chipType == ESP8266) {
       if (this._efuses[0] & (1 << 4) || this._efuses[2] & (1 << 16)) {
         return "ESP8285";
@@ -290,10 +306,21 @@ class EspLoader {
     let [value, data] = await this.getResponse(opcode, timeout);
     let statusLen;
     if (data !== null) {
-      statusLen = 2;
+      if (this.IS_STUB) {
+          statusLen = 2;
+      } else if (this._chipfamily == ESP8266) {
+          statusLen = 2;
+      } else if ([ESP32, ESP32S2].includes(this._chipfamily)) {
+          statusLen = 4;
+      } else {
+          if ([2, 4].includes(data.length)) {
+              statusLen = data.length;
+          }
+      }
     }
 
     if (data === null || data.length < statusLen) {
+      this.logMsg("Error, flashing failed, please reload web page and try again");
       throw("Didn't get enough status bytes");
     }
     let status = data.slice(-statusLen, data.length);
@@ -350,8 +377,7 @@ class EspLoader {
    */
   async connect() {
     // - Request a port and open a connection.
-    const filter = { usbVendorId: 0x10c4 };
-    port = await navigator.serial.requestPort({ filters: [filter] });
+    port = await navigator.serial.requestPort();
 
     // - Wait for the port to open.toggleUIConnected
     if (this.getChromeVersion() < 86) {
@@ -562,7 +588,23 @@ class EspLoader {
   }
 
   async setBaudrate(baud) {
-    this.logMsg("Baud rate set to 115200");
+    if (this._chipfamily == ESP8266) {
+      this.logMsg("Baud rate can only change on ESP32 and ESP32-S2");
+    } else {
+      this.logMsg("Attempting to change baud rate to " + baud + "...");
+      try {
+        // stub takes the new baud rate and the old one
+        let oldBaud = this.IS_STUB ? this.getPortBaudRate() : 0;
+        let buffer = struct.pack("<II", baud, oldBaud);
+        await this.checkCommand(ESP_CHANGE_BAUDRATE, buffer);
+        this.setPortBaudRate(baud);
+        await this.sleep(50);
+        //inputBuffer = [];
+        this.logMsg("Changed baud rate to " + baud);
+      } catch (e) {
+        throw("Unable to change the baud rate, please try setting the connection speed from " + baud + " to 115200 and reconnecting.");
+      }
+    }
   };
 
   /**
@@ -606,198 +648,59 @@ class EspLoader {
     return false;
   };
 
+  async getFlashID(){ 
+      // try to read data if its unset
+      if(!this._flash_size){
+      	console.log(this)
+		  if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
+			//await this._readEfuses();
+			console.log("error unable to fetch chip id");
+		  }
+		  let lfuse=this._efuses[3];
+		  console.log(this._efuses);
+		  // try to read one more time before doing defaults
+		  var mem_size;
+		  if(lfuse===undefined){
+			mem_size=0x0;
+		  } else {
+			mem_size = (lfuse&0xFF000000)>>24;
+		  }
+		let calculated_mem = 1;
+		switch(mem_size){
+			case (0x4):
+				calculated_mem = 2;
+				break;
+			case (0x1):
+			case (0x0):
+				calculated_mem = 1;
+				break;
+		}
+		this._flash_size = (0x400*calculated_mem);
+		this._flashsize = (1024*1024*calculated_mem);
+		// initial set
+		//FLASH_WRITE_SIZE=this._flash_size;
+		//STUBLOADER_FLASH_WRITE_SIZE=this._flash_size;
+		//FLASH_SECTOR_SIZE=this._flash_size;
+	}
+	let m = this._flash_size;
+	console.log("detected memory is " + m);
+    return m;
+  }
+  
+  async getFlashMB(){
+  	let flash_id = await this.getFlashID();
+  	return (flash_id/1024) + " MB";
+  }
+
   /**
    * @name getFlashWriteSize
    * Get the Flash write size based on the chip
    */
   getFlashWriteSize() {
-      return FLASH_WRITE_SIZE;
+      return this.getFlashID();
   };
   
-  async getFlashID(){ 
 
-      // try to read data if its unset
-      if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
-        await this._readEfuses();
-      }
-      let lfuse=this._efuses[3];
-      console.log(this._efuses);
-      // try to read one more time before doing defaults
-      var mem_size;
-      if(lfuse===undefined){
-        mem_size=0x1;
-      } else {
-        mem_size = (lfuse&0xFF000000)>>24;
-      }
-      console.log("detected memory is " + mem_size );
-      var bytes_size;
-      switch(mem_size){
-        case 0x4:
-            //STUBLOADER_FLASH_WRITE_SIZE=0x4000;
-            bytes_size = 2048;
-        break;
-        case 0x0:
-            //STUBLOADER_FLASH_WRITE_SIZE=0x400;
-            bytes_size = 1024;
-        break;
-      }
-      return bytes_size;
-  }
-
-  async run_spiflash_command(spiflash_command, data, read_bits) {
-    // SPI_USR register flags
-    var SPI_USR_COMMAND = (1 << 31);
-    var SPI_USR_MISO    = (1 << 28);
-    var SPI_USR_MOSI    = (1 << 27);
-
-    // SPI registers, base address differs ESP32* vs 8266
-    var base = this.SPI_REG_BASE;
-    var SPI_CMD_REG = base + 0x00;
-    var SPI_USR_REG       = base + this.SPI_USR_OFFS;
-    var SPI_USR1_REG      = base + this.SPI_USR1_OFFS;
-    var SPI_USR2_REG      = base + this.SPI_USR2_OFFS;
-    var SPI_W0_REG        = base + this.SPI_W0_OFFS;
-
-    var set_data_lengths;
-    if (this.SPI_MOSI_DLEN_OFFS != null) {
-      set_data_lengths = async(mosi_bits, miso_bits) => {
-        var SPI_MOSI_DLEN_REG = base + this.SPI_MOSI_DLEN_OFFS;
-        var SPI_MISO_DLEN_REG = base + this.SPI_MISO_DLEN_OFFS;
-        if (mosi_bits > 0) {
-          await this.writeRegister(SPI_MOSI_DLEN_REG, (mosi_bits - 1));
-        }
-        if (miso_bits > 0) {
-          await this.writeRegister(SPI_MISO_DLEN_REG, (miso_bits - 1));
-        }
-      };
-    } else {
-      set_data_lengths = async(mosi_bits, miso_bits) => {
-        var SPI_DATA_LEN_REG = SPI_USR1_REG;
-        var SPI_MOSI_BITLEN_S = 17;
-        var SPI_MISO_BITLEN_S = 8;
-        let mosi_mask = (mosi_bits === 0) ? 0 : (mosi_bits - 1);
-        let miso_mask = (miso_bits === 0) ? 0 : (miso_bits - 1);
-        var val = (miso_mask << SPI_MISO_BITLEN_S) | (mosi_mask << SPI_MOSI_BITLEN_S);
-        await this.writeRegister(SPI_DATA_LEN_REG, val);
-      };
-    }
-
-    var SPI_CMD_USR  = (1 << 18);
-    var SPI_USR2_COMMAND_LEN_SHIFT = 28;
-    if(read_bits > 32) {
-      throw "Reading more than 32 bits back from a SPI flash operation is unsupported";
-    }
-    if (data.length > 64) {
-      throw "Writing more than 64 bytes of data with one SPI command is unsupported";
-    }
-
-    var data_bits = data.length * 8;
-    var old_spi_usr = await this.readRegister(SPI_USR_REG);
-    var old_spi_usr2 = await this.readRegister(SPI_USR2_REG);
-    var flags = SPI_USR_COMMAND;
-    var i;
-    if (read_bits > 0) {
-      flags |= SPI_USR_MISO;
-    }
-    if (data_bits > 0) {
-      flags |= SPI_USR_MOSI;
-    }
-    await set_data_lengths(data_bits, read_bits);
-    await this.writeRegister(SPI_USR_REG, flags);
-    var val = (7 << SPI_USR2_COMMAND_LEN_SHIFT) | spiflash_command;
-    await this.writeRegister(SPI_USR2_REG, val);
-    if (data_bits == 0) {
-      await this.writeRegister(SPI_W0_REG, 0);
-    } else {
-      if (data.length % 4 != 0) {
-        var padding = new Uint8Array(data.length % 4);
-        data = this._appendArray(data, padding);
-      }
-      var next_reg = SPI_W0_REG;
-      for (i = 0 ; i < data.length - 4; i+=4) {
-        val = this._bytearray_to_int(data[i], data[i+1], data[i+2], data[i+3]);
-        await this.writeRegister(next_reg, val);
-        next_reg += 4;
-      }
-    }
-    await this.writeRegister(SPI_CMD_REG, SPI_CMD_USR);
-    for (i = 0; i < 10; i++) {
-      val = await this.readRegister(SPI_CMD_REG) & SPI_CMD_USR;
-      if (val == 0) {
-        break;
-      }
-    }
-    if (i === 10) {
-      throw "SPI command did not complete in time";
-    }
-    var stat = await this.readRegister(SPI_W0_REG);
-    await this.writeRegister(SPI_USR_REG, old_spi_usr);
-    await this.writeRegister(SPI_USR2_REG, old_spi_usr2);
-    return stat;
-  }
-
-  async read_flash_id() {
-    var SPIFLASH_RDID = 0x9F;
-    var pkt = new Uint8Array(0);
-    return await this.run_spiflash_command(SPIFLASH_RDID, pkt, 24);
-  }
-
-  _short_to_bytearray(i) {
-    return [i & 0xff, (i >> 8) & 0xff];
-  }
-
-  _int_to_bytearray(i) {
-    return [i & 0xff, (i >> 8) & 0xff, (i >> 16) & 0xff, (i >> 24) & 0xff];
-  }
-
-  _bytearray_to_short(i, j) {
-    return (i | (j >> 8));
-  }
-
-  _bytearray_to_int(i, j, k, l) {
-    return (i | (j << 8) | (k << 16) | (l << 24));
-  }
-
-  _appendBuffer(buffer1, buffer2) {
-    var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
-    tmp.set(new Uint8Array(buffer1), 0);
-    tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
-    return tmp.buffer;
-  }
-
-  _appendArray(arr1, arr2) {
-    var c = new Uint8Array(arr1.length + arr2.length);
-    c.set(arr1, 0);
-    c.set(arr2, arr1.length);
-    return c;
-  }
-
-  ui8ToBstr(u8Array) {
-    var i, len = u8Array.length, b_str = "";
-    for (i=0; i<len; i++) {
-      b_str += String.fromCharCode(u8Array[i]);
-    }
-    return b_str;
-  }
-
-  bstrToUi8(bStr) {
-    var i, len = bStr.length, u8_array = new Uint8Array(len);
-    for (var i = 0; i < len; i++) {
-      u8_array[i] = bStr.charCodeAt(i);
-    }
-    return u8_array;
-  }
-
-  pad_to(data,alignment,pad_character=0xFF){
-    let pad_mod = data.length%alignment;
-    if(pad_mod != 0){
-      let tarr = new Uint8Array(pad_mod);
-      tarr.fill(0xFF,0,tarr.length);
-      data.concat(tarr);
-    }
-    return data;
-  }
-  
   /**
    * @name flashData
    * Program a full, uncompressed binary file into SPI Flash at
@@ -815,20 +718,20 @@ class EspLoader {
     let address = offset;
     let position = 0;
     let stamp = Date.now();
-    let flashWriteSize = FLASH_WRITE_SIZE;
+    let flashWriteSize = await this.getFlashWriteSize();
 
     while (filesize - position > 0) {
       let percentage = Math.floor(100 * (seq + 1) / blocks);
       this.logMsg(
           "Writing at " + this.toHex(address + seq * flashWriteSize, 8) + "... (" + percentage + " %)"
       );
-      // if (filesize - position >= flashWriteSize) {
-      //   block = Array.from(new Uint8Array(binaryData, position, flashWriteSize));
-      // } else {
-      //   // Pad the last block
-      //   block = Array.from(new Uint8Array(binaryData, position, filesize - position));
-      //   block = block.concat(new Array(flashWriteSize - block.length).fill(0xFF));
-      // }
+      if (filesize - position >= flashWriteSize) {
+        block = Array.from(new Uint8Array(binaryData, position, flashWriteSize));
+      } else {
+        // Pad the last block
+        block = Array.from(new Uint8Array(binaryData, position, filesize - position));
+        block = block.concat(new Array(flashWriteSize - block.length).fill(0xFF));
+      }
       await this.flashBlock(block, seq);
       seq += 1;
       written += block.length;
@@ -857,11 +760,22 @@ class EspLoader {
    */
   async flashBegin(size=0, offset=0, encrypted=false) {
     let buffer;
-    let flashWriteSize = FLASH_WRITE_SIZE;
+    let flashWriteSize = await this.getFlashWriteSize();
+    if (!this.IS_STUB) {
+        if ([ESP32, ESP32S2].includes(this._chipfamily)) {
+          await this.checkCommand(ESP_SPI_ATTACH, new Array(8).fill(0));
+        }
+    }
+    if (this._chipfamily == ESP32) {
+      // We are hardcoded for 4MB flash on ESP32
+      buffer = struct.pack(
+          "<IIIIII", 0, this._flashsize, 0x10000, 4096, 256, 0xFFFF
+      )
+      await this.checkCommand(ESP_SPI_SET_PARAMS, buffer);
+    }
     let numBlocks = Math.floor((size + flashWriteSize - 1) / flashWriteSize);
     let eraseSize = this.getEraseSize(offset, size);
-	console.log("erase: "+ eraseSize);
-	console.log("writeBlocks: " + numBlocks);
+
     let timeout;
     if (this.IS_STUB) {
       timeout = DEFAULT_TIMEOUT;
@@ -873,6 +787,11 @@ class EspLoader {
     buffer = struct.pack(
         "<IIII", eraseSize, numBlocks, flashWriteSize, offset
     );
+    if ([ESP32S2].includes(this._chipfamily) && !this.IS_STUB) {
+      buffer = buffer.concat(struct.pack(
+        "<I", encrypted ? 1 : 0
+      ));
+    }
     this.logMsg(
         "Erase size " + eraseSize + ", blocks " + numBlocks + ", block size " + flashWriteSize + ", offset " + this.toHex(offset, 4) + ", encrypted " + (encrypted ? "yes" : "no")
     );
@@ -894,6 +813,9 @@ class EspLoader {
    *   Provides a workaround for the bootloader erase bug on ESP8266.
    */
   getEraseSize(offset, size) {
+    if (this._chipfamily != ESP8266 || this.IS_STUB) {
+      return size;
+    }
     let sectorsPerBlock = 16;
     let sectorSize = FLASH_SECTOR_SIZE;
     let numSectors = Math.floor((size + sectorSize - 1) / sectorSize);
@@ -979,7 +901,13 @@ class EspLoader {
   }
 
   getStubFile() {
-    return "esp8266";
+    if (this._chipfamily == ESP32) {
+      return "esp32";
+    } else if (this._chipfamily == ESP32S2) {
+      return "esp32s2";
+    } else if (this._chipfamily == ESP8266) {
+      return "esp8266";
+    }
   }
 
   getStubLoaderClass() {
@@ -1001,6 +929,10 @@ class EspLoader {
     }
 
     let ramBlock = ESP_RAM_BLOCK;
+    // We're transferring over USB, right?
+    if ([ESP32S2].includes(this._chipfamily)) {
+      ramBlock = USB_RAM_BLOCK;
+    }
 
     // Upload
     this.logMsg("Uploading stub...")
@@ -1035,6 +967,8 @@ class EspLoader {
       logMsg: this.logMsg,
       debugMsg: this._debugMsg,
       debug: this.debug,
+      flash_size: this._flash_size,
+      efuses: this._efuses
     });
     return this.stubClass;
   }
@@ -1056,13 +990,14 @@ class EspStubLoader extends EspLoader {
   async eraseFlash() {
     await this.checkCommand(ESP_ERASE_FLASH, [], 0, CHIP_ERASE_TIMEOUT);
   };
+  
 
   /**
    * @name getFlashWriteSize
    * Get the Flash write size based on the chip
    */
   getFlashWriteSize() {
-      return STUBLOADER_FLASH_WRITE_SIZE;
+      return this.getFlashID();
   };
 }
 

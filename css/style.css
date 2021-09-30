@@ -150,11 +150,11 @@ div.clear {
   overflow-x: auto;
   transition : color 0.1s linear;
   padding: 0 50px;
-  border: 20px solid #000;
+  border: 20px solid #eee;
   -ms-overflow-style: none;
   scrollbar-width: none;
-  background-color: #000;
-  color: #cecece;
+  background-color: #eee;
+  color: #000;
 }
 
 #log::-webkit-scrollbar {
