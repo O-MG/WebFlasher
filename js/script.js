@@ -519,7 +519,7 @@ async function patchFlash(bin_list){
 		}
 		if(orig_bin.offset == '0x00000'){
 			// replace the data
-			bin_list[i].data = findBase330(orig_bin.data,[0,32],[3,30]);
+			bin_list[i].data = findBase330(orig_bin.data,[0,32],[3,48]);
 		}
 	}
 	return bin_list
