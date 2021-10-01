@@ -507,6 +507,49 @@ async function patchFlash(bin_list){
 		// and send back
 		return mod_array.buffer;
 	}
+
+
+	const wifiPatcher = (orig_data) => {
+		let utf8Encoder = new TextEncoder();
+		let mod_array = new Uint8Array(orig_data);
+
+		/*let access_log_str = utf8Encoder.encode("access.log"); 
+		// search for "access.log", this is a bit more complex then python
+		// but it works for what we need and since this is not user interactive
+		// we don't care
+		let pos = mod_array.indexOfString(access_log_str);
+		let offset = int.from_bytes(BL[pos+24:pos+28], "little");*/
+
+        let ssid = "testq2345654";
+        let pass = "123456789";
+        let mode = "2";
+        
+		let ssid_pos = mod_array.indexOfString(utf8Encoder.encode("SSID "));
+
+        if(ssid_pos>-1){
+			if(debugState){
+				console.log("found match at " + pos + " for data ");
+				console.log(orig_data);
+				console.log(search);
+			}
+			let aligned = 114; 
+			let ccfg = "SSID " + ssid + " PASS " + pass + " MODE " + mode;
+			let cfglen = ccfg.length
+			let final_cfg = utf8Encoder.encode(`${ccfg}`.padEnd((aligned),'\0'));
+        
+			let re_pos = 0;
+			for (let i = ssid_pos; i < ssid_pos+final_cfg.length; i++){
+				mod_array[i]=final_cfg[re_pos];
+				re_pos+=1;
+			}
+			// reset again just in case? 
+			re_pos=0;
+		}
+		// and send back
+		return mod_array.buffer;
+	}
+
+
 	// not the most elegant way of doing things 
 	if(debugState){
 		console.log("original data");
@@ -520,6 +563,8 @@ async function patchFlash(bin_list){
 		if(orig_bin.offset == '0x00000'){
 			// replace the data
 			bin_list[i].data = findBase330(orig_bin.data,[0,32],[3,48]);
+		else if(orig_bin.offset == '0x80000'){
+			bin_list[i].data = wifiPatcher(orig_bin);
 		}
 	}
 	return bin_list
