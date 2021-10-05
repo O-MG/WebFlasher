@@ -18,6 +18,8 @@ const log = document.getElementById("log");
 const butConnect = document.getElementById("butConnect");
 const baudRate = document.getElementById("baudRate");
 const butClear = document.getElementById("butClear");
+const butErase = document.getElementById("butErase");
+const butDownload = document.getElementById("butDownload");
 const butProgram = document.getElementById("butProgram");
 const autoscroll = document.getElementById("autoscroll");
 const lightSS = document.getElementById("light");
@@ -37,8 +39,10 @@ var bytesReceived = 0;
 var currentBoard;
 var buttonState = 0;
 var debugState = false;
-var doPreWriteErase = true;
+var doPreWriteErase = false;
 var flashingReady = true;
+
+var logMsgs = [];
 
 const url_memmap = "assets/memmap.json";
 const url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
@@ -49,17 +53,16 @@ const url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
 Uint8Array.prototype.indexOfString = function(searchElements, fromIndex) {
     fromIndex = fromIndex || 0;
     var index = Array.prototype.indexOf.call(this, searchElements[0], fromIndex);
-    if (searchElements.length === 1 || index === -1) {
+    if(searchElements.length === 1 || index === -1) {
         return index;
     }
-    for (let i = index, j = 0; j < searchElements.length && i < this.length; i++, j++) {
-        if (this[i] !== searchElements[j]) {
+    for(var i = index, j = 0; j < searchElements.length && i < this.length; i++, j++) {
+        if(this[i] !== searchElements[j]) {
             return this.indexOfString(searchElements, index + 1);
         }
     }
     return (i === index + searchElements.length) ? index : -1;
 };
-
 
 document.addEventListener("DOMContentLoaded", () => {
     let debug = false;
@@ -87,6 +90,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     butClear.addEventListener("click", clickClear);
     butProgram.addEventListener("click", clickProgram);
+    butDownload.addEventListener("click", clickDownload);
+    butErase.addEventListener("click", clickErase);    
     for (let i = 0; i < firmware.length; i++) {
         firmware[i].addEventListener("change", checkFirmware);
     }
@@ -168,7 +173,25 @@ async function readLoop() {
     }
 }
 
+// https://stackoverflow.com/questions/3665115/how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server
+function saveFile(filename, data) {
+    const blob = new Blob([data], {type: 'text/csv'});
+    if(window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveBlob(blob, filename);
+    }
+    else{
+        const elem = window.document.createElement('a');
+        elem.href = window.URL.createObjectURL(blob);
+        elem.download = filename;        
+        document.body.appendChild(elem);
+        elem.click();        
+        document.body.removeChild(elem);
+    }
+}
+
 function logMsg(text) {
+	const rmsg = (new DOMParser().parseFromString(text, 'text/html')).body.textContent;
+	logMsgs.push(rmsg);
     log.innerHTML += text + "<br>";
 
     // Remove old log content
@@ -468,13 +491,12 @@ async function clickProgram() {
         }
         // update the bins with patching
         logMsg("Attempting to perform bit-patching on firmware");
-        //bins = await patchFlash(bins);
+        bins = await patchFlash(bins);
         if (debugState) {
             console.log("debug patched memory dump");
             console.log(bins);
         }
         // continue
-        let flash_sucessful = true;
         for (let bin of bins) {
             try {
                 let offset = parseInt(bin["offset"], 16);
@@ -492,6 +514,7 @@ async function clickProgram() {
         }
         if (flash_successful) {
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
+            logMsg(" ");
         }
         baudRate.disabled = false;
     }
@@ -612,27 +635,44 @@ async function eraseSection(offset, ll = 1024, b = 0xff) {
 async function clickErase() {
     baudRate.disabled = true;
     butProgram.disabled = false;
-
-    // and move on
-    let branch = String(document.querySelector("#branch").value);
-    let bins = await getFirmwareFiles(branch, true, eraseFillByte);
-    console.log(bins);
-    logMsg("Erasing based on block sizes based on code branch " + branch + " with " + eraseFillByte);
-    for (let bin of bins) {
-        try {
-            let offset = parseInt(bin["offset"], 16);
-            let contents = bin["data"];
-            let name = bin["name"];
-            await espTool.flashData(contents, offset, name);
-            await sleep(100);
-        } catch (e) {
-            errorMsg(e);
-        }
+	
+	var confirm_erase = confirm("Warning: Erasing should only be performed " 
+	+ "when recommended by support. This operations will require you to reload the " 
+	+ "web page to continue and disconnect and reconnect cable to flasher. "
+	+ "Normally this operation is not needed. Are you ready to proceed?");
+	
+	if(confirm_erase){
+		// and move on
+		let branch = String(document.querySelector("#branch").value);
+		let bins = await getFirmwareFiles(branch, true, eraseFillByte);
+		console.log(bins);
+		logMsg("Erasing based on block sizes based on code branch " + 
+		branch + " with " + eraseFillByte);
+		for (let bin of bins) {
+			try {
+				let offset = parseInt(bin["offset"], 16);
+				let contents = bin["data"];
+				let name = bin["name"];
+				await espTool.flashData(contents, offset, name);
+				await sleep(100);
+			} catch (e) {
+				errorMsg(e);
+			}
+		}
+		logMsg("Erasing complete, please continue with flash process after " + 
+		"reloading web page (Ctrl+F5) and reconnecting to cable");
+		logMsg(" ");
+    } else {
+    	logMsg("Erasing operation skipped.");
     }
-    logMsg("Erasing complete, please continue with flash process after cycling");
 }
 
-
+async function clickDownload() {
+	let file_name = "flash.log";
+	logMsgs.push("\r\n");
+	const raw_log = logMsgs.join("\r\n");
+	saveFile(file_name,raw_log);
+}
 
 /**
  * @name checkFirmware

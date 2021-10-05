@@ -735,6 +735,8 @@ class EspLoader {
         block = block.concat(new Array(flashWriteSize - block.length).fill(0xFF));
       }
       await this.flashBlock(block, seq);
+      // add a delay for sanity (FIX)
+      await this.sleep(120);
       seq += 1;
       written += block.length;
       position += flashWriteSize;
@@ -992,7 +994,6 @@ class EspStubLoader extends EspLoader {
   async eraseFlash() {
     await this.checkCommand(ESP_ERASE_FLASH, [], 0, CHIP_ERASE_TIMEOUT);
   };
-  
 
   /**
    * @name getFlashWriteSize
@@ -1001,6 +1002,7 @@ class EspStubLoader extends EspLoader {
   getFlashWriteSize() {
       return this.getFlashID();
   };
+  
 }
 
 class Esp32StubLoader extends EspStubLoader {
