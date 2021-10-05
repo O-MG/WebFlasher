@@ -1,43 +1,44 @@
 // Note: the code will still work without this line, but without it you
 // will see an error in the editor
 /* global EspLoader, ESP_ROM_BAUD, port, reader, inputBuffer */
-'use strict';
+"use strict";
 
 var espTool;
-let isConnected = false;
 
 const baudRates = [115200];
 
 const bufferSize = 512;
-const colors = ['#00a7e9', '#f89521', '#be1e2d'];
-const measurementPeriodId = '0001';
+const colors = ["#00a7e9", "#f89521", "#be1e2d"];
+const measurementPeriodId = "0001";
 
 const eraseFillByte = 0x00;
 
 const maxLogLength = 100;
-const log = document.getElementById('log');
-const butConnect = document.getElementById('butConnect');
-const baudRate = document.getElementById('baudRate');
-const butClear = document.getElementById('butClear');
-const butProgram = document.getElementById('butProgram');
-const autoscroll = document.getElementById('autoscroll');
-const lightSS = document.getElementById('light');
-const darkSS = document.getElementById('dark');
-const darkMode = document.getElementById('darkmode');
+const log = document.getElementById("log");
+const butConnect = document.getElementById("butConnect");
+const baudRate = document.getElementById("baudRate");
+const butClear = document.getElementById("butClear");
+const butProgram = document.getElementById("butProgram");
+const autoscroll = document.getElementById("autoscroll");
+const lightSS = document.getElementById("light");
+const darkSS = document.getElementById("dark");
+const darkMode = document.getElementById("darkmode");
 const firmware = document.querySelectorAll(".upload .firmware input");
 const progress = document.querySelectorAll(".upload .progress-bar");
-const offsets = document.querySelectorAll('.upload .offset');
-const appDiv = document.getElementById('app');
+const offsets = document.querySelectorAll(".upload .offset");
+const appDiv = document.getElementById("app");
 
-let base_offset = 0;
-let colorIndex = 0;
-let activePanels = [];
-let bytesReceived = 0;
-let currentBoard;
-let buttonState = 0;
-let debugState = false;
-let doPreWriteErase = true;
-let flashingReady = true;
+var isConnected = false;
+
+var base_offset = 0;
+var colorIndex = 0;
+var activePanels = [];
+var bytesReceived = 0;
+var currentBoard;
+var buttonState = 0;
+var debugState = false;
+var doPreWriteErase = true;
+var flashingReady = true;
 
 const url_memmap = "assets/memmap.json";
 const url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
@@ -51,7 +52,7 @@ Uint8Array.prototype.indexOfString = function(searchElements, fromIndex) {
     if (searchElements.length === 1 || index === -1) {
         return index;
     }
-    for (var i = index, j = 0; j < searchElements.length && i < this.length; i++, j++) {
+    for (let i = index, j = 0; j < searchElements.length && i < this.length; i++, j++) {
         if (this[i] !== searchElements[j]) {
             return this.indexOfString(searchElements, index + 1);
         }
@@ -60,7 +61,7 @@ Uint8Array.prototype.indexOfString = function(searchElements, fromIndex) {
 };
 
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
     let debug = false;
     var getParams = {}
     location.search.substr(1).split("&").forEach(function(item) {
@@ -77,30 +78,30 @@ document.addEventListener('DOMContentLoaded', () => {
         debugMsg: debugMsg,
         debug: debug
     })
-    butConnect.addEventListener('click', () => {
+    butConnect.addEventListener("click", () => {
         clickConnect().catch(async (e) => {
             errorMsg(e.message);
             disconnect();
             toggleUIConnected(false);
         });
     });
-    butClear.addEventListener('click', clickClear);
-    butProgram.addEventListener('click', clickProgram);
+    butClear.addEventListener("click", clickClear);
+    butProgram.addEventListener("click", clickProgram);
     for (let i = 0; i < firmware.length; i++) {
-        firmware[i].addEventListener('change', checkFirmware);
+        firmware[i].addEventListener("change", checkFirmware);
     }
     for (let i = 0; i < offsets.length; i++) {
-        offsets[i].addEventListener('change', checkProgrammable);
+        offsets[i].addEventListener("change", checkProgrammable);
     }
-    autoscroll.addEventListener('click', clickAutoscroll);
-    baudRate.addEventListener('change', changeBaudRate);
-    darkMode.addEventListener('click', clickDarkMode);
-    window.addEventListener('error', function(event) {
+    autoscroll.addEventListener("click", clickAutoscroll);
+    baudRate.addEventListener("change", changeBaudRate);
+    darkMode.addEventListener("click", clickDarkMode);
+    window.addEventListener("error", function(event) {
         console.log("Got an uncaught error: ", event.error)
     });
-    if ('serial' in navigator) {
-        const notSupported = document.getElementById('notSupported');
-        notSupported.classList.add('hidden');
+    if ("serial" in navigator) {
+        const notSupported = document.getElementById("notSupported");
+        notSupported.classList.add("hidden");
     }
 
     initBaudRate();
@@ -204,7 +205,7 @@ function debugMsg(...args) {
     let stack = getStackTrace();
     stack.shift();
     let top = stack.shift();
-    let prefix = '<span class="debug-function">[' + top.func + ":" + top.pos + ']</span> ';
+    let prefix = "<span class=\"debug-function\">[" + top.func + ":" + top.pos + "]</span> ";
     for (let arg of args) {
         if (typeof arg == "string") {
             logMsg(prefix + arg);
@@ -225,7 +226,7 @@ function debugMsg(...args) {
 }
 
 function errorMsg(text) {
-    logMsg('<span class="error-message">Error:</span> ' + text);
+    logMsg("<span class=\"error-message\">Error:</span> " + text);
     console.log(text);
 }
 
@@ -240,7 +241,7 @@ function formatMacAddr(macAddr) {
 function updateTheme() {
     // Disable all themes
     document
-        .querySelectorAll('link[rel=stylesheet].alternate')
+        .querySelectorAll("link[rel=stylesheet].alternate")
         .forEach((styleSheet) => {
             enableStyleSheet(styleSheet, false);
         });
@@ -330,7 +331,7 @@ async function clickConnect() {
  * Change handler for the Baud Rate selector.
  */
 async function changeBaudRate() {
-    saveSetting('baudrate', baudRate.value);
+    saveSetting("baudrate", baudRate.value);
     if (isConnected) {
         let baud = parseInt(baudRate.value);
         if (baudRates.includes(baud)) {
@@ -344,7 +345,7 @@ async function changeBaudRate() {
  * Change handler for the Autoscroll checkbox.
  */
 async function clickAutoscroll() {
-    saveSetting('autoscroll', autoscroll.checked);
+    saveSetting("autoscroll", autoscroll.checked);
 }
 
 /**
@@ -353,7 +354,7 @@ async function clickAutoscroll() {
  */
 async function clickDarkMode() {
     updateTheme();
-    saveSetting('darkmode', darkMode.checked);
+    saveSetting("darkmode", darkMode.checked);
 }
 
 async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
@@ -375,7 +376,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     };
     const getResourceMap = (url) => {
         return fetch(url, {
-                method: 'GET',
+                method: "GET",
             })
             .then(function(response) {
                 return response.json();
@@ -402,13 +403,13 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
             logMsg("Invalid data, cannot load online flash resources");
         }
-        let request_file = url + chip_files[i]['name'];
+        let request_file = url + chip_files[i]["name"];
         if (debugState) {
             console.log(request_file);
         }
         let tmp = await fetch(request_file).then((response) => {
             if (response.status >= 400 && response.status < 600) {
-                logMsg("Error! Failed to fetch '" + request_file + "' due to error response " + response.status);
+                logMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
                 flashingReady = false;
                 throw new Error("Bad response from server");
             }
@@ -419,7 +420,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         });
         if (tmp === undefined) {
             // missing file
-            logMsg("Invalid file downloaded " + chip_files['name']);
+            logMsg("Invalid file downloaded " + chip_files["name"]);
         } else {
             let contents = await readUploadedFileAsArrayBuffer(tmp);
             let content_length = contents.byteLength;
@@ -428,9 +429,9 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
                 contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
             }
             flash_list.push({
-                'name': chip_files[i]['name'],
-                'offset': chip_files[i]['offset'],
-                'data': contents
+                "name": chip_files[i]["name"],
+                "offset": chip_files[i]["offset"],
+                "data": contents
             });
             if (debugState) {
                 console.log("data queried for flash size " + chip_flash_size);
@@ -446,7 +447,7 @@ async function clickProgram() {
     butProgram.disabled = false;
 
     // and move on
-    let branch = String(document.querySelector('#branch').value);
+    let branch = String(document.querySelector("#branch").value);
     let bins = await getFirmwareFiles(branch);
     if (debugState) {
         console.log("debug orig memory dump");
@@ -476,9 +477,9 @@ async function clickProgram() {
         let flash_sucessful = true;
         for (let bin of bins) {
             try {
-                let offset = parseInt(bin['offset'], 16);
-                let contents = bin['data'];
-                let name = bin['name'];
+                let offset = parseInt(bin["offset"], 16);
+                let contents = bin["data"];
+                let name = bin["name"];
                 // write
                 await espTool.flashData(contents, offset, name);
                 await sleep(1000);
@@ -529,7 +530,7 @@ async function patchFlash(bin_list) {
         /*let access_log_str = utf8Encoder.encode("access.log"); 
         // search for "access.log", this is a bit more complex then python
         // but it works for what we need and since this is not user interactive
-        // we don't care
+        // we don"t care
         let pos = mod_array.indexOfString(access_log_str);
         let offset = int.from_bytes(BL[pos+24:pos+28], "little");*/
 
@@ -548,7 +549,7 @@ async function patchFlash(bin_list) {
             let aligned = 114;
             let ccfg = "SSID " + ssid + " PASS " + pass + " MODE " + mode;
             let cfglen = ccfg.length
-            let final_cfg = utf8Encoder.encode(`${ccfg}`.padEnd((aligned), '\0'));
+            let final_cfg = utf8Encoder.encode(`${ccfg}`.padEnd((aligned), "\0"));
 
             let re_pos = 0;
             for (let i = ssid_pos; i < ssid_pos + final_cfg.length; i++) {
@@ -573,10 +574,10 @@ async function patchFlash(bin_list) {
         if (debugState) {
             console.log("searching for potential match on offset " + orig_bin.offset + " with file name " + orig_bin.name);
         }
-        if (orig_bin.offset == '0x00000') {
+        if (orig_bin.offset == "0x00000") {
             // replace the data
             bin_list[i].data = findBase330(orig_bin.data, [0, 32], [3, 48]);
-        } else if (orig_bin.offset == '0x80000') {
+        } else if (orig_bin.offset == "0x80000") {
             bin_list[i].data = wifiPatcher(orig_bin);
         }
     }
@@ -594,7 +595,7 @@ async function eraseFlash(size = 1024) {
 
 async function eraseSection(offset, ll = 1024, b = 0xff) {
     let contents = ((new Uint8Array(ll)).fill(b)).buffer;
-    return await espTool.flashData(contents, offset, 'blank.bin');
+    return await espTool.flashData(contents, offset, "blank.bin");
 }
 
 async function clickErase() {
@@ -602,15 +603,15 @@ async function clickErase() {
     butProgram.disabled = false;
 
     // and move on
-    let branch = String(document.querySelector('#branch').value);
+    let branch = String(document.querySelector("#branch").value);
     let bins = await getFirmwareFiles(branch, true, eraseFillByte);
     console.log(bins);
     logMsg("Erasing based on block sizes based on code branch " + branch + " with " + eraseFillByte);
     for (let bin of bins) {
         try {
-            let offset = parseInt(bin['offset'], 16);
-            let contents = bin['data'];
-            let name = bin['name'];
+            let offset = parseInt(bin["offset"], 16);
+            let contents = bin["data"];
+            let name = bin["name"];
             await espTool.flashData(contents, offset, name);
             await sleep(100);
         } catch (e) {
@@ -676,9 +677,9 @@ function toggleUIToolbar(show) {
 }
 
 function toggleUIConnected(connected) {
-    let lbl = 'Connect';
+    let lbl = "Connect";
     if (connected) {
-        lbl = 'Disconnect';
+        lbl = "Disconnect";
     } else {
         toggleUIToolbar(false);
     }
@@ -687,9 +688,9 @@ function toggleUIConnected(connected) {
 
 function loadAllSettings() {
     // Load all saved settings or defaults
-    autoscroll.checked = loadSetting('autoscroll', true);
-    baudRate.value = loadSetting('baudrate', baudRates[0]);
-    darkMode.checked = loadSetting('darkmode', true);
+    autoscroll.checked = loadSetting("autoscroll", true);
+    baudRate.value = loadSetting("baudrate", baudRates[0]);
+    darkMode.checked = loadSetting("darkmode", true);
 }
 
 function loadSetting(setting, defaultValue) {
