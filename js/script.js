@@ -37,6 +37,7 @@ let currentBoard;
 let buttonState = 0;
 let debugState = false;
 let doPreWriteErase = true;
+let flashingReady = true;
 
 const url_memmap = "assets/memmap.json";
 const url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
@@ -47,11 +48,11 @@ const url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
 Uint8Array.prototype.indexOfString = function(searchElements, fromIndex) {
     fromIndex = fromIndex || 0;
     var index = Array.prototype.indexOf.call(this, searchElements[0], fromIndex);
-    if(searchElements.length === 1 || index === -1) {
+    if (searchElements.length === 1 || index === -1) {
         return index;
     }
-    for(var i = index, j = 0; j < searchElements.length && i < this.length; i++, j++) {
-        if(this[i] !== searchElements[j]) {
+    for (var i = index, j = 0; j < searchElements.length && i < this.length; i++, j++) {
+        if (this[i] !== searchElements[j]) {
             return this.indexOfString(searchElements, index + 1);
         }
     }
@@ -107,7 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTheme();
     logMsg("WebSerial ESPTool loaded.");
 });
-
 
 
 
@@ -408,7 +408,8 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         }
         let tmp = await fetch(request_file).then((response) => {
             if (response.status >= 400 && response.status < 600) {
-                logMsg("Error! Failed to fetch '" + request_file + "' due to error response " + response.status)
+                logMsg("Error! Failed to fetch '" + request_file + "' due to error response " + response.status);
+                flashingReady = false;
                 throw new Error("Bad response from server");
             }
             logMsg("Loaded online version of " + request_file + ". ");
@@ -451,128 +452,144 @@ async function clickProgram() {
         console.log("debug orig memory dump");
         console.log(bins);
     }
-    logMsg("Flashing firmware based on code branch " + branch + ". ");
-    // erase 
-    if (doPreWriteErase) {
-    	logMsg("Erasing flash before performing writes. This may take some time... ");
+    if (!flashingReady) {
+        logMsg("Flashing not ready, an error has occurred, please check log above for more information");
+    } else {
+        logMsg("Flashing firmware based on code branch " + branch + ". ");
+        // erase 
+        if (doPreWriteErase) {
+            logMsg("Erasing flash before performing writes. This may take some time... ");
+            if (debugState) {
+                console.log("performing flash erase before writing");
+            }
+            await eraseFlash(await espTool.getFlashID());
+            logMsg("Erasing complete, continuing with flash process");
+        }
+        // update the bins with patching
+        logMsg("Attempting to perform bit-patching on firmware");
+        //bins = await patchFlash(bins);
         if (debugState) {
-            console.log("performing flash erase before writing");
+            console.log("debug patched memory dump");
+            console.log(bins);
         }
-        await eraseFlash();
-        logMsg("Erasing complete, continuing with flash process");
-    }
-    // update the bins with patching
-    logMsg("Attempting to perform bit-patching on firmware");
-    bins = await patchFlash(bins);
-    if (debugState) {
-        console.log("debug patched memory dump");
-        console.log(bins);
-    }    
-    // continue
-    for (let bin of bins) {
-        try {
-            let offset = parseInt(bin['offset'], 16);
-            let contents = bin['data'];
-            let name = bin['name'];
-            // write
-            await espTool.flashData(contents, offset, name);
-            await sleep(1000);
-        } catch (e) {
-            errorMsg(e);
+        // continue
+        let flash_sucessful = true;
+        for (let bin of bins) {
+            try {
+                let offset = parseInt(bin['offset'], 16);
+                let contents = bin['data'];
+                let name = bin['name'];
+                // write
+                await espTool.flashData(contents, offset, name);
+                await sleep(1000);
+            } catch (e) {
+                flash_successful = false;
+                errorMsg(e);
+                // for good measure
+                break;
+            }
         }
+        if (flash_successful) {
+            logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
+        }
+        baudRate.disabled = false;
     }
-    logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
-    baudRate.disabled = false;
 }
 
-async function patchFlash(bin_list){
-	// only work on lists
-	const findBase330 = (orig_data,search,replacement) => {
-		let mod_array = new Uint8Array(orig_data);
-		let pos = mod_array.indexOfString(search);
-		if(pos>-1){
-			if(debugState){
-				console.log("found match at " + pos + " for data ");
-				console.log(orig_data);
-				console.log(search);
-			}
-			let re_pos = 0;
-			for (let i = pos; i < pos+replacement.length; i++){
-				mod_array[i]=replacement[re_pos];
-				re_pos+=1;
-			}
-			// reset again just in case? 
-			re_pos=0;
-		}
-		// and send back
-		return mod_array.buffer;
-	}
+async function patchFlash(bin_list) {
+    // only work on lists
+    const findBase330 = (orig_data, search, replacement) => {
+        let mod_array = new Uint8Array(orig_data);
+        let pos = mod_array.indexOfString(search);
+        if (pos > -1) {
+            if (debugState) {
+                console.log("found match at " + pos + " for data ");
+                console.log(orig_data);
+                console.log(search);
+            }
+            let re_pos = 0;
+            for (let i = pos; i < pos + replacement.length; i++) {
+                mod_array[i] = replacement[re_pos];
+                re_pos += 1;
+            }
+            // reset again just in case? 
+            re_pos = 0;
+        }
+        // and send back
+        return mod_array.buffer;
+    }
 
 
-	const wifiPatcher = (orig_data) => {
-		let utf8Encoder = new TextEncoder();
-		let mod_array = new Uint8Array(orig_data);
+    const wifiPatcher = (orig_data) => {
+        let utf8Encoder = new TextEncoder();
+        let mod_array = new Uint8Array(orig_data);
 
-		/*let access_log_str = utf8Encoder.encode("access.log"); 
-		// search for "access.log", this is a bit more complex then python
-		// but it works for what we need and since this is not user interactive
-		// we don't care
-		let pos = mod_array.indexOfString(access_log_str);
-		let offset = int.from_bytes(BL[pos+24:pos+28], "little");*/
+        let perform_patch = false; // set this to true once we verify html elements
+
+        /*let access_log_str = utf8Encoder.encode("access.log"); 
+        // search for "access.log", this is a bit more complex then python
+        // but it works for what we need and since this is not user interactive
+        // we don't care
+        let pos = mod_array.indexOfString(access_log_str);
+        let offset = int.from_bytes(BL[pos+24:pos+28], "little");*/
 
         let ssid = "testq2345654";
         let pass = "123456789";
         let mode = "2";
-        
-		let ssid_pos = mod_array.indexOfString(utf8Encoder.encode("SSID "));
 
-        if(ssid_pos>-1){
-			if(debugState){
-				console.log("found match at " + pos + " for data ");
-				console.log(orig_data);
-				console.log(search);
-			}
-			let aligned = 114; 
-			let ccfg = "SSID " + ssid + " PASS " + pass + " MODE " + mode;
-			let cfglen = ccfg.length
-			let final_cfg = utf8Encoder.encode(`${ccfg}`.padEnd((aligned),'\0'));
-        
-			let re_pos = 0;
-			for (let i = ssid_pos; i < ssid_pos+final_cfg.length; i++){
-				mod_array[i]=final_cfg[re_pos];
-				re_pos+=1;
-			}
-			// reset again just in case? 
-			re_pos=0;
-		}
-		// and send back
-		return mod_array.buffer;
-	}
+        let ssid_pos = mod_array.indexOfString(utf8Encoder.encode("SSID "));
+
+        if (ssid_pos > -1 && perform_patch) {
+            if (debugState) {
+                console.log("found match at " + pos + " for data ");
+                console.log(orig_data);
+                console.log(search);
+            }
+            let aligned = 114;
+            let ccfg = "SSID " + ssid + " PASS " + pass + " MODE " + mode;
+            let cfglen = ccfg.length
+            let final_cfg = utf8Encoder.encode(`${ccfg}`.padEnd((aligned), '\0'));
+
+            let re_pos = 0;
+            for (let i = ssid_pos; i < ssid_pos + final_cfg.length; i++) {
+                mod_array[i] = final_cfg[re_pos];
+                re_pos += 1;
+            }
+            // reset again just in case? 
+            re_pos = 0;
+        }
+        // and send back
+        return mod_array.buffer;
+    }
 
 
-	// not the most elegant way of doing things 
-	if(debugState){
-		console.log("original data");
-		console.log(bin_list);
-	}
-	for(let i = 0; i<bin_list.length;i++){
-		let orig_bin = bin_list[i];
-		if(debugState){
-			console.log("found matching binary at write offset " +  orig_bin.offset + " with file name " + orig_bin.name);
-		}
-		if(orig_bin.offset == '0x00000'){
-			// replace the data
-			bin_list[i].data = findBase330(orig_bin.data,[0,32],[3,48]);
-		else if(orig_bin.offset == '0x80000'){
-			bin_list[i].data = wifiPatcher(orig_bin);
-		}
-	}
-	return bin_list
+    // not the most elegant way of doing things 
+    if (debugState) {
+        console.log("original data");
+        console.log(bin_list);
+    }
+    for (let i = 0; i < bin_list.length; i++) {
+        let orig_bin = bin_list[i];
+        if (debugState) {
+            console.log("searching for potential match on offset " + orig_bin.offset + " with file name " + orig_bin.name);
+        }
+        if (orig_bin.offset == '0x00000') {
+            // replace the data
+            bin_list[i].data = findBase330(orig_bin.data, [0, 32], [3, 48]);
+        } else if (orig_bin.offset == '0x80000') {
+            bin_list[i].data = wifiPatcher(orig_bin);
+        }
+    }
+    return bin_list
 }
 
-async function eraseFlash() {
-    await eraseSection(0x00000, 1022976, 0xff);
-    //await eraseSection(0x1fcf0d, 966910, 0x00);
+async function eraseFlash(size = 1024) {
+    await eraseSection(0x00000, 1022976, 0xff); // 1024000
+    let lower_flash_offset = 0xfc000;
+    if (size == 2048) {
+        lower_flash_offset = lower_flash_offset + 0x100000
+    }
+    //await eraseSection(lower_flash_offset, 16384, 0xff);
 }
 
 async function eraseSection(offset, ll = 1024, b = 0xff) {
