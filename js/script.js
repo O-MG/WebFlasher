@@ -445,7 +445,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
 async function clickProgram() {
     baudRate.disabled = true;
     butProgram.disabled = false;
-
+	let flash_successful = true;
     // and move on
     let branch = String(document.querySelector("#branch").value);
     let bins = await getFirmwareFiles(branch);
@@ -594,8 +594,19 @@ async function eraseFlash(size = 1024) {
 }
 
 async function eraseSection(offset, ll = 1024, b = 0xff) {
-    let contents = ((new Uint8Array(ll)).fill(b)).buffer;
-    return await espTool.flashData(contents, offset, "blank.bin");
+	let block_split = 4096*4;
+	let offset_end_size = offset+ll;
+	do {
+		let write_size = block_split;
+		if((offset_end_size-offset)<block_split){
+			write_size = offset_end_size-offset;
+		}
+		let contents = ((new Uint8Array(write_size)).fill(b)).buffer;
+		let status = await espTool.flashData(contents, offset, "blank.bin");	
+		console.log(status);
+		await sleep(200); // cool down
+		offset = offset+block_split;
+	} while (offset < offset_end_size);
 }
 
 async function clickErase() {
