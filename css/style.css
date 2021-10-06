@@ -290,6 +290,10 @@ div.clear {
   margin-top: 10px;
 }
 
+#butDownload {
+  margin-top: 10px;
+}
+
 #commands {
   min-width: 600px;
   justify-content: center;
