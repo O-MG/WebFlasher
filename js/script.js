@@ -289,6 +289,8 @@ async function reset() {
 
     // Clear the log
     log.innerHTML = "";
+    // Clear the log buffer
+    logMsgs = [];
 }
 
 /**
