@@ -37,10 +37,6 @@
 			"offset": "0x10000"
 		},
 		{
-			"name": "page.mpfs",
-			"offset": "0x80000"
-		},
-		{
 			"name": "blank.bin",
 			"offset": "0x7f000"
 		}

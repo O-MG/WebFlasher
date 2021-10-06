@@ -397,6 +397,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             reader.readAsArrayBuffer(inputFile);
         });
     };
+    
     const getResourceMap = (url) => {
         return fetch(url, {
                 method: "GET",
@@ -427,9 +428,6 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             logMsg("Invalid data, cannot load online flash resources");
         }
         let request_file = url + chip_files[i]["name"];
-        if (debugState) {
-            console.log(request_file);
-        }
         let tmp = await fetch(request_file).then((response) => {
             if (response.status >= 400 && response.status < 600) {
                 logMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
@@ -448,14 +446,22 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             let contents = await readUploadedFileAsArrayBuffer(tmp);
             let content_length = contents.byteLength;
             // if we want to "erase", we set this to be true
+
             if (erase) {
                 contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
             }
             flash_list.push({
+            	"url": request_file,
                 "name": chip_files[i]["name"],
                 "offset": chip_files[i]["offset"],
+                "size": content_length,
                 "data": contents
             });
+            if(content_length<1||flash_list[i].data.byteLength<1){
+            	flashingReady=false;
+            	logMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
+            	throw new Error("Bad response from server, invalid downloaded file size");
+            }
             if (debugState) {
                 console.log("data queried for flash size " + chip_flash_size);
                 console.log(flash_list);
@@ -585,8 +591,7 @@ async function patchFlash(bin_list) {
         // and send back
         return mod_array.buffer;
     }
-
-
+    
     // not the most elegant way of doing things 
     if (debugState) {
         console.log("original data");
@@ -600,8 +605,6 @@ async function patchFlash(bin_list) {
         if (orig_bin.offset == "0x00000") {
             // replace the data
             bin_list[i].data = findBase330(orig_bin.data, [0, 32], [3, 48]);
-        } else if (orig_bin.offset == "0x80000") {
-            bin_list[i].data = wifiPatcher(orig_bin);
         }
     }
     return bin_list
