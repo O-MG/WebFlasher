@@ -766,3 +766,4 @@ function saveSetting(setting, value) {
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
