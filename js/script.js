@@ -289,6 +289,8 @@ async function reset() {
 
     // Clear the log
     log.innerHTML = "";
+    // Clear the log buffer
+    logMsgs = [];
 }
 
 /**
@@ -509,6 +511,7 @@ async function clickProgram() {
                 let contents = bin["data"];
                 let name = bin["name"];
                 // write
+                logMsg("Attempting to write " + name + " to " + offset);
                 await espTool.flashData(contents, offset, name);
                 await sleep(1000);
             } catch (e) {
@@ -763,3 +766,4 @@ function saveSetting(setting, value) {
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
