@@ -509,6 +509,7 @@ async function clickProgram() {
                 let contents = bin["data"];
                 let name = bin["name"];
                 // write
+                logMsg("Attempting to write " + name + " to " + offset);
                 await espTool.flashData(contents, offset, name);
                 await sleep(1000);
             } catch (e) {
