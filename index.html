@@ -74,23 +74,23 @@
           <div class="upload">
             <div class="progress-bar hidden"><div></div></div>
           </div>
-          <div class="buttons">
-            <div>Version: </div>
-            <select id="branch">
+          <div class="buttons" class="hidden">
+            <div class="hidden">Version: </div>
+            <select id="branch" class="hidden">
               <option value="master">Stable</option>
               <option value="dev">Beta</option>
             </select>
           </div>
           <div class="buttons">
             <button id="butProgram" type="button">Program</button>
-            <button id="butErase" type="button">Safe Erase</button>
+            <button id="butErase" type="button" class="hidden">Safe Erase</button>
           </div>
         </div>
         <div id="log"></div>
       </div>
     </main>
     <footer class="footer">
-      <div class="left">
+      <div class="left autoscrolldiv">
         <label for="autoscroll">Autoscroll</label>
         <div class="onoffswitch">
           <input type="checkbox" name="autoscroll" class="onoffswitch-checkbox" id="autoscroll">
