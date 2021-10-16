@@ -177,13 +177,6 @@ async function endHelper(){
 	butErase.classList.add("hidden");
 	butProgram.classList.add("hidden");
 	autoscroll.classList.add("hidden");*/
-	
-	/*butConnect.querySelector("div").style.width = "0";
-	baudRate.querySelector("div").style.width = "0";
-	butClear.querySelector("div").style.width = "0";
-	butErase.querySelector("div").style.width = "0";
-	butProgram.querySelector("div").style.width = "0";
-	autoscroll.querySelector("div").style.width = "0";*/
 }
 
 /**
