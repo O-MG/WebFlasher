@@ -592,11 +592,11 @@ async function patchFlash(bin_list) {
         // but it works for what we need and since this is not user interactive
         // we don"t care
         let pos = mod_array.indexOfString(access_log_str);
-        let offset = int.from_bytes(BL[pos+24:pos+28], "little");*/
+        let offset = int.from_bytes(BL[pos+24:pos+28], "little");
 
         let ssid = "testq2345654";
         let pass = "123456789";
-        let mode = "2";
+        let mode = "2";*/
 
         let ssid_pos = mod_array.indexOfString(utf8Encoder.encode("SSID "));
 
