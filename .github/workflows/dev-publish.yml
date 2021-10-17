@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code repository 
+        run: apt-get update && apt-get -y install rsync
+      - name: Checkout code repository 
         uses: actions/checkout@v2
-      - name: Install rsync
-        run: sudo apt-get update && sudo apt-get -y install rsync
       - name: Set Variables
         id: prep
         run: |
@@ -36,7 +36,7 @@ jobs:
            git config --global user.name $WORKER_USER
            echo "Cloning repo '${PUBREPO}' branch '${PUBBRANCH}' into directory '${TEMPREPO}' via PAT for user ${WORKER_USER}"
            git clone --single-branch --branch "${PUBBRANCH}" "${AUTHURL}/${PUBREPO}" "${TEMPREPO}"
-           rsync --help; rsync --recursive --ignore-times --archive ./ "${TEMPREPO}/"
+           cp -vr ./* "${TEMPREPO}/"
            cd "${TEMPREPO}"
            git add -fA ./
            git commit -m "automated publish of release '${{ steps.prep.outputs.commit }}' by ${{ github.actor }} for branch ${{ steps.prep.outputs.branch }}"
