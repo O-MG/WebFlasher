@@ -17,7 +17,7 @@ jobs:
       - name: Checkout code repository 
         uses: actions/checkout@v2
       - name: Install rsync
-        run: apt-get update && apt-get -y install rsync
+        run: sudo apt-get update && sudo apt-get -y install rsync
       - name: Set Variables
         id: prep
         run: |
