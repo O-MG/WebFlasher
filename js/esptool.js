@@ -625,7 +625,7 @@ class EspLoader {
       await this.sleep(100);
     }
 
-    throw("Couldn't sync to ESP. Try resetting.");
+    throw("Couldn't sync to Cable. Try resetting.");
   };
 
   /**

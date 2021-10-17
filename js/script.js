@@ -112,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initBaudRate();
     loadAllSettings();
     updateTheme();
-    logMsg("WebSerial ESPTool loaded.");
+    logMsg("O.MG Web Serial Flasher.");
 });
 
 
