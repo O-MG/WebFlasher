@@ -112,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initBaudRate();
     loadAllSettings();
     updateTheme();
-    logMsg("O.MG Web Serial Flasher.");
+    logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
 });
 
 
