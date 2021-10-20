@@ -36,7 +36,7 @@ jobs:
            git config --global user.name $WORKER_USER
            echo "Cloning repo '${PUBREPO}' branch '${PUBBRANCH}' into directory '${TEMPREPO}' via PAT for user ${WORKER_USER}"
            git clone --single-branch --branch "${PUBBRANCH}" "${AUTHURL}/${PUBREPO}" "${TEMPREPO}"
-           cp -vr ./* "${TEMPREPO}/"
+           cp -vrf ./* "${TEMPREPO}/"
            cd "${TEMPREPO}"
            git add -fA ./
            git commit -m "automated publish of release '${{ steps.prep.outputs.commit }}' by ${{ github.actor }} for branch ${{ steps.prep.outputs.branch }}"
