@@ -6,7 +6,7 @@
     <meta content="width=device-width, initial-scale=1" name="viewport">
     <meta content="Web based programmer utility for O.MG  Products (Cable, Keylogger, Plug)" name="description">
     <meta content="O.MG" name="author">
-    <title>Bootstrap 5 Multi-Step Form</title>
+    <title> O.MG Web Flasher </title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/form-style.css" rel="stylesheet">
     <link rel="stylesheet" href="css/bootstrap-icons.css">
@@ -21,8 +21,8 @@
       }
     </script>
     <!-- import the webpage's javascript file -->
-    <script src="js/utilities.js" defer></script>
     <script src="js/esptool.js" defer></script>
+    <script src="js/utilities.js" defer></script>
     <script src="js/script.js" defer></script>
 </head>
 <body>
@@ -244,25 +244,25 @@
 								</div>
 							</div>				
 							<hr/>
-							<h4>Device Configuration Configuration</h4>
+							<h4>Device Configuration</h4>
 							<div class="row">
 								<div class="col-12">
 									<div class="form-check form-switch form-control-lg pt-4 pb-4">
-										<input class="form-check-input" type="checkbox" id="customizeDevice">
+										<input class="form-check-input" type="checkbox" id="customizeDevice" disabled>
 										<label class="form-check-label" for="customize">Customize WiFi Configuration</label>
 									</div>
 								</div>
 							</div>
-							<div class="row">
+							<div class="row" id="deviceConfigOptions">
 								<div class="col-12">
 									<div class="form-check">
-										<input class="form-check-input" type="radio" name="wifiMode" id="wifiMode1">
+										<input class="form-check-input deviceConfigOptions" type="radio" name="wifiMode" id="wifiMode1">
 										<label class="form-check-label" for="wifiMode1">
 											Connect to Existing Network
 										</label>
 									</div>
 									<div class="form-check">
-										<input class="form-check-input" type="radio" name="wifiMode" id="wifiMode2" checked>
+										<input class="form-check-input deviceConfigOptions" type="radio" name="wifiMode" id="wifiMode2" checked>
 										<label class="form-check-label" for="wifiMode2">
 											Act as Access Point (Create a new SSID/AP)
 										</label>
@@ -270,11 +270,11 @@
 								</div>
 								<div class="col-12 pt-2">
 									<label for="ssidName" class="form-label">SSID Name</label>
-									<input type="text" class="form-control" id="ssidName" maxlength="32" placeholder="O.MG-Cable">
+									<input type="text" class="form-control deviceConfigOptions" id="ssidName" maxlength="32" placeholder="O.MG-Cable">
 								</div>
 								<div class="col-12 pt-2">
 									<label for="ssidPass" class="form-label">Password</label>
-									<input type="text" class="form-control" id="ssidPass" maxlength="32" placeholder="12345678">
+									<input type="text" class="form-control deviceConfigOptions" id="ssidPass" maxlength="60" placeholder="12345678">
 								</div>
 							</div>
 						</form>
@@ -343,12 +343,15 @@
 	</div>
 	<div class="modal fade" id="notSupported" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="notSupported" aria-hidden="true">
 		<div class="modal-dialog modal-fullscreen">
-			<h1 class="text-danger">Unsupported Browser</h1>
-			<div class="notSupported">
-				Sorry, <b>Web Serial</b> is not supported on this device, make sure you're
-				running Chrome 78 or later and have enabled the
-				<code>#enable-experimental-web-platform-features</code> flag in
-				<code>chrome://flags</code>. Please note <strong>NO</strong> mobile browsers are supported, check <a href="https://caniuse.com/web-serial">Can I Use WebSerial</a> for compatibility. 
+			<div class="modal-content text-center align-middle p-5">
+				<h1 class="text-danger fs-1 h1">Unsupported Browser</h1>
+				<div class="notSupported fs-5">
+					<p>Sorry, <b>Web Serial</b> is not supported on this browser.</p>
+					<p class="text-left">Make sure you're running Chrome 78 or later and have enabled the
+					<code>#enable-experimental-web-platform-features</code> flag in
+					<code>chrome://flags</code>.</p>
+					<p> Please note <strong>NO</strong> mobile browsers are supported, check <a href="https://caniuse.com/web-serial">Can I Use WebSerial</a> for compatibility.</p> 
+				</div>
 			</div>
 		</div>
 	</div>

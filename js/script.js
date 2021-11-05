@@ -23,6 +23,7 @@ const butDownload = document.getElementById("btnDownload");
 const autoscroll = document.getElementById("btnAutoscroll");
 
 // Settings Modal
+const elementsDevConf = document.getElementById("deviceConfigOptions");
 const butCustomize = document.getElementById("customizeDevice");
 const butWifiMode = document.getElementsByName("wifiMode");
 const txtSSIDName = document.getElementById("ssidName");
@@ -113,9 +114,12 @@ document.addEventListener("DOMContentLoaded", () => {
 		}
 	});
 
-
+	// disable device wifi config by default until user asks
+	toggleDevConf(true);
+	butCustomize.addEventListener("click", toggleDevConf);
     butProgram.addEventListener("click", clickProgramErase);
     butDownload.addEventListener("click", clickDownload);
+    butClear.addEventListener("click",clickClear);
     autoscroll.addEventListener("click", clickAutoscroll);
     baudRate.addEventListener("change", changeBaudRate);
     darkMode.addEventListener("click", clickDarkMode);
@@ -123,13 +127,12 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Got an uncaught error: ", event.error)
     });
     if (!("serial" in navigator)) {
-    	/*
     	var unsupportedInfoModal = new bootstrap.Modal(document.getElementById('notSupported'), {
   			keyboard: false
 		})
         unsupportedInfoModal.show();
-        */
     }
+    accordionExpand(1);
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
 });
 
@@ -265,7 +268,7 @@ function debugMsg(...args) {
     let stack = getStackTrace();
     stack.shift();
     let top = stack.shift();
-    let prefix = "<span class=\"debug-function\">[" + top.func + ":" + top.pos + "]</span> ";
+    let prefix = "<span class=\"text-primary\">[" + top.func + ":" + top.pos + "]</span> ";
     for (let arg of args) {
         if (typeof arg == "string") {
             logMsg(prefix + arg);
@@ -286,8 +289,8 @@ function debugMsg(...args) {
 }
 
 function errorMsg(text) {
-    logMsg("<span class=\"error-message\">Error:</span> " + text);
-    logMsg("<span class=\"error-message\">NOTICE: </span> " + "You must reload this webpage to continue");
+    logMsg("<span class=\"text-danger fw-bold\">Error:</span> " + text);
+    logMsg("<span class=\"text-warning text-uppercase fw-bold\">Notice: </span> " + "You must reload this webpage to continue");
     console.log(text);
     endHelper();
 }
@@ -521,6 +524,18 @@ async function accordionDisable(disabled=true){
 	}
 }
 
+async function toggleDevConf(s=true){
+	if(butCustomize.checked){
+		s=false;
+	}
+	let elems = elementsDevConf.querySelectorAll("input");
+	if(elems.length>1){
+		for(let i = 0; i < elems.length; i++){ 
+			elems[i].disabled=s;
+		}
+	}
+}
+
 
 async function clickProgramErase(){
 	document.addEventListener("keydown", (event) => {
@@ -533,7 +548,6 @@ async function clickProgramErase(){
 		}
 	});
 }
-
 
 async function clickProgram() {
     baudRate.disabled = true;

@@ -42,8 +42,9 @@ label {
 }
 
 
+/* this shouldn't be .. */
 #qbox-container {
-  background: url(/background.png);
+  background: url("../assets/background.png");
   background-repeat: repeat;
   position: relative;    
 }
