@@ -1,110 +1,358 @@
+
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <title>O.MG WebFlasher Utility</title>
+<head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta content="Web based programmer utility for O.MG  Products (Cable, Keylogger, Plug)" name="description">
+    <meta content="O.MG" name="author">
+    <title>Bootstrap 5 Multi-Step Form</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/form-style.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/bootstrap-icons.css">
+    <!-- FONT -->
+    <link href="https://fonts.gstatic.com" rel="preconnect">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.2.2/font/bootstrap-icons.css">
+
     <script>
       // Redirect to HTTPS if HTTP is requested.
       if (window.location.protocol === 'http:') {
         window.location.href = 'https:' + window.location.href.substring(5);
       }
     </script>
-
-    <!-- import the web page's stylesheets along with the themes -->
-    <!--<link rel="stylesheet" href="https://use.typekit.net/qtk5kiq.css">-->
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/light.css" id="light" class="alternate" disabled>
-    <link rel="stylesheet" href="css/dark.css"  id="dark"  class="alternate" disabled>
-
     <!-- import the webpage's javascript file -->
     <script src="js/utilities.js" defer></script>
     <script src="js/esptool.js" defer></script>
     <script src="js/script.js" defer></script>
-  </head>
-  <body>
-    <header class="header">
-      <div class="left">
-        <img src="assets/logo.png" class="Logo">
-      </div>
-      <div class="right">
-        <select id="baudRate"></select>
-        <button id="butConnect" type="button">Connect</button>
-      </div>
-    </header>
-    <main class="main">
-      <div id="notSupported" class="notSupported">
-        Sorry, <b>Web Serial</b> is not supported on this device, make sure you're
-        running Chrome 78 or later and have enabled the
-        <code>#enable-experimental-web-platform-features</code> flag in
-        <code>chrome://flags</code>. Please not NO mobile browsers are supported, check <a href="https://caniuse.com/web-serial">Can I Use WebSerial</a> for compatibility. 
-      </div>
-      <div class="subheader">
-        <div class="title left">
-          O.MG WebFlasher Utility
+</head>
+<body>
+    <!-- CONTAINER -->
+    <div class="container d-flex align-items-center min-vh-100">
+        <div class="row g-0 justify-content-center">
+            <!-- TITLE -->
+            <div class="col-lg-4 offset-lg-1 mx-0 px-0 d-none d-lg-block d-xl-block d-xxl-block shadow-lg">
+                <div id="omg-info" class="carousel slide" data-bs-ride="carousel" data-bs-interval="2000">
+                	<div class="carousel-inner">
+                		<div class="carousel-item active">
+                			<div class="d-block p-2">
+	                			<img src="omgcable.png" class="w-100" alt="cable">
+	                		</div>
+							<div class="d-none d-md-block p-2">
+								<h5>First Keylogging Cable Ever</h5>
+								<p>Did you know that some cables come with key-logging capabilities? </p>
+							</div>
+                		</div>
+                		<div class="carousel-item ">
+                			<div class="d-block p-2">
+	                			<img src="omgcable.png" class="w-100" alt="cable">
+	                		</div>
+							<div class="d-none d-md-block p-2">
+								<h5>Mittens Free</h5>
+								<p>We are proud to be Mittens Free and only use Free-Range cables in our products</p>
+							</div>
+                		</div>
+                		<div class="carousel-item">
+                			<div class="d-block p-2">
+	                			<img src="omgcable.png" class="w-100" alt="cable">
+	                		</div>
+							<div class="d-none d-md-block p-2">
+								<h5>DUCKSCRIPT</h5>
+								<p>DuckScript is designed to be universally compatible with all products in our release set</p>
+							</div>
+                		</div>	
+                	</div>
+					<button class="carousel-control-prev" type="button" data-bs-target="#omg-info" data-bs-slide="prev">
+						<span class="carousel-control-prev-icon" aria-hidden="true"></span>
+						<span class="visually-hidden">Previous</span>
+					</button>
+					<button class="carousel-control-next" type="button" data-bs-target="#omg-info" data-bs-slide="next">
+						<span class="carousel-control-next-icon" aria-hidden="true"></span>
+						<span class="visually-hidden">Next</span>
+					</button>
+                </div>
+            </div>
+            <!-- FORMS -->
+            <div class="col-lg-7 mx-0 px-0 shadow-lg">
+                <div class="progress">
+                    <div aria-valuemax="100" aria-valuemin="0" aria-valuenow="50" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div id="qbox-container" class="p-4">
+                        <div id="steps-container" class="p-5">
+                            <div class="step d-none" id="step-welcome">
+                                <h2>Welcome to the O.MG Web Hardware Flasher </h2>
+                                <p>Please begin by plugging in your cable to your programmer and plugging in the programmer into your computer. This flasher is guided, at any time if a <span>Help</span> button is available you can follow help instructions. Alternatively, if you wish not to see this again, please select the option below.</p>
+                                <div class="m-2">
+                                	<img src="welcome-instructions.png" class="img-fluid p-2" alt="Welcome Instructions">
+									<div class="form-check form-switch pt-3">
+										<input class="form-check-input" type="checkbox" id="welcomeScreenCheck">
+										<label class="form-check-label" for="welcomeScreenCheck">Do not show this welcome screen again</label>
+									</div>
+								</div>
+								<div id="q-box__buttons">
+									<button id="next-btn" class="fancy btn" type="button">Reset</button> 
+									<button id="prev-btn" class="fancy btn" type="button">Begin</button> 
+									<button id="submit-btn" class="fancy btn" type="button">Submit</button>
+								</div>
+								<!--<div class="p-4"></div>-->
+                            </div>
+                            <div class="step" id="modular-stepper">
+								<div class="d-flex justify-content-between bd-highlight mb-3">
+									<div class="p-2 bd-highlight"></div>
+									<div class="p-2 bd-highlight"><h2>O.MG Web Flasher</h2></div>
+									<div class="p-2 bd-highlight">
+										<button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalConsole">
+											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-terminal" viewBox="0 0 16 16">
+												<path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9zM3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2z"/>
+												<path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z"/>
+											</svg>
+										</button>
+										<button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalSettings">
+											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear-fill" viewBox="0 0 16 16">
+												<path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"></path>
+											</svg>
+										</button>
+									</div>
+                            	</div>
+                            	<div class="row px-3">
+									<div class="accordion text-left justify-content-left pt-2" id="programmingAcc">
+										<div class="accordion-item">
+											<h2 class="accordion-header" id="programmerStep1">
+												<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#programmerStep1-collapse" aria-expanded="true" aria-controls="programmerStep1" >
+													<i class="bi-circle step-icon" id="programmerStep1-status"></i>
+													&nbsp;&nbsp;&nbsp;
+													<strong>Step 1:</strong>&nbsp;&nbsp;&nbsp; Plug-In Device 
+												</button>
+											</h2>
+											<div id="programmerStep1-collapse" class="accordion-collapse collapse show" aria-labelledby="programmerStep1">
+												<div class="accordion-body">
+													Plug in the O.MG Programmer to your computer, then plug in the O.MG Device (Cable, Keylogger, or Plug) into the programmer.
+												</div>
+												<div class="pb-2 pt-3 justify-content-center text-center">
+													<button type="button" class="btn btn-secondary btn-lg" data-bs-toggle="modal"  data-bs-target="#modalHelpHardware">Show me How</button>
+												</div>
+											</div>
+										</div>
+										<div class="accordion-item">
+											<h2 class="accordion-header" id="programmerStep2">
+												<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#programmerStep2-collapse" aria-expanded="true" aria-controls="programmerStep2" id="programmerStep2-Header">
+													<i class="bi-circle step-icon" id="programmerStep2-status"></i>
+													&nbsp;&nbsp;&nbsp;
+													<strong>Step 2:</strong>&nbsp;&nbsp; Connect to Device
+												</button>
+											</h2>
+											<div id="programmerStep2-collapse" class="accordion-collapse collapse show" aria-labelledby="programmerStep2">
+												<div class="accordion-body">
+													When ready, click the <strong>Connect</strong> button below to open up the browser prompt to select and connect to your programmer. 
+												</div>
+												<div class="pb-2 pt-3 justify-content-center text-center">
+													<button type="button" class="btn btn-danger btn-lg fancy" id="btnConnect"><span class="spinner-border spinner-border-sm d-none"></span>  Connect</button> <button type="button" class="btn btn-secondary btn-lg fancy" data-bs-toggle="modal"  data-bs-target="#modalHelpConnect">Show me How</button>
+												</div>
+											</div>
+										</div>
+										<div class="accordion-item">
+											<h2 class="accordion-header" id="programmerStep3">
+												<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#programmerStep3-collapse" aria-expanded="true" aria-controls="programmerStep3">
+													<i class="bi-circle step-icon" id="programmerStep3-status"></i>
+													&nbsp;&nbsp;&nbsp;
+													<strong>Step 3:</strong>&nbsp;&nbsp; Flash Device
+												</button>
+											</h2>
+											<div id="programmerStep3-collapse" class="accordion-collapse collapse show" aria-labelledby="programmerStep2">
+												<div class="accordion-body">
+													Press the <strong>Program<i>!</i></strong> button below, thats it! 
+													<div class="pb-2 pt-3 justify-content-center text-center">
+														<button type="button" class="btn btn-danger btn-lg fancy" id="btnProgram"><span class="spinner-border spinner-border-sm"></span> Program<i></i></button> <button type="button" class="btn btn-secondary btn-lg fancy" data-bs-toggle="modal"  data-bs-target="#modalHelpFlash">Show me How</button>
+													</div>
+												</div>
+											</div>
+										</div>										
+										
+									</div>  
+								</div>                          
+                            </div>
+                            <div id="success">
+                                <div class="mt-5 d-none">
+                                    <h4>Success!</h4>
+                                    <p>Flashing was successful/p>
+                                    <p id="success-status">&#x2705;</p> <!-- faillure use 274C -->
+                                </div>
+                            </div>
+                        </div>
+                </div>
+            </div>
         </div>
-        <div class="right hidden">
-          <label for="darkmode">
-            Dark Mode
-          </label>
-          <div class="onoffswitch hidden">
-            <input type="checkbox" name="darkmode" class="onoffswitch-checkbox" id="darkmode">
-            <label class="onoffswitch-label" for="darkmode">
-              <span class="onoffswitch-inner"></span>
-              <span class="onoffswitch-switch"></span>
-            </label>
-          </div>
-        </div>
-      </div>
-      <div id="app">
-        <div id="commands">
-          <div class="upload">
-            <div class="progress-bar hidden"><div></div></div>
-          </div>
-          <div class="upload">
-            <div class="progress-bar hidden"><div></div></div>
-          </div>
-          <div class="upload">
-            <div class="progress-bar hidden"><div></div></div>
-          </div>
-          <div class="upload">
-            <div class="progress-bar hidden"><div></div></div>
-          </div>
-          <div class="upload">
-            <div class="progress-bar hidden"><div></div></div>
-          </div>
-          <div class="buttons" class="hidden">
-            <div class="hidden">Version: </div>
-            <select id="branch" class="hidden">
-              <option value="master">Stable</option>
-              <option value="dev">Beta</option>
-            </select>
-          </div>
-          <div class="buttons">
-            <button id="butProgram" type="button">Program</button>
-            <button id="butErase" type="button" class="hidden">Safe Erase</button>
-          </div>
-        </div>
-        <div id="log"></div>
-      </div>
-    </main>
-    <footer class="footer">
-      <div class="left autoscrolldiv">
-        <label for="autoscroll">Autoscroll</label>
-        <div class="onoffswitch">
-          <input type="checkbox" name="autoscroll" class="onoffswitch-checkbox" id="autoscroll">
-          <label class="onoffswitch-label" for="autoscroll">
-            <span class="onoffswitch-inner"></span>
-            <span class="onoffswitch-switch"></span>
-          </label>
-        </div>
-      </div>
-      <div class="right">
-        <span id="fpsCounter"></span>
-        <button id="butClear" type="button">Clear Text</button>
-        <button id="butDownload" type="button">Download Log</button>
-      </div>
-    </footer>
-  </body>
+    </div><!-- PRELOADER -->
+    <div class="modal fade" id="modalConsole" tabindex="-1" aria-labelledby="modalConsole" aria-hidden="true">
+		<div class="modal-dialog modal-xl modal-dialog-centered">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Web Flasher Console</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<div class="font-weight-light p-2">
+						<p>The O.MG Web Flasher logs contain debug information and are not needed for general use. If requested you can download the logs for support.</p>
+					</div>
+					<div class="pt-2" id="log"><p>Welcome to Logs</p></div>
+				</div>
+				<div class="modal-footer">
+					<div class="form-check form-switch form-control-lg">
+						<label class="form-check-label" for="flexSwitchCheckDefault">Auto Scroll</label>
+						<input class="form-check-input" type="checkbox" id="btnAutoscroll" checked>
+					</div>
+					<button type="button" class="btn btn-dark" id="btnDownload">Download</button>
+					<button type="button" class="btn btn-dark" id="btnClear">Clear</button>
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>
+	</div>
+    <div class="modal fade" id="modalSettings" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalSettings" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Settings</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<div class="container-fluid">
+						<form class="row g-3">
+							<h4>Web Flasher Configuration</h4>
+							<div class="row">
+								<div class="col-md-6">
+									<label for="branch" class="form-label">Firmware Build</label>
+									<select id="branch" class="form-select">
+										<option value="master">Stable</option>
+										<option value="dev">Unstable</option>
+									</select>
+								</div>
+								<div class="col-md-6 pb-2">
+									<label for="baudRate" class="form-label" >Baud Rate</label>
+									<select id="baudRate" class="form-select" disabled></select>
+								</div>
+								<div class="col-md-6 text-left form-control-lg">
+									<div class="form-check form-switch">
+										<input class="form-check-input" type="checkbox" id="eraseCable" checked>
+										<label class="form-check-label" for="eraseCable" >Erase Before Flash?</label>
+									</div>
+								</div>
+								<div class="col-md-6  text-left form-control-lg">
+									<div class="form-check form-switch">
+										<input class="form-check-input" type="checkbox" id="darkMode" checked disabled>
+										<label class="form-check-label" for="darkMode">Enable Dark Mode?</label>
+									</div>
+								</div>
+							</div>				
+							<hr/>
+							<h4>Device Configuration Configuration</h4>
+							<div class="row">
+								<div class="col-12">
+									<div class="form-check form-switch form-control-lg pt-4 pb-4">
+										<input class="form-check-input" type="checkbox" id="customizeDevice">
+										<label class="form-check-label" for="customize">Customize WiFi Configuration</label>
+									</div>
+								</div>
+							</div>
+							<div class="row">
+								<div class="col-12">
+									<div class="form-check">
+										<input class="form-check-input" type="radio" name="wifiMode" id="wifiMode1">
+										<label class="form-check-label" for="wifiMode1">
+											Connect to Existing Network
+										</label>
+									</div>
+									<div class="form-check">
+										<input class="form-check-input" type="radio" name="wifiMode" id="wifiMode2" checked>
+										<label class="form-check-label" for="wifiMode2">
+											Act as Access Point (Create a new SSID/AP)
+										</label>
+									</div>
+								</div>
+								<div class="col-12 pt-2">
+									<label for="ssidName" class="form-label">SSID Name</label>
+									<input type="text" class="form-control" id="ssidName" maxlength="32" placeholder="O.MG-Cable">
+								</div>
+								<div class="col-12 pt-2">
+									<label for="ssidPass" class="form-label">Password</label>
+									<input type="text" class="form-control" id="ssidPass" maxlength="32" placeholder="12345678">
+								</div>
+							</div>
+						</form>
+					</div>
+				</div> 
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+					<button type="button" class="btn btn-primary">Save</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal fade" id="modalHelpHardware" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalHelpHardware" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Help: Hardware </h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<div class="container-fluid">
+						<p>You plug it in bruh, plug it in</p>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal fade" id="modalHelpConnect" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalHelpConnect" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Help: Connecting to Device </h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<div class="container-fluid">
+						<p>You plug it in bruh, plug it in</p>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal fade" id="modalHelpFlash" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalHelpFlash" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Help: Programming</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<div class="container-fluid">
+						<p>You plug it in bruh, plug it in</p>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="modal fade" id="notSupported" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="notSupported" aria-hidden="true">
+		<div class="modal-dialog modal-fullscreen">
+			<h1 class="text-danger">Unsupported Browser</h1>
+			<div class="notSupported">
+				Sorry, <b>Web Serial</b> is not supported on this device, make sure you're
+				running Chrome 78 or later and have enabled the
+				<code>#enable-experimental-web-platform-features</code> flag in
+				<code>chrome://flags</code>. Please note <strong>NO</strong> mobile browsers are supported, check <a href="https://caniuse.com/web-serial">Can I Use WebSerial</a> for compatibility. 
+			</div>
+		</div>
+	</div>
+    <!--<script src="js/form.js"></script>-->
+    <script src="js/bootstrap.min.js "></script>
+</body>
 </html>

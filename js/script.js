@@ -15,20 +15,27 @@ const eraseFillByte = 0x00;
 
 const maxLogLength = 100;
 const log = document.getElementById("log");
-const butConnect = document.getElementById("butConnect");
-const baudRate = document.getElementById("baudRate");
-const butClear = document.getElementById("butClear");
-const butErase = document.getElementById("butErase");
-const butDownload = document.getElementById("butDownload");
-const butProgram = document.getElementById("butProgram");
-const autoscroll = document.getElementById("autoscroll");
-const lightSS = document.getElementById("light");
-const darkSS = document.getElementById("dark");
-const darkMode = document.getElementById("darkmode");
-const firmware = document.querySelectorAll(".upload .firmware input");
-const progress = document.querySelectorAll(".upload .progress-bar");
-const offsets = document.querySelectorAll(".upload .offset");
-const appDiv = document.getElementById("app");
+const butConnect = document.getElementById("btnConnect");
+
+// Console Modal
+const butClear = document.getElementById("btnClear");
+const butDownload = document.getElementById("btnDownload");
+const autoscroll = document.getElementById("btnAutoscroll");
+
+// Settings Modal
+const butCustomize = document.getElementById("customizeDevice");
+const butWifiMode = document.getElementsByName("wifiMode");
+const txtSSIDName = document.getElementById("ssidName");
+const txtSSIDPass = document.getElementById("ssidPass");
+
+// Programming 
+const statusStep1 = document.getElementById("programmerStep1-status");
+const statusStep2 = document.getElementById("programmerStep2-status");
+const statusStep3 = document.getElementById("programmerStep3-status");
+const butProgram = document.getElementById("btnProgram");
+
+const progress = document.querySelectorAll(".progress-bar");
+
 
 var isConnected = false;
 
@@ -88,30 +95,41 @@ document.addEventListener("DOMContentLoaded", () => {
             toggleUIConnected(false);
         });
     });
-    butClear.addEventListener("click", clickClear);
-    butProgram.addEventListener("click", clickProgram);
+    
+    
+    // set the clear button and reset
+	document.addEventListener("keydown", (event) => {
+		if (isConnected && (event.isComposing || event.key == "Shift")) {
+			console.log("Shift Key Pressed");
+			butProgram.classList.replace("btn-danger","btn-warning");
+			butProgram.innerText = "Erase";
+		}
+	});
+	document.addEventListener('keyup', (event) => {
+		if(isConnected && event.key == "Shift") {
+			console.log("Shift Key Unpressed");
+			butProgram.classList.replace("btn-warning","btn-danger");
+			butProgram.innerText = "Program"
+		}
+	});
+
+
+    butProgram.addEventListener("click", clickProgramErase);
     butDownload.addEventListener("click", clickDownload);
-    butErase.addEventListener("click", clickErase);    
-    for (let i = 0; i < firmware.length; i++) {
-        firmware[i].addEventListener("change", checkFirmware);
-    }
-    for (let i = 0; i < offsets.length; i++) {
-        offsets[i].addEventListener("change", checkProgrammable);
-    }
     autoscroll.addEventListener("click", clickAutoscroll);
     baudRate.addEventListener("change", changeBaudRate);
     darkMode.addEventListener("click", clickDarkMode);
     window.addEventListener("error", function(event) {
         console.log("Got an uncaught error: ", event.error)
     });
-    if ("serial" in navigator) {
-        const notSupported = document.getElementById("notSupported");
-        notSupported.classList.add("hidden");
+    if (!("serial" in navigator)) {
+    	/*
+    	var unsupportedInfoModal = new bootstrap.Modal(document.getElementById('notSupported'), {
+  			keyboard: false
+		})
+        unsupportedInfoModal.show();
+        */
     }
-
-    initBaudRate();
-    loadAllSettings();
-    updateTheme();
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
 });
 
@@ -145,12 +163,14 @@ function updateProgress(part, percentage) {
     progressBar.style.width = percentage + "%";
 }
 
+
+
 /**
  * @name disconnect
  * Closes the Web Serial connection.
  */
 async function disconnect() {
-    toggleUIToolbar(false);
+    toggleUIConnected(false);
     await espTool.disconnect()
 }
 
@@ -164,19 +184,11 @@ async function endHelper(){
 	butConnect.disabled=true;	
 	baudRate.disabled=true;
 	butClear.disabled=true;
-	butErase.disabled=true;
 	butProgram.disabled=true;
 	butProgram.textContent="Reload Web Page To Continue";
 	autoscroll.disabled=true;
-	document.getElementsByClassName("autoscrolldiv")[0].innerText = "";
-	
-	butConnect.classList.add("hidden");
-	butClear.classList.add("hidden");
-	/*baudRate.classList.add("hidden");
-	
-	butErase.classList.add("hidden");
-	butProgram.classList.add("hidden");
-	autoscroll.classList.add("hidden");*/
+
+
 }
 
 /**
@@ -285,29 +297,6 @@ function formatMacAddr(macAddr) {
 }
 
 /**
- * @name updateTheme
- * Sets the theme to  Adafruit (dark) mode. Can be refactored later for more themes
- */
-function updateTheme() {
-    // Disable all themes
-    document
-        .querySelectorAll("link[rel=stylesheet].alternate")
-        .forEach((styleSheet) => {
-            enableStyleSheet(styleSheet, false);
-        });
-
-    if (darkMode.checked) {
-        enableStyleSheet(darkSS, true);
-    } else {
-        enableStyleSheet(darkSS, false);
-    }
-}
-
-function enableStyleSheet(node, enabled) {
-    node.disabled = !enabled;
-}
-
-/**
  * @name reset
  * Reset the Panels, Log, and associated data
  */
@@ -333,11 +322,10 @@ async function clickConnect() {
 
     await connect();
 
-    toggleUIConnected(true);
+    
     try {
         if (await espTool.sync()) {
-            toggleUIToolbar(true);
-            appDiv.classList.add("connected");
+            toggleUIConnected(true);
             let baud = parseInt(baudRate.value);
             // get our chip info 
             logMsg("Connected to " + await espTool.chipName());
@@ -405,8 +393,8 @@ async function clickAutoscroll() {
  * Change handler for the Dark Mode checkbox.
  */
 async function clickDarkMode() {
-    updateTheme();
-    saveSetting("darkmode", darkMode.checked);
+    //updateTheme();
+    //saveSetting("darkmode", darkMode.checked);
 }
 
 async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
@@ -499,6 +487,53 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     }
     return flash_list;
 }
+
+async function accordionExpand(item){
+	function is_expanded(elem){
+		if(elem.classList.contains("show")){
+			return true;	
+		} else {
+			return false;
+		}
+		
+	}
+	// this may need to be more specific
+	let collapsable_elements = document.querySelectorAll('.collapse');
+	for (let i = 0; i < collapsable_elements.length; i++) {
+		let element = collapsable_elements[i];
+		let element_id = parseInt((element.id).replace("-collapse","").replace("programmerStep",""));
+		if(item===element_id){
+			if(!is_expanded(element)){
+				new bootstrap.Collapse(element);
+			}
+		} else {
+			if(is_expanded(element)){
+				new bootstrap.Collapse(element);
+			}
+		}
+	}
+}
+
+async function accordionDisable(disabled=true){
+	let collapsable_elements = document.querySelectorAll('.accordion-button');
+	for (let i = 0; i < collapsable_elements.length; i++) {
+		collapsable_elements[i].disabled=disabled;
+	}
+}
+
+
+async function clickProgramErase(){
+	document.addEventListener("keydown", (event) => {
+		if(isConnected){
+			if (event.isComposing || event.key == "Shift") {
+				clickProgram();
+			} else {
+				clickErase();	
+			}
+		}
+	});
+}
+
 
 async function clickProgram() {
     baudRate.disabled = true;
@@ -748,43 +783,21 @@ function convertJSON(chunk) {
     }
 }
 
-function toggleUIToolbar(show) {
-    isConnected = show;
-    for (let i = 0; i < 4; i++) {
-        progress[i].classList.add("hidden");
-        progress[i].querySelector("div").style.width = "0";
-    }
-    if (show) {
-        appDiv.classList.add("connected");
-    } else {
-        appDiv.classList.remove("connected");
-    }
-}
-
 function toggleUIConnected(connected) {
     let lbl = "Connect";
     if (connected) {
+    	statusStep2.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
+    	statusStep2.classList.add("bi-check-circle");
         lbl = "Disconnect";
     } else {
-        toggleUIToolbar(false);
+    	// error
+		statusStep2.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
+    	statusStep2.classList.add("bi-x-circle");
+        lbl = "Error";
+        accordionExpand(2);
+        accordionDisable();
     }
     butConnect.textContent = lbl;
-}
-
-function loadAllSettings() {
-    // Load all saved settings or defaults
-    autoscroll.checked = loadSetting("autoscroll", true);
-    baudRate.value = loadSetting("baudrate", baudRates[0]);
-    darkMode.checked = loadSetting("darkmode", true);
-}
-
-function loadSetting(setting, defaultValue) {
-    let value = JSON.parse(window.localStorage.getItem(setting));
-    if (value == null) {
-        return defaultValue;
-    }
-
-    return value;
 }
 
 function saveSetting(setting, value) {
