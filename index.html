@@ -24,6 +24,7 @@
     <script src="js/utilities.js" defer></script>
     <script src="js/esptool.js" defer></script>
     <script src="js/script.js" defer></script>
+<<<<<<< HEAD
 </head>
 <body>
     <!-- CONTAINER -->
@@ -180,6 +181,84 @@
                         </div>
                 </div>
             </div>
+=======
+  </head>
+  <body>
+    <header class="header">
+      <div class="left">
+        <img src="assets/logo.png" class="Logo">
+      </div>
+      <div class="right">
+        <select id="baudRate"></select>
+        <button id="butConnect" type="button">Connect</button>
+      </div>
+    </header>
+    <main class="main">
+      <div id="notSupported" class="notSupported">
+        Sorry, <b>Web Serial</b> is not supported on this device, make sure you're
+        running Chrome 78 or later and have enabled the
+        <code>#enable-experimental-web-platform-features</code> flag in
+        <code>chrome://flags</code>. Please not NO mobile browsers are supported, check <a href="https://caniuse.com/web-serial">Can I Use WebSerial</a> for compatibility. 
+      </div>
+      <div class="subheader">
+        <div class="title left">
+          O.MG WebFlasher Utility
+        </div>
+        <div class="right hidden">
+          <label for="darkmode">
+            Dark Mode
+          </label>
+          <div class="onoffswitch hidden">
+            <input type="checkbox" name="darkmode" class="onoffswitch-checkbox" id="darkmode">
+            <label class="onoffswitch-label" for="darkmode">
+              <span class="onoffswitch-inner"></span>
+              <span class="onoffswitch-switch"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div id="app">
+        <div id="commands">
+          <div class="upload">
+            <div class="progress-bar hidden"><div></div></div>
+          </div>
+          <div class="upload">
+            <div class="progress-bar hidden"><div></div></div>
+          </div>
+          <div class="upload">
+            <div class="progress-bar hidden"><div></div></div>
+          </div>
+          <div class="upload">
+            <div class="progress-bar hidden"><div></div></div>
+          </div>
+          <div class="upload">
+            <div class="progress-bar hidden"><div></div></div>
+          </div>
+          <div class="buttons" class="hidden">
+            <div class="hidden">Version: </div>
+            <select id="branch" class="hidden">
+              <option value="master">Stable</option>
+              <option value="dev">Unstable (Not Recommended)</option>
+            </select>
+          </div>
+          <div class="buttons">
+            <button id="butProgram" type="button">Program</button>
+            <button id="butErase" type="button" class="hidden">Safe Erase</button>
+          </div>
+        </div>
+        <div id="log"></div>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="left autoscrolldiv">
+        <label for="autoscroll">Autoscroll</label>
+        <div class="onoffswitch">
+          <input type="checkbox" name="autoscroll" class="onoffswitch-checkbox" id="autoscroll">
+          <label class="onoffswitch-label" for="autoscroll">
+            <span class="onoffswitch-inner"></span>
+            <span class="onoffswitch-switch"></span>
+          </label>
+>>>>>>> 08d7e668753776b6cbc7b61da0502aa5451c3939
         </div>
     </div><!-- PRELOADER -->
     <div class="modal fade" id="modalConsole" tabindex="-1" aria-labelledby="modalConsole" aria-hidden="true">
