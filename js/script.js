@@ -16,6 +16,7 @@ const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
 const butWelcome = document.getElementById("btnWelcome");
 const butConnect = document.getElementById("btnConnect");
+const butSkipWelcome = document.getElementById("welcomeScreenCheck");
 
 
 // Console Modal
@@ -29,6 +30,7 @@ const butCustomize = document.getElementById("customizeDevice");
 const butWifiMode = document.getElementsByName("wifiMode");
 const txtSSIDName = document.getElementById("ssidName");
 const txtSSIDPass = document.getElementById("ssidPass");
+const butSave = document.getElementById("btnSaveSettings");
 
 // Programming 
 const statusAlertBox = document.getElementById("statusAlert");
@@ -55,6 +57,17 @@ var doPreWriteErase = false;
 var flashingReady = true;
 
 var logMsgs = [];
+
+var skipWelcome = true;
+
+var settings = {
+	'darkMode': darkMode,
+	'skipWelcome': butWelcome,
+	'customizeConfig': elementsDevConf,
+	'devWifiMode': butWifiMode,
+	'devWiFiSSID': txtSSIDName,
+	'firmwareRelease': null,
+}
 
 const url_memmap = "assets/memmap.json";
 const url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
@@ -86,6 +99,8 @@ document.addEventListener("DOMContentLoaded", () => {
         debug = getParams["debug"] == "1" || getParams["debug"].toLowerCase() == "true";
         debugState = debug;
     }
+    
+    loadSettings();
 
     espTool = new EspLoader({
         updateProgress: updateProgress,
@@ -121,6 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	// disable device wifi config by default until user asks
 	toggleDevConf(true);
 	butWelcome.addEventListener("click", clickWelcome);
+	butSave.addEventListener("click",clickSave);
 	butCustomize.addEventListener("click", toggleDevConf);
 	butHardware.addEventListener("click", clickHardware);
     butProgram.addEventListener("click", clickProgramErase);
@@ -137,6 +153,9 @@ document.addEventListener("DOMContentLoaded", () => {
   			keyboard: false
 		})
         unsupportedInfoModal.show();
+    }
+    if(skipWelcome){
+    	switchStep('modular-stepper');
     }
     accordionExpand(1);
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
@@ -865,10 +884,10 @@ async function checkFirmware(event) {
     //await checkProgrammable();
 }
 
-/**
- * @name clickClear
- * Click handler for the clear button.
- */
+async function clickSave(){
+	saveSettings();
+}
+
 async function clickClear() {
     reset();
 }
@@ -937,6 +956,99 @@ function toggleUIConnected(connected) {
 function saveSetting(setting, value) {
     window.localStorage.setItem(setting, JSON.stringify(value));
 }
+
+function loadSetting(setting) {
+    return JSON.parse(window.localStorage.getItem(setting));
+}
+
+function setCookie(name,value,days) {
+    var expires = "";
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days*24*60*60*1000));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+}
+function getCookie(name) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for(var i=0;i < ca.length;i++) {
+        var c = ca[i];
+        while (c.charAt(0)==' ') c = c.substring(1,c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+    }
+    return null;
+}
+
+function eraseCookie(name) {   
+    document.cookie = name +'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+}
+
+function loadSettings(){
+	// special setting here
+	let welcomeScreen = getCookie("OMGWebFlasherSkipWelcome");
+	if(welcomeScreen!==null){
+		skipWelcome=true;
+	}
+	for (var key in settings) { 
+		if(settings[key]!==null){
+			let value = loadSetting(key);
+			let element = settings[key];
+			console.log("setting:" + key + " value " + value + " ele " + element);
+			if(NodeList.prototype.isPrototypeOf(element)||HTMLCollection.prototype.isPrototypeOf(element)){
+				for(let i = 0; i < element.length; i++){
+					if(element[i].id!==undefined&&element[i].id==value){
+						element[i].checked=true;
+					} else {
+						element[i].checked=false;
+					}
+				}
+			} else {
+				if(value!==null){
+					if(element.type=="checkbox"){
+						element.checked=value;
+					} else {
+						element[key].value=value;
+					}
+				}
+			}
+		} 
+		// now we apply them 
+		
+	}
+	
+}
+
+function saveSettings(){
+	// special setting here
+	if(butSkipWelcome.checked){
+		setCookie("OMGWebFlasherSkipWelcome","true",30);
+		skipWelcome=true;
+	}
+	for (var key in settings) { 
+		if(settings[key]!==null){
+			let element = settings[key];
+			if(NodeList.prototype.isPrototypeOf(element)||HTMLCollection.prototype.isPrototypeOf(element)){
+				for(let i = 0; i < element.length; i++){
+					if(element[i].checked){
+						saveSetting(key,element[i].id);
+					}
+				}
+			} else {
+				if(element.type=="checkbox"){
+					if(value!==null){
+						saveSetting(key,element.checked);
+					}
+				} else {
+					saveSetting(key,element.value);
+				}
+			}
+		} 
+	}
+	
+}
+
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
