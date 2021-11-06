@@ -21,8 +21,8 @@
       }
     </script>
     <!-- import the webpage's javascript file -->
-    <script src="js/esptool.js" defer></script>
     <script src="js/utilities.js" defer></script>
+    <script src="js/esptool.js" defer></script>
     <script src="js/script.js" defer></script>
 </head>
 <body>
@@ -78,24 +78,23 @@
                 </div>
                 <div id="qbox-container" class="p-4">
                         <div id="steps-container" class="p-5">
-                            <div class="step d-none" id="step-welcome">
-                                <h2>Welcome to the O.MG Web Hardware Flasher </h2>
+                            <div class="step" id="step-welcome">
+                                <h2>Welcome to the O.MG Web Programmer </h2>
                                 <p>Please begin by plugging in your cable to your programmer and plugging in the programmer into your computer. This flasher is guided, at any time if a <span>Help</span> button is available you can follow help instructions. Alternatively, if you wish not to see this again, please select the option below.</p>
-                                <div class="m-2">
+                                <div class="m-2 bg-white">
                                 	<img src="welcome-instructions.png" class="img-fluid p-2" alt="Welcome Instructions">
 									<div class="form-check form-switch pt-3">
 										<input class="form-check-input" type="checkbox" id="welcomeScreenCheck">
 										<label class="form-check-label" for="welcomeScreenCheck">Do not show this welcome screen again</label>
 									</div>
+									<!--<button id="btnWelcomeHelp" class="fancy btn" type="button">Help</button>-->
 								</div>
-								<div id="q-box__buttons">
-									<button id="next-btn" class="fancy btn" type="button">Reset</button> 
-									<button id="prev-btn" class="fancy btn" type="button">Begin</button> 
-									<button id="submit-btn" class="fancy btn" type="button">Submit</button>
+								<div class="m-2 text-center justify-content-center">
+									<button id="btnWelcome" class="fancy btn btn-success btn-lg" type="button">Continue</button>
 								</div>
 								<!--<div class="p-4"></div>-->
                             </div>
-                            <div class="step" id="modular-stepper">
+                            <div class="step d-none" id="modular-stepper">
 								<div class="d-flex justify-content-between bd-highlight mb-3">
 									<div class="p-2 bd-highlight"></div>
 									<div class="p-2 bd-highlight"><h2>O.MG Web Flasher</h2></div>
@@ -114,6 +113,7 @@
 									</div>
                             	</div>
                             	<div class="row px-3">
+                        			<div class="alert d-none" role="alert" id="statusAlert"></div>
 									<div class="accordion text-left justify-content-left pt-2" id="programmingAcc">
 										<div class="accordion-item">
 											<h2 class="accordion-header" id="programmerStep1">
@@ -128,6 +128,7 @@
 													Plug in the O.MG Programmer to your computer, then plug in the O.MG Device (Cable, Keylogger, or Plug) into the programmer.
 												</div>
 												<div class="pb-2 pt-3 justify-content-center text-center">
+													<button type="button" class="btn btn-success btn-lg" id="btnConnectHw">Continue</button>
 													<button type="button" class="btn btn-secondary btn-lg" data-bs-toggle="modal"  data-bs-target="#modalHelpHardware">Show me How</button>
 												</div>
 											</div>
@@ -161,7 +162,7 @@
 												<div class="accordion-body">
 													Press the <strong>Program<i>!</i></strong> button below, thats it! 
 													<div class="pb-2 pt-3 justify-content-center text-center">
-														<button type="button" class="btn btn-danger btn-lg fancy" id="btnProgram"><span class="spinner-border spinner-border-sm"></span> Program<i></i></button> <button type="button" class="btn btn-secondary btn-lg fancy" data-bs-toggle="modal"  data-bs-target="#modalHelpFlash">Show me How</button>
+														<button type="button" class="btn btn-danger btn-lg fancy" id="btnProgram"><span class="spinner-border spinner-border-sm d-none"></span> Program<i></i></button> <button type="button" class="btn btn-secondary btn-lg fancy" data-bs-toggle="modal"  data-bs-target="#modalHelpFlash">Show me How</button>
 													</div>
 												</div>
 											</div>
@@ -170,11 +171,11 @@
 									</div>  
 								</div>                          
                             </div>
-                            <div id="success">
-                                <div class="mt-5 d-none">
-                                    <h4>Success!</h4>
-                                    <p>Flashing was successful/p>
-                                    <p id="success-status">&#x2705;</p> <!-- faillure use 274C -->
+                            <div id="step-success" class="step d-none">
+                                <div class="mt-5 text-center">
+                                    <h3 class="display-1">Success!</h3>
+                                    <p class="lead">Flashing was successful</p>
+                                    <p id="success-status" class="text-center" style="font-size:10em;">&#x2705;</p> <!-- faillure use 274C -->
                                 </div>
                             </div>
                         </div>
@@ -193,7 +194,7 @@
 					<div class="font-weight-light p-2">
 						<p>The O.MG Web Flasher logs contain debug information and are not needed for general use. If requested you can download the logs for support.</p>
 					</div>
-					<div class="pt-2" id="log"><p>Welcome to Logs</p></div>
+					<div class="pt-2" id="log"><p class="d-none">Logging enabled...</p></div>
 				</div>
 				<div class="modal-footer">
 					<div class="form-check form-switch form-control-lg">
@@ -296,7 +297,7 @@
 				</div>
 				<div class="modal-body">
 					<div class="container-fluid">
-						<p>You plug it in bruh, plug it in</p>
+						<p>You plug it in, plug it in</p>
 					</div>
 				</div>
 				<div class="modal-footer">
@@ -314,7 +315,7 @@
 				</div>
 				<div class="modal-body">
 					<div class="container-fluid">
-						<p>You plug it in bruh, plug it in</p>
+						<p>You plug it in, plug it in</p>
 					</div>
 				</div>
 				<div class="modal-footer">
@@ -332,7 +333,7 @@
 				</div>
 				<div class="modal-body">
 					<div class="container-fluid">
-						<p>You plug it in bruh, plug it in</p>
+						<p>You plug it in, plug it in</p>
 					</div>
 				</div>
 				<div class="modal-footer">

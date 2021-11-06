@@ -8,14 +8,15 @@ var espTool;
 const baudRates = [115200];
 
 const bufferSize = 512;
-const colors = ["#00a7e9", "#f89521", "#be1e2d"];
-const measurementPeriodId = "0001";
 
 const eraseFillByte = 0x00;
 
 const maxLogLength = 100;
 const log = document.getElementById("log");
+const stepBox = document.getElementById("steps-container");
+const butWelcome = document.getElementById("btnWelcome");
 const butConnect = document.getElementById("btnConnect");
+
 
 // Console Modal
 const butClear = document.getElementById("btnClear");
@@ -30,13 +31,16 @@ const txtSSIDName = document.getElementById("ssidName");
 const txtSSIDPass = document.getElementById("ssidPass");
 
 // Programming 
+const statusAlertBox = document.getElementById("statusAlert");
 const statusStep1 = document.getElementById("programmerStep1-status");
 const statusStep2 = document.getElementById("programmerStep2-status");
 const statusStep3 = document.getElementById("programmerStep3-status");
+const butHardware = document.getElementById("btnConnectHw");
 const butProgram = document.getElementById("btnProgram");
 
 const progress = document.querySelectorAll(".progress-bar");
-
+var currProgress = 0;
+var maxProgress = 100;
 
 var isConnected = false;
 
@@ -96,8 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
             toggleUIConnected(false);
         });
     });
-    
-    
+     
     // set the clear button and reset
 	document.addEventListener("keydown", (event) => {
 		if (isConnected && (event.isComposing || event.key == "Shift")) {
@@ -106,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			butProgram.innerText = "Erase";
 		}
 	});
+	
 	document.addEventListener('keyup', (event) => {
 		if(isConnected && event.key == "Shift") {
 			console.log("Shift Key Unpressed");
@@ -116,7 +120,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	// disable device wifi config by default until user asks
 	toggleDevConf(true);
+	butWelcome.addEventListener("click", clickWelcome);
 	butCustomize.addEventListener("click", toggleDevConf);
+	butHardware.addEventListener("click", clickHardware);
     butProgram.addEventListener("click", clickProgramErase);
     butDownload.addEventListener("click", clickDownload);
     butClear.addEventListener("click",clickClear);
@@ -162,11 +168,36 @@ function initBaudRate() {
 }
 
 function updateProgress(part, percentage) {
-    let progressBar = progress[part].querySelector("div");
-    progressBar.style.width = percentage + "%";
+	let progress_raw = ((part+1)*100)+percentage;
+	currProgress = (progress_raw/maxProgress)*100;
+    let progressBar = progress[0]; //.querySelector("div");
+    progressBar.setAttribute('aria-valuenow', currProgress);
+    progressBar.style.width = currProgress + "%";
+    if(debugState){
+	    console.log("current progress is " + currProgress + "% based on " + progress_raw + "/" + maxProgress);
+	}	
+}
+
+function updateCoreProgress(percentage){
+	console.log("I am live");
+	currProgress = (percentage/maxProgress)*100;
+    let progressBar = progress[0]; 
+    progressBar.setAttribute('aria-valuenow', currProgress);
+    progressBar.style.width = currProgress + "%";
+    if(debugState){
+	    console.log("current progress is " + currProgress + "% based on " + percentage + "/" + maxProgress);
+	}	
 }
 
 
+function setProgressMax(resources){
+    let progressBar = progress[0]; //.querySelector("div");
+    maxProgress = 110+(resources*100);
+    progressBar.setAttribute('aria-valuemax', maxProgress);
+    if(debugState){
+	    console.log("max of progress bar is set to " + maxProgress);
+	}	
+}
 
 /**
  * @name disconnect
@@ -178,12 +209,15 @@ async function disconnect() {
 }
 
 
+async function setStatusAlert(message,status="success"){
+	let constructedStatus = "alert-" + status;
+	statusAlertBox.classList.add(constructedStatus);
+	statusAlertBox.innerText = message;
+	statusAlertBox.classList.remove("d-none");
+}
+
 async function endHelper(){
 	//logMsg("Please reload this webpage and make sure to reconnect cable and flasher if trying to flash another cable or recovering from error.");
-
-    //	toggleUIToolbar(false);
-
-	butProgram.textContent="Reload Web Page To Continue";
 	butConnect.disabled=true;	
 	baudRate.disabled=true;
 	butClear.disabled=true;
@@ -312,20 +346,23 @@ async function reset() {
     logMsgs = [];
 }
 
-/**
- * @name clickConnect
- * Click handler for the connect/disconnect button.
- */
+async function clickWelcome(){
+	switchStep("modular-stepper");
+}
+
+async function clickHardware(){
+	butHardware.disabled=true;
+	butHardware.classList.replace("btn-success","btn-secondary");
+	toggleUIHardware(true);
+}
+
 async function clickConnect() {
     if (espTool.connected()) {
         await disconnect();
         toggleUIConnected(false);
         return;
     }
-
     await connect();
-
-    
     try {
         if (await espTool.sync()) {
             toggleUIConnected(true);
@@ -358,6 +395,7 @@ async function clickConnect() {
                 }
             }
         }
+        isConnected=true;
         if (debugState) {
             console.log(espTool);
         }
@@ -443,22 +481,30 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     } else {
         logMsg("Error, invalid flash size found " + chip_flash_size);
     }
+    setProgressMax(chip_files.length);
+    updateCoreProgress(25);
     for (let i = 0; i < chip_files.length; i++) {
         if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
             errorMsg("Invalid data, cannot load online flash resources");
+        	toggleUIProgram(false);
         }
         let request_file = url + chip_files[i]["name"];
         let tmp = await fetch(request_file).then((response) => {
             if (response.status >= 400 && response.status < 600) {
                 errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
                 flashingReady = false;
-                throw new Error("Bad response from server");
+                let consiseError = "Invalid file received from server ";
+                setStatusAlert(consiseError,'danger');
+                throw new Error(consiseError);
+                return false;
+                
             }
             logMsg("Loaded online version of " + request_file + ". ");
             return response.blob();
         }).then((myblob) => myblob).catch((error) => {
             console.log(error)
         });
+        updateCoreProgress(40);
         if (tmp === undefined) {
             // missing file
             logMsg("Invalid file downloaded " + chip_files["name"]);
@@ -480,7 +526,10 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             if(content_length<1||flash_list[i].data.byteLength<1){
             	flashingReady=false;
             	errorMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
-            	throw new Error("Bad response from server, invalid downloaded file size");
+            	let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue";
+            	setStatusAlert(consiseError,'danger');
+            	throw new Error(consiseError);
+            	return false;
             }
             if (debugState) {
                 console.log("data queried for flash size " + chip_flash_size);
@@ -517,6 +566,20 @@ async function accordionExpand(item){
 	}
 }
 
+
+async function switchStep(activeStep){
+	// this may need to be more specific
+	let steps = stepBox.getElementsByClassName("step");
+	for (let i = 0; i < steps.length; i++) {
+		let step = steps[i];
+		if(activeStep === step.id){
+			step.classList.remove("d-none");
+		} else {
+			step.classList.add("d-none");
+		}
+	}
+}
+
 async function accordionDisable(disabled=true){
 	let collapsable_elements = document.querySelectorAll('.accordion-button');
 	for (let i = 0; i < collapsable_elements.length; i++) {
@@ -538,20 +601,35 @@ async function toggleDevConf(s=true){
 
 
 async function clickProgramErase(){
+	let shiftkeypress = false;
 	document.addEventListener("keydown", (event) => {
-		if(isConnected){
-			if (event.isComposing || event.key == "Shift") {
-				clickProgram();
-			} else {
-				clickErase();	
-			}
+		if (event.key == "Shift") {
+			shiftkeypress = true;
 		}
 	});
+	document.addEventListener("keyup", (event) => {
+		if (event.key == "Shift") {
+			shiftkeypress = false;
+		}
+	});
+	if(isConnected){
+		if (shiftkeypress) {
+			clickErase();	
+		} else {
+			clickProgram();
+		}
+	} else {
+		if(debugState){
+			console.log("Programmer clicked but cowardly refusing to " 
+			+ "do anything since we don't appear to be connected");
+		}
+	}
 }
 
 async function clickProgram() {
     baudRate.disabled = true;
     butProgram.disabled = false;
+    btnProgram.getElementsByClassName("spinner-border")[0].classList.remove("d-none");
 	let flash_successful = true;
     // and move on
     let branch = String(document.querySelector("#branch").value);
@@ -560,6 +638,7 @@ async function clickProgram() {
         console.log("debug orig memory dump");
         console.log(bins);
     }
+    updateCoreProgress(60);
     if (!flashingReady) {
         logMsg("Flashing not ready, an error has occurred, please check log above for more information");
     } else {
@@ -572,14 +651,17 @@ async function clickProgram() {
             }
             await eraseFlash(await espTool.getFlashID());
             logMsg("Erasing complete, continuing with flash process");
+        	toggleUIProgram(true);
         }
         // update the bins with patching
+        updateCoreProgress(70);
         logMsg("Attempting to perform bit-patching on firmware");
         bins = await patchFlash(bins);
         if (debugState) {
             console.log("debug patched memory dump");
             console.log(bins);
         }
+        updateCoreProgress(100);
         // continue
         for (let bin of bins) {
             try {
@@ -598,6 +680,8 @@ async function clickProgram() {
             }
         }
         if (flash_successful) {
+        	setStatusAlert("Cable Programmed, please reload web page and remove programmer and cable");
+        	toggleUIProgram(true);
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
             endHelper();
@@ -742,6 +826,7 @@ async function clickErase() {
 				errorMsg(e);
 			}
 		}
+		setStatusAlert("Cable Erased, please reload web page and remove programmer and cable");
 		logMsg("Erasing complete, please continue with flash process after " + 
 		"reloading web page (Ctrl+F5) and reconnecting to cable");
 		logMsg(" ");
@@ -797,12 +882,47 @@ function convertJSON(chunk) {
     }
 }
 
+function toggleUIProgram(state) {
+	isConnected=true;
+    if (state) {
+    	statusStep1.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
+    	statusStep1.classList.add("bi-check-circle");
+    	//switchStep('step-success');
+    } else {
+    	// error
+		statusStep1.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
+    	statusStep1.classList.add("bi-x-circle");
+        accordionExpand(3);
+        btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
+        progress[0].remove("progress-bar-animated");
+        accordionDisable();
+    }
+    butConnect.textContent = lbl;
+}
+
+function toggleUIHardware(ready) {
+    let lbl = "Connect";
+    if (ready) {
+    	statusStep1.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
+    	statusStep1.classList.add("bi-check-circle");
+        accordionExpand(2);
+    } else {
+    	// error
+		statusStep1.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
+    	statusStep1.classList.add("bi-x-circle");
+        accordionExpand(1);
+        accordionDisable();
+    }
+    butConnect.textContent = lbl;
+}
+
 function toggleUIConnected(connected) {
     let lbl = "Connect";
     if (connected) {
     	statusStep2.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
     	statusStep2.classList.add("bi-check-circle");
         lbl = "Disconnect";
+        accordionExpand(3);
     } else {
     	// error
 		statusStep2.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
