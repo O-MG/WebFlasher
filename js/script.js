@@ -58,7 +58,7 @@ var flashingReady = true;
 
 var logMsgs = [];
 
-var skipWelcome = true;
+var skipWelcome = false;
 
 var settings = {
 	'darkMode': darkMode,
@@ -158,6 +158,8 @@ document.addEventListener("DOMContentLoaded", () => {
     	switchStep('modular-stepper');
     }
     accordionExpand(1);
+    // disable the programming button until we are connected
+    butProgram.disabled = true;
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
 });
 
@@ -915,6 +917,7 @@ function toggleUIHardware(ready) {
 function toggleUIConnected(connected) {
     let lbl = "Connect";
     if (connected) {
+    	butProgram.disabled = false;
     	statusStep2.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
     	statusStep2.classList.add("bi-check-circle");
         lbl = "Disconnect";
@@ -923,6 +926,7 @@ function toggleUIConnected(connected) {
     	// error
 		statusStep2.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
     	statusStep2.classList.add("bi-x-circle");
+    	//butProgram.disabled = true;
         lbl = "Error";
         accordionExpand(2);
         accordionDisable();
