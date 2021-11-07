@@ -861,29 +861,6 @@ async function clickDownload() {
 	saveFile(file_name,raw_log);
 }
 
-/**
- * @name checkFirmware
- * Handler for firmware upload changes
- */
-async function checkFirmware(event) {
-    let filename = event.target.value.split("\\").pop();
-    let label = event.target.parentNode.querySelector("span");
-    let icon = event.target.parentNode.querySelector("svg");
-    if (filename != "") {
-        if (filename.length > 17) {
-            label.innerHTML = filename.substring(0, 14) + "&hellip;";
-        } else {
-            label.innerHTML = filename;
-        }
-        icon.classList.add("hidden");
-    } else {
-        label.innerHTML = "Choose a file&hellip;";
-        icon.classList.remove("hidden");
-    }
-
-    //await checkProgrammable();
-}
-
 async function clickSave(){
 	saveSettings();
 }
