@@ -61,12 +61,12 @@ var logMsgs = [];
 var skipWelcome = false;
 
 var settings = {
-    "customizeConfig": elementsDevConf,
+    "customizeConfig": butCustomize,
     "darkMode": darkMode,
     "devWiFiSSID": txtSSIDName,
     "devWifiMode": butWifiMode,
     "firmwareRelease": null,
-    "skipWelcome": butWelcome
+    "skipWelcome": butSkipWelcome
 }
 
 const url_memmap = "assets/memmap.json";
