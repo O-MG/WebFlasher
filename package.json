@@ -1,0 +1,24 @@
+{
+  "name": "webflasher",
+  "version": "1.0.0",
+  "description": "A Web Serial tool for updating your ESP bootloader.",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/O-MG/WebFlasher.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/O-MG/WebFlasher/issues"
+  },
+  "homepage": "https://github.com/O-MG/WebFlasher#readme",
+  "devDependencies": {
+    "eslint": "^8.2.0"
+  }
+}
