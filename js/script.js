@@ -1037,14 +1037,8 @@ function saveSettings() {
                         }
                     }
                 } else {
-                	console.log(element)
-                    if (element.type == "checkbox") {
-                        if (typeof value === "undefined") {
-                            saveSetting(key, element.checked);
-                        }
-                    } else {
-                        saveSetting(key, element.value);
-                    }
+                    const value = element.type=="checkbox" ? 'checked' : 'value';
+                    saveSetting(key,element[value]);
                 }
             }
         }
