@@ -136,6 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // disable device wifi config by default until user asks
     toggleDevConf(true);
     butWelcome.addEventListener("click", clickWelcome);
+    butSkipWelcome.addEventListener("click", clickSkipWelcome);
     butSave.addEventListener("click", clickSave);
     butCustomize.addEventListener("click", toggleDevConf);
     butHardware.addEventListener("click", clickHardware);
@@ -200,7 +201,6 @@ function updateProgress(part, percentage) {
 }
 
 function updateCoreProgress(percentage) {
-    console.log("I am live");
     currProgress = (percentage / maxProgress) * 100;
     let progressBar = progress[0];
     progressBar.setAttribute("aria-valuenow", currProgress);
@@ -366,6 +366,10 @@ async function reset() {
     log.innerHTML = "";
     // Clear the log buffer
     logMsgs = [];
+}
+
+async function clickSkipWelcome(){
+    await saveSettings();
 }
 
 async function clickWelcome() {
@@ -707,6 +711,12 @@ async function clickProgram() {
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
             endHelper();
+        } else {
+            setStatusAlert("Cable flash failed and could not be completed.");
+            toggleUIProgram(true);    
+            logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
+            logMsg(" ");
+            endHelper();
         }
         baudRate.disabled = false;
     }
@@ -940,6 +950,7 @@ function saveSetting(setting, value) {
 }
 
 function loadSetting(setting) {
+    console.log(setting);
     return JSON.parse(window.localStorage.getItem(setting));
 }
 
@@ -976,32 +987,35 @@ function loadSettings() {
     }
     for (var key in settings) {
         if (settings[key] !== null) {
-            let value = loadSetting(key);
-            let element = settings[key];
-            console.log("setting:" + key + " value " + value + " ele " + element);
-            if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
-                for (let i = 0; i < element.length; i++) {
-                    if (element[i].id !== undefined && element[i].id == value) {
-                        element[i].checked = true;
-                    } else {
-                        element[i].checked = false;
+            let value = null;
+            try {
+                let value = loadSetting(key);
+                let element = settings[key];
+                console.log("setting:" + key + " value " + value + " ele " + element);
+                if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
+                    for (let i = 0; i < element.length; i++) {
+                        if (element[i].id !== undefined && element[i].id == value) {
+                            element[i].checked = true;
+                        } else {
+                            element[i].checked = false;
+                        }
+                    }
+                } else {
+                    if (typeof value !== "undefined") {
+                        if (element.type == "checkbox") {
+                            element.checked = value;
+                        } else {
+                            element[key].value = value;
+                        }
                     }
                 }
-            } else {
-                if (value !== null) {
-                    if (element.type == "checkbox") {
-                        element.checked = value;
-                    } else {
-                        element[key].value = value;
-                    }
-                }
+            } catch {
+                console.log("setting:" + key + " is invalid and being skipped");
             }
         }
-        // now we apply them 
-
     }
-
 }
+
 
 function saveSettings() {
     // special setting here
@@ -1012,19 +1026,25 @@ function saveSettings() {
     for (var key in settings) {
         if (settings[key] !== null) {
             let element = settings[key];
-            if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
-                for (let i = 0; i < element.length; i++) {
-                    if (element[i].checked) {
-                        saveSetting(key, element[i].id);
-                    }
-                }
+            // shouldn't need to double check here but we do right now 
+            if(typeof element === "undefined"||element === null) {
+                console.log("unable to save setting " + key + " due to it not being defined")
             } else {
-                if (element.type == "checkbox") {
-                    if (value !== null) {
-                        saveSetting(key, element.checked);
+                if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
+                    for (let i = 0; i < element.length; i++) {
+                        if (element[i].checked) {
+                            saveSetting(key, element[i].id);
+                        }
                     }
                 } else {
-                    saveSetting(key, element.value);
+                	console.log(element)
+                    if (element.type == "checkbox") {
+                        if (typeof value === "undefined") {
+                            saveSetting(key, element.checked);
+                        }
+                    } else {
+                        saveSetting(key, element.value);
+                    }
                 }
             }
         }
