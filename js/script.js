@@ -61,12 +61,12 @@ var logMsgs = [];
 var skipWelcome = false;
 
 var settings = {
-	'darkMode': darkMode,
-	'skipWelcome': butWelcome,
-	'customizeConfig': elementsDevConf,
-	'devWifiMode': butWifiMode,
-	'devWiFiSSID': txtSSIDName,
-	'firmwareRelease': null,
+    "customizeConfig": elementsDevConf,
+    "darkMode": darkMode,
+    "devWiFiSSID": txtSSIDName,
+    "devWifiMode": butWifiMode,
+    "firmwareRelease": null,
+    "skipWelcome": butWelcome
 }
 
 const url_memmap = "assets/memmap.json";
@@ -78,11 +78,11 @@ const url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
 Uint8Array.prototype.indexOfString = function(searchElements, fromIndex) {
     fromIndex = fromIndex || 0;
     var index = Array.prototype.indexOf.call(this, searchElements[0], fromIndex);
-    if(searchElements.length === 1 || index === -1) {
+    if (searchElements.length === 1 || index === -1) {
         return index;
     }
-    for(var i = index, j = 0; j < searchElements.length && i < this.length; i++, j++) {
-        if(this[i] !== searchElements[j]) {
+    for (var i = index, j = 0; j < searchElements.length && i < this.length; i++, j++) {
+        if (this[i] !== searchElements[j]) {
             return this.indexOfString(searchElements, index + 1);
         }
     }
@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
         debug = getParams["debug"] == "1" || getParams["debug"].toLowerCase() == "true";
         debugState = debug;
     }
-    
+
     loadSettings();
 
     espTool = new EspLoader({
@@ -115,33 +115,33 @@ document.addEventListener("DOMContentLoaded", () => {
             toggleUIConnected(false);
         });
     });
-     
-    // set the clear button and reset
-	document.addEventListener("keydown", (event) => {
-		if (isConnected && (event.isComposing || event.key == "Shift")) {
-			console.log("Shift Key Pressed");
-			butProgram.classList.replace("btn-danger","btn-warning");
-			butProgram.innerText = "Erase";
-		}
-	});
-	
-	document.addEventListener('keyup', (event) => {
-		if(isConnected && event.key == "Shift") {
-			console.log("Shift Key Unpressed");
-			butProgram.classList.replace("btn-warning","btn-danger");
-			butProgram.innerText = "Program"
-		}
-	});
 
-	// disable device wifi config by default until user asks
-	toggleDevConf(true);
-	butWelcome.addEventListener("click", clickWelcome);
-	butSave.addEventListener("click",clickSave);
-	butCustomize.addEventListener("click", toggleDevConf);
-	butHardware.addEventListener("click", clickHardware);
+    // set the clear button and reset
+    document.addEventListener("keydown", (event) => {
+        if (isConnected && (event.isComposing || event.key == "Shift")) {
+            console.log("Shift Key Pressed");
+            butProgram.classList.replace("btn-danger", "btn-warning");
+            butProgram.innerText = "Erase";
+        }
+    });
+
+    document.addEventListener("keyup", (event) => {
+        if (isConnected && event.key == "Shift") {
+            console.log("Shift Key Unpressed");
+            butProgram.classList.replace("btn-warning", "btn-danger");
+            butProgram.innerText = "Program"
+        }
+    });
+
+    // disable device wifi config by default until user asks
+    toggleDevConf(true);
+    butWelcome.addEventListener("click", clickWelcome);
+    butSave.addEventListener("click", clickSave);
+    butCustomize.addEventListener("click", toggleDevConf);
+    butHardware.addEventListener("click", clickHardware);
     butProgram.addEventListener("click", clickProgramErase);
     butDownload.addEventListener("click", clickDownload);
-    butClear.addEventListener("click",clickClear);
+    butClear.addEventListener("click", clickClear);
     autoscroll.addEventListener("click", clickAutoscroll);
     baudRate.addEventListener("change", changeBaudRate);
     darkMode.addEventListener("click", clickDarkMode);
@@ -149,13 +149,13 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("Got an uncaught error: ", event.error)
     });
     if (!("serial" in navigator)) {
-    	var unsupportedInfoModal = new bootstrap.Modal(document.getElementById('notSupported'), {
-  			keyboard: false
-		})
+        var unsupportedInfoModal = new bootstrap.Modal(document.getElementById("notSupported"), {
+            keyboard: false
+        })
         unsupportedInfoModal.show();
     }
-    if(skipWelcome){
-    	switchStep('modular-stepper');
+    if (skipWelcome) {
+        switchStep("modular-stepper");
     }
     accordionExpand(1);
     // disable the programming button until we are connected
@@ -189,35 +189,35 @@ function initBaudRate() {
 }
 
 function updateProgress(part, percentage) {
-	let progress_raw = ((part+1)*100)+percentage;
-	currProgress = (progress_raw/maxProgress)*100;
+    let progress_raw = ((part + 1) * 100) + percentage;
+    currProgress = (progress_raw / maxProgress) * 100;
     let progressBar = progress[0]; //.querySelector("div");
-    progressBar.setAttribute('aria-valuenow', currProgress);
+    progressBar.setAttribute("aria-valuenow", currProgress);
     progressBar.style.width = currProgress + "%";
-    if(debugState){
-	    console.log("current progress is " + currProgress + "% based on " + progress_raw + "/" + maxProgress);
-	}	
+    if (debugState) {
+        console.log("current progress is " + currProgress + "% based on " + progress_raw + "/" + maxProgress);
+    }
 }
 
-function updateCoreProgress(percentage){
-	console.log("I am live");
-	currProgress = (percentage/maxProgress)*100;
-    let progressBar = progress[0]; 
-    progressBar.setAttribute('aria-valuenow', currProgress);
+function updateCoreProgress(percentage) {
+    console.log("I am live");
+    currProgress = (percentage / maxProgress) * 100;
+    let progressBar = progress[0];
+    progressBar.setAttribute("aria-valuenow", currProgress);
     progressBar.style.width = currProgress + "%";
-    if(debugState){
-	    console.log("current progress is " + currProgress + "% based on " + percentage + "/" + maxProgress);
-	}	
+    if (debugState) {
+        console.log("current progress is " + currProgress + "% based on " + percentage + "/" + maxProgress);
+    }
 }
 
 
-function setProgressMax(resources){
+function setProgressMax(resources) {
     let progressBar = progress[0]; //.querySelector("div");
-    maxProgress = 110+(resources*100);
-    progressBar.setAttribute('aria-valuemax', maxProgress);
-    if(debugState){
-	    console.log("max of progress bar is set to " + maxProgress);
-	}	
+    maxProgress = 110 + (resources * 100);
+    progressBar.setAttribute("aria-valuemax", maxProgress);
+    if (debugState) {
+        console.log("max of progress bar is set to " + maxProgress);
+    }
 }
 
 /**
@@ -230,21 +230,21 @@ async function disconnect() {
 }
 
 
-async function setStatusAlert(message,status="success"){
-	let constructedStatus = "alert-" + status;
-	statusAlertBox.classList.add(constructedStatus);
-	statusAlertBox.innerText = message;
-	statusAlertBox.classList.remove("d-none");
+async function setStatusAlert(message, status = "success") {
+    let constructedStatus = "alert-" + status;
+    statusAlertBox.classList.add(constructedStatus);
+    statusAlertBox.innerText = message;
+    statusAlertBox.classList.remove("d-none");
 }
 
-async function endHelper(){
-	//logMsg("Please reload this webpage and make sure to reconnect cable and flasher if trying to flash another cable or recovering from error.");
-	butConnect.disabled=true;	
-	baudRate.disabled=true;
-	butClear.disabled=true;
-	butProgram.disabled=true;
-	butProgram.textContent="Reload Web Page To Continue";
-	autoscroll.disabled=true;
+async function endHelper() {
+    //logMsg("Please reload this webpage and make sure to reconnect cable and flasher if trying to flash another cable or recovering from error.");
+    butConnect.disabled = true;
+    baudRate.disabled = true;
+    butClear.disabled = true;
+    butProgram.disabled = true;
+    butProgram.textContent = "Reload Web Page To Continue";
+    autoscroll.disabled = true;
 
 
 }
@@ -270,23 +270,24 @@ async function readLoop() {
 
 // https://stackoverflow.com/questions/3665115/how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server
 function saveFile(filename, data) {
-    const blob = new Blob([data], {type: 'text/csv'});
-    if(window.navigator.msSaveOrOpenBlob) {
+    const blob = new Blob([data], {
+        type: "text/csv"
+    });
+    if (window.navigator.msSaveOrOpenBlob) {
         window.navigator.msSaveBlob(blob, filename);
-    }
-    else{
-        const elem = window.document.createElement('a');
+    } else {
+        const elem = window.document.createElement("a");
         elem.href = window.URL.createObjectURL(blob);
-        elem.download = filename;        
+        elem.download = filename;
         document.body.appendChild(elem);
-        elem.click();        
+        elem.click();
         document.body.removeChild(elem);
     }
 }
 
 function logMsg(text) {
-	const rmsg = (new DOMParser().parseFromString(text, 'text/html')).body.textContent;
-	logMsgs.push(rmsg);
+    const rmsg = (new DOMParser().parseFromString(text, "text/html")).body.textContent;
+    logMsgs.push(rmsg);
     log.innerHTML += text + "<br>";
 
     // Remove old log content
@@ -367,14 +368,14 @@ async function reset() {
     logMsgs = [];
 }
 
-async function clickWelcome(){
-	switchStep("modular-stepper");
+async function clickWelcome() {
+    switchStep("modular-stepper");
 }
 
-async function clickHardware(){
-	butHardware.disabled=true;
-	butHardware.classList.replace("btn-success","btn-secondary");
-	toggleUIHardware(true);
+async function clickHardware() {
+    butHardware.disabled = true;
+    butHardware.classList.replace("btn-success", "btn-secondary");
+    toggleUIHardware(true);
 }
 
 async function clickConnect() {
@@ -416,7 +417,7 @@ async function clickConnect() {
                 }
             }
         }
-        isConnected=true;
+        isConnected = true;
         if (debugState) {
             console.log(espTool);
         }
@@ -476,7 +477,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             reader.readAsArrayBuffer(inputFile);
         });
     };
-    
+
     const getResourceMap = (url) => {
         return fetch(url, {
                 method: "GET",
@@ -507,7 +508,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     for (let i = 0; i < chip_files.length; i++) {
         if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
             errorMsg("Invalid data, cannot load online flash resources");
-        	toggleUIProgram(false);
+            toggleUIProgram(false);
         }
         let request_file = url + chip_files[i]["name"];
         let tmp = await fetch(request_file).then((response) => {
@@ -515,10 +516,10 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
                 errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
                 flashingReady = false;
                 let consiseError = "Invalid file received from server ";
-                setStatusAlert(consiseError,'danger');
+                setStatusAlert(consiseError, "danger");
                 throw new Error(consiseError);
                 return false;
-                
+
             }
             logMsg("Loaded online version of " + request_file + ". ");
             return response.blob();
@@ -538,19 +539,19 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
                 contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
             }
             flash_list.push({
-            	"url": request_file,
+                "url": request_file,
                 "name": chip_files[i]["name"],
                 "offset": chip_files[i]["offset"],
                 "size": content_length,
                 "data": contents
             });
-            if(content_length<1||flash_list[i].data.byteLength<1){
-            	flashingReady=false;
-            	errorMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
-            	let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue";
-            	setStatusAlert(consiseError,'danger');
-            	throw new Error(consiseError);
-            	return false;
+            if (content_length < 1 || flash_list[i].data.byteLength < 1) {
+                flashingReady = false;
+                errorMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
+                let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue";
+                setStatusAlert(consiseError, "danger");
+                throw new Error(consiseError);
+                return false;
             }
             if (debugState) {
                 console.log("data queried for flash size " + chip_flash_size);
@@ -561,97 +562,97 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     return flash_list;
 }
 
-async function accordionExpand(item){
-	function is_expanded(elem){
-		if(elem.classList.contains("show")){
-			return true;	
-		} else {
-			return false;
-		}
-		
-	}
-	// this may need to be more specific
-	let collapsable_elements = document.querySelectorAll('.collapse');
-	for (let i = 0; i < collapsable_elements.length; i++) {
-		let element = collapsable_elements[i];
-		let element_id = parseInt((element.id).replace("-collapse","").replace("programmerStep",""));
-		if(item===element_id){
-			if(!is_expanded(element)){
-				new bootstrap.Collapse(element);
-			}
-		} else {
-			if(is_expanded(element)){
-				new bootstrap.Collapse(element);
-			}
-		}
-	}
+async function accordionExpand(item) {
+    function is_expanded(elem) {
+        if (elem.classList.contains("show")) {
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+    // this may need to be more specific
+    let collapsable_elements = document.querySelectorAll(".collapse");
+    for (let i = 0; i < collapsable_elements.length; i++) {
+        let element = collapsable_elements[i];
+        let element_id = parseInt((element.id).replace("-collapse", "").replace("programmerStep", ""));
+        if (item === element_id) {
+            if (!is_expanded(element)) {
+                new bootstrap.Collapse(element);
+            }
+        } else {
+            if (is_expanded(element)) {
+                new bootstrap.Collapse(element);
+            }
+        }
+    }
 }
 
 
-async function switchStep(activeStep){
-	// this may need to be more specific
-	let steps = stepBox.getElementsByClassName("step");
-	for (let i = 0; i < steps.length; i++) {
-		let step = steps[i];
-		if(activeStep === step.id){
-			step.classList.remove("d-none");
-		} else {
-			step.classList.add("d-none");
-		}
-	}
+async function switchStep(activeStep) {
+    // this may need to be more specific
+    let steps = stepBox.getElementsByClassName("step");
+    for (let i = 0; i < steps.length; i++) {
+        let step = steps[i];
+        if (activeStep === step.id) {
+            step.classList.remove("d-none");
+        } else {
+            step.classList.add("d-none");
+        }
+    }
 }
 
-async function accordionDisable(disabled=true){
-	let collapsable_elements = document.querySelectorAll('.accordion-button');
-	for (let i = 0; i < collapsable_elements.length; i++) {
-		collapsable_elements[i].disabled=disabled;
-	}
+async function accordionDisable(disabled = true) {
+    let collapsable_elements = document.querySelectorAll(".accordion-button");
+    for (let i = 0; i < collapsable_elements.length; i++) {
+        collapsable_elements[i].disabled = disabled;
+    }
 }
 
-async function toggleDevConf(s=true){
-	if(butCustomize.checked){
-		s=false;
-	}
-	let elems = elementsDevConf.querySelectorAll("input");
-	if(elems.length>1){
-		for(let i = 0; i < elems.length; i++){ 
-			elems[i].disabled=s;
-		}
-	}
+async function toggleDevConf(s = true) {
+    if (butCustomize.checked) {
+        s = false;
+    }
+    let elems = elementsDevConf.querySelectorAll("input");
+    if (elems.length > 1) {
+        for (let i = 0; i < elems.length; i++) {
+            elems[i].disabled = s;
+        }
+    }
 }
 
 
-async function clickProgramErase(){
-	let shiftkeypress = false;
-	document.addEventListener("keydown", (event) => {
-		if (event.key == "Shift") {
-			shiftkeypress = true;
-		}
-	});
-	document.addEventListener("keyup", (event) => {
-		if (event.key == "Shift") {
-			shiftkeypress = false;
-		}
-	});
-	if(isConnected){
-		if (shiftkeypress) {
-			clickErase();	
-		} else {
-			clickProgram();
-		}
-	} else {
-		if(debugState){
-			console.log("Programmer clicked but cowardly refusing to " 
-			+ "do anything since we don't appear to be connected");
-		}
-	}
+async function clickProgramErase() {
+    let shiftkeypress = false;
+    document.addEventListener("keydown", (event) => {
+        if (event.key == "Shift") {
+            shiftkeypress = true;
+        }
+    });
+    document.addEventListener("keyup", (event) => {
+        if (event.key == "Shift") {
+            shiftkeypress = false;
+        }
+    });
+    if (isConnected) {
+        if (shiftkeypress) {
+            clickErase();
+        } else {
+            clickProgram();
+        }
+    } else {
+        if (debugState) {
+            console.log("Programmer clicked but cowardly refusing to " +
+                "do anything since we don't appear to be connected");
+        }
+    }
 }
 
 async function clickProgram() {
     baudRate.disabled = true;
     butProgram.disabled = false;
     btnProgram.getElementsByClassName("spinner-border")[0].classList.remove("d-none");
-	let flash_successful = true;
+    let flash_successful = true;
     // and move on
     let branch = String(document.querySelector("#branch").value);
     let bins = await getFirmwareFiles(branch);
@@ -672,7 +673,7 @@ async function clickProgram() {
             }
             await eraseFlash(await espTool.getFlashID());
             logMsg("Erasing complete, continuing with flash process");
-        	toggleUIProgram(true);
+            toggleUIProgram(true);
         }
         // update the bins with patching
         updateCoreProgress(70);
@@ -701,8 +702,8 @@ async function clickProgram() {
             }
         }
         if (flash_successful) {
-        	setStatusAlert("Cable Programmed, please reload web page and remove programmer and cable");
-        	toggleUIProgram(true);
+            setStatusAlert("Cable Programmed, please reload web page and remove programmer and cable");
+            toggleUIProgram(true);
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
             endHelper();
@@ -776,7 +777,7 @@ async function patchFlash(bin_list) {
         // and send back
         return mod_array.buffer;
     }
-    
+
     // not the most elegant way of doing things 
     if (debugState) {
         console.log("original data");
@@ -805,66 +806,66 @@ async function eraseFlash(size = 1024) {
 }
 
 async function eraseSection(offset, ll = 1024, b = 0xff) {
-	let block_split = 4096*4;
-	let offset_end_size = offset+ll;
-	do {
-		let write_size = block_split;
-		if((offset_end_size-offset)<block_split){
-			write_size = offset_end_size-offset;
-		}
-		let contents = ((new Uint8Array(write_size)).fill(b)).buffer;
-		let status = await espTool.flashData(contents, offset, "blank.bin");	
-		console.log(status);
-		await sleep(200); // cool down
-		offset = offset+block_split;
-	} while (offset < offset_end_size);
+    let block_split = 4096 * 4;
+    let offset_end_size = offset + ll;
+    do {
+        let write_size = block_split;
+        if ((offset_end_size - offset) < block_split) {
+            write_size = offset_end_size - offset;
+        }
+        let contents = ((new Uint8Array(write_size)).fill(b)).buffer;
+        let status = await espTool.flashData(contents, offset, "blank.bin");
+        console.log(status);
+        await sleep(200); // cool down
+        offset = offset + block_split;
+    } while (offset < offset_end_size);
 }
 
 async function clickErase() {
     baudRate.disabled = true;
     butProgram.disabled = false;
-	
-	var confirm_erase = confirm("Warning: Erasing should only be performed " 
-	+ "when recommended by support. This operations will require you to reload the " 
-	+ "web page to continue and disconnect and reconnect cable to flasher. "
-	+ "Normally this operation is not needed. Are you ready to proceed?");
-	
-	if(confirm_erase){
-		// and move on
-		let branch = String(document.querySelector("#branch").value);
-		let bins = await getFirmwareFiles(branch, true, eraseFillByte);
-		console.log(bins);
-		logMsg("Erasing based on block sizes based on code branch " + 
-		branch + " with " + eraseFillByte);
-		for (let bin of bins) {
-			try {
-				let offset = parseInt(bin["offset"], 16);
-				let contents = bin["data"];
-				let name = bin["name"];
-				await espTool.flashData(contents, offset, name);
-				await sleep(100);
-			} catch (e) {
-				errorMsg(e);
-			}
-		}
-		setStatusAlert("Cable Erased, please reload web page and remove programmer and cable");
-		logMsg("Erasing complete, please continue with flash process after " + 
-		"reloading web page (Ctrl+F5) and reconnecting to cable");
-		logMsg(" ");
+
+    var confirm_erase = confirm("Warning: Erasing should only be performed " +
+        "when recommended by support. This operations will require you to reload the " +
+        "web page to continue and disconnect and reconnect cable to flasher. " +
+        "Normally this operation is not needed. Are you ready to proceed?");
+
+    if (confirm_erase) {
+        // and move on
+        let branch = String(document.querySelector("#branch").value);
+        let bins = await getFirmwareFiles(branch, true, eraseFillByte);
+        console.log(bins);
+        logMsg("Erasing based on block sizes based on code branch " +
+            branch + " with " + eraseFillByte);
+        for (let bin of bins) {
+            try {
+                let offset = parseInt(bin["offset"], 16);
+                let contents = bin["data"];
+                let name = bin["name"];
+                await espTool.flashData(contents, offset, name);
+                await sleep(100);
+            } catch (e) {
+                errorMsg(e);
+            }
+        }
+        setStatusAlert("Cable Erased, please reload web page and remove programmer and cable");
+        logMsg("Erasing complete, please continue with flash process after " +
+            "reloading web page (Ctrl+F5) and reconnecting to cable");
+        logMsg(" ");
     } else {
-    	logMsg("Erasing operation skipped.");
+        logMsg("Erasing operation skipped.");
     }
 }
 
 async function clickDownload() {
-	let file_name = "flash.log";
-	logMsgs.push("\r\n");
-	const raw_log = logMsgs.join("\r\n");
-	saveFile(file_name,raw_log);
+    let file_name = "flash.log";
+    logMsgs.push("\r\n");
+    const raw_log = logMsgs.join("\r\n");
+    saveFile(file_name, raw_log);
 }
 
-async function clickSave(){
-	saveSettings();
+async function clickSave() {
+    saveSettings();
 }
 
 async function clickClear() {
@@ -881,15 +882,15 @@ function convertJSON(chunk) {
 }
 
 function toggleUIProgram(state) {
-	isConnected=true;
+    isConnected = true;
     if (state) {
-    	statusStep1.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
-    	statusStep1.classList.add("bi-check-circle");
-    	//switchStep('step-success');
+        statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
+        statusStep1.classList.add("bi-check-circle");
+        //switchStep("step-success");
     } else {
-    	// error
-		statusStep1.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
-    	statusStep1.classList.add("bi-x-circle");
+        // error
+        statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
+        statusStep1.classList.add("bi-x-circle");
         accordionExpand(3);
         btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
         progress[0].remove("progress-bar-animated");
@@ -901,13 +902,13 @@ function toggleUIProgram(state) {
 function toggleUIHardware(ready) {
     let lbl = "Connect";
     if (ready) {
-    	statusStep1.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
-    	statusStep1.classList.add("bi-check-circle");
+        statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
+        statusStep1.classList.add("bi-check-circle");
         accordionExpand(2);
     } else {
-    	// error
-		statusStep1.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
-    	statusStep1.classList.add("bi-x-circle");
+        // error
+        statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
+        statusStep1.classList.add("bi-x-circle");
         accordionExpand(1);
         accordionDisable();
     }
@@ -917,16 +918,16 @@ function toggleUIHardware(ready) {
 function toggleUIConnected(connected) {
     let lbl = "Connect";
     if (connected) {
-    	butProgram.disabled = false;
-    	statusStep2.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
-    	statusStep2.classList.add("bi-check-circle");
+        butProgram.disabled = false;
+        statusStep2.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
+        statusStep2.classList.add("bi-check-circle");
         lbl = "Disconnect";
         accordionExpand(3);
     } else {
-    	// error
-		statusStep2.classList.remove("bi-x-circle","bi-circle","bi-check-circle");
-    	statusStep2.classList.add("bi-x-circle");
-    	//butProgram.disabled = true;
+        // error
+        statusStep2.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
+        statusStep2.classList.add("bi-x-circle");
+        //butProgram.disabled = true;
         lbl = "Error";
         accordionExpand(2);
         accordionDisable();
@@ -942,96 +943,96 @@ function loadSetting(setting) {
     return JSON.parse(window.localStorage.getItem(setting));
 }
 
-function setCookie(name,value,days) {
+function setCookie(name, value, days) {
     var expires = "";
     if (days) {
         var date = new Date();
-        date.setTime(date.getTime() + (days*24*60*60*1000));
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
         expires = "; expires=" + date.toUTCString();
     }
-    document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+    document.cookie = name + "=" + (value || "") + expires + "; path=/";
 }
+
 function getCookie(name) {
     var nameEQ = name + "=";
-    var ca = document.cookie.split(';');
-    for(var i=0;i < ca.length;i++) {
+    var ca = document.cookie.split(";");
+    for (var i = 0; i < ca.length; i++) {
         var c = ca[i];
-        while (c.charAt(0)==' ') c = c.substring(1,c.length);
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+        while (c.charAt(0) == " ") c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
     }
     return null;
 }
 
-function eraseCookie(name) {   
-    document.cookie = name +'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+function eraseCookie(name) {
+    document.cookie = name + "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
 }
 
-function loadSettings(){
-	// special setting here
-	let welcomeScreen = getCookie("OMGWebFlasherSkipWelcome");
-	if(welcomeScreen!==null){
-		skipWelcome=true;
-	}
-	for (var key in settings) { 
-		if(settings[key]!==null){
-			let value = loadSetting(key);
-			let element = settings[key];
-			console.log("setting:" + key + " value " + value + " ele " + element);
-			if(NodeList.prototype.isPrototypeOf(element)||HTMLCollection.prototype.isPrototypeOf(element)){
-				for(let i = 0; i < element.length; i++){
-					if(element[i].id!==undefined&&element[i].id==value){
-						element[i].checked=true;
-					} else {
-						element[i].checked=false;
-					}
-				}
-			} else {
-				if(value!==null){
-					if(element.type=="checkbox"){
-						element.checked=value;
-					} else {
-						element[key].value=value;
-					}
-				}
-			}
-		} 
-		// now we apply them 
-		
-	}
-	
+function loadSettings() {
+    // special setting here
+    let welcomeScreen = getCookie("OMGWebFlasherSkipWelcome");
+    if (welcomeScreen !== null) {
+        skipWelcome = true;
+    }
+    for (var key in settings) {
+        if (settings[key] !== null) {
+            let value = loadSetting(key);
+            let element = settings[key];
+            console.log("setting:" + key + " value " + value + " ele " + element);
+            if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
+                for (let i = 0; i < element.length; i++) {
+                    if (element[i].id !== undefined && element[i].id == value) {
+                        element[i].checked = true;
+                    } else {
+                        element[i].checked = false;
+                    }
+                }
+            } else {
+                if (value !== null) {
+                    if (element.type == "checkbox") {
+                        element.checked = value;
+                    } else {
+                        element[key].value = value;
+                    }
+                }
+            }
+        }
+        // now we apply them 
+
+    }
+
 }
 
-function saveSettings(){
-	// special setting here
-	if(butSkipWelcome.checked){
-		setCookie("OMGWebFlasherSkipWelcome","true",30);
-		skipWelcome=true;
-	}
-	for (var key in settings) { 
-		if(settings[key]!==null){
-			let element = settings[key];
-			if(NodeList.prototype.isPrototypeOf(element)||HTMLCollection.prototype.isPrototypeOf(element)){
-				for(let i = 0; i < element.length; i++){
-					if(element[i].checked){
-						saveSetting(key,element[i].id);
-					}
-				}
-			} else {
-				if(element.type=="checkbox"){
-					if(value!==null){
-						saveSetting(key,element.checked);
-					}
-				} else {
-					saveSetting(key,element.value);
-				}
-			}
-		} 
-	}
-	
+function saveSettings() {
+    // special setting here
+    if (butSkipWelcome.checked) {
+        setCookie("OMGWebFlasherSkipWelcome", "true", 30);
+        skipWelcome = true;
+    }
+    for (var key in settings) {
+        if (settings[key] !== null) {
+            let element = settings[key];
+            if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
+                for (let i = 0; i < element.length; i++) {
+                    if (element[i].checked) {
+                        saveSetting(key, element[i].id);
+                    }
+                }
+            } else {
+                if (element.type == "checkbox") {
+                    if (value !== null) {
+                        saveSetting(key, element.checked);
+                    }
+                } else {
+                    saveSetting(key, element.value);
+                }
+            }
+        }
+    }
+
 }
 
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-
