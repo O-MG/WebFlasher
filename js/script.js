@@ -32,6 +32,7 @@ const butWifiMode = document.getElementsByName("wifiMode");
 const txtSSIDName = document.getElementById("ssidName");
 const txtSSIDPass = document.getElementById("ssidPass");
 const butSave = document.getElementById("btnSaveSettings");
+const butDebug = document.getElementById("btnDebug");
 
 // Programming 
 const statusAlertBox = document.getElementById("statusAlert");
@@ -50,7 +51,6 @@ var isConnected = false;
 var base_offset = 0;
 var activePanels = [];
 var debugState = false;
-var doPreWriteErase = false;
 var flashingReady = true;
 
 var logMsgs = [];
@@ -137,6 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
     butWelcome.addEventListener("click", clickWelcome);
     butSkipWelcome.addEventListener("click", clickSkipWelcome);
     butSave.addEventListener("click", clickSave);
+    butDebug.addEventListener("click",clickDebug);
     butCustomize.addEventListener("click", toggleDevConf);
     butHardware.addEventListener("click", clickHardware);
     butProgram.addEventListener("click", clickProgramErase);
@@ -429,7 +430,10 @@ async function clickConnect() {
         toggleUIConnected(false);
         return;
     }
-    console.log(espTool);
+    // give us access to the ESP session
+    if(debugState){
+	    console.log(espTool);
+	}
 }
 /**
  * @name changeBaudRate
@@ -669,14 +673,14 @@ async function clickProgram() {
     } else {
         logMsg("Flashing firmware based on code branch " + branch + ". ");
         // erase 
-        if (doPreWriteErase) {
+        if (butEraseCable.checked) {
             logMsg("Erasing flash before performing writes. This may take some time... ");
             if (debugState) {
                 console.log("performing flash erase before writing");
             }
             await eraseFlash(await espTool.getFlashID());
             logMsg("Erasing complete, continuing with flash process");
-            toggleUIProgram(true);
+            //toggleUIProgram(true);
         }
         // update the bins with patching
         updateCoreProgress(70);
@@ -829,6 +833,17 @@ async function eraseSection(offset, ll = 1024, b = 0xff) {
         await sleep(200); // cool down
         offset = offset + block_split;
     } while (offset < offset_end_size);
+}
+
+async function clickDebug(){
+	const urlParams = new URLSearchParams(window.location.search);
+	if(urlParams.has("debug")){
+		urlParams.delete("debug");
+	} else {
+		urlParams.set('debug', 'true');
+	}
+	window.location.search = urlParams;
+  	//location.replace('http://example.com/#' + initialPage);
 }
 
 async function clickErase() {
