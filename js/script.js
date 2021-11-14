@@ -59,12 +59,12 @@ var logMsgs = [];
 var skipWelcome = false;
 
 var settings = {
-    "customizeConfig": elementsDevConf,
+    "customizeConfig": butCustomize,
     "darkMode": darkMode,
     "devWiFiSSID": txtSSIDName,
     "devWifiMode": butWifiMode,
     "firmwareRelease": null,
-    "skipWelcome": butWelcome
+    "skipWelcome": butSkipWelcome
 }
 
 const url_memmap = "assets/memmap.json";
@@ -943,12 +943,11 @@ function toggleUIConnected(connected) {
 }
 
 function saveSetting(setting, value) {
-    window.localStorage.setItem(setting, JSON.stringify(value));
+    window.localStorage.setItem(setting, value);
 }
 
 function loadSetting(setting) {
-    console.log(setting);
-    return JSON.parse(window.localStorage.getItem(setting));
+    return window.localStorage.getItem(setting);
 }
 
 function setCookie(name, value, days) {
@@ -1002,7 +1001,7 @@ function loadSettings() {
                         if (element.type == "checkbox") {
                             element.checked = value;
                         } else {
-                            element[key].value = value;
+                            element.value = value;
                         }
                     }
                 }
@@ -1034,14 +1033,8 @@ function saveSettings() {
                         }
                     }
                 } else {
-                	console.log(element)
-                    if (element.type == "checkbox") {
-                        if (typeof value === "undefined") {
-                            saveSetting(key, element.checked);
-                        }
-                    } else {
-                        saveSetting(key, element.value);
-                    }
+                    const value = element.type=="checkbox" ? 'checked' : 'value';
+                    saveSetting(key,element[value]);
                 }
             }
         }
