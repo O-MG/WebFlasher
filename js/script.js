@@ -27,6 +27,8 @@ const autoscroll = document.getElementById("btnAutoscroll");
 // Settings Modal
 const elementsDevConf = document.getElementById("deviceConfigOptions");
 const butCustomize = document.getElementById("customizeDevice");
+const butEraseCable = document.getElementById("eraseCable");
+const butBranch = document.querySelector("#branch");
 const butWifiMode = document.getElementsByName("wifiMode");
 const txtSSIDName = document.getElementById("ssidName");
 const txtSSIDPass = document.getElementById("ssidPass");
@@ -47,11 +49,7 @@ var maxProgress = 100;
 var isConnected = false;
 
 var base_offset = 0;
-var colorIndex = 0;
 var activePanels = [];
-var bytesReceived = 0;
-var currentBoard;
-var buttonState = 0;
 var debugState = false;
 var doPreWriteErase = false;
 var flashingReady = true;
@@ -360,7 +358,6 @@ function formatMacAddr(macAddr) {
  * Reset the Panels, Log, and associated data
  */
 async function reset() {
-    bytesReceived = 0;
 
     // Clear the log
     log.innerHTML = "";
@@ -658,7 +655,8 @@ async function clickProgram() {
     btnProgram.getElementsByClassName("spinner-border")[0].classList.remove("d-none");
     let flash_successful = true;
     // and move on
-    let branch = String(document.querySelector("#branch").value);
+    let branch = String(butBranch.value);
+    logMsg("User requested flash of device using release branch  '" + branch + "'.")
     let bins = await getFirmwareFiles(branch);
     if (debugState) {
         console.log("debug orig memory dump");
@@ -892,7 +890,7 @@ function convertJSON(chunk) {
 }
 
 function toggleUIProgram(state) {
-    isConnected = true;
+    //isConnected = true;
     if (state) {
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-check-circle");
@@ -906,7 +904,6 @@ function toggleUIProgram(state) {
         progress[0].remove("progress-bar-animated");
         accordionDisable();
     }
-    butConnect.textContent = lbl;
 }
 
 function toggleUIHardware(ready) {
