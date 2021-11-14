@@ -1005,7 +1005,7 @@ function loadSettings() {
                         if (element.type == "checkbox") {
                             element.checked = value;
                         } else {
-                            element[key].value = value;
+                            element.value = value;
                         }
                     }
                 }
