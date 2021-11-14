@@ -1005,6 +1005,7 @@ function loadSettings() {
     let welcomeScreen = getCookie("OMGWebFlasherSkipWelcome");
     if (welcomeScreen !== null) {
         skipWelcome = true;
+        butSkipWelcome.checked=true;
     }
     for (var key in settings) {
         if (settings[key] !== null) {
@@ -1013,7 +1014,6 @@ function loadSettings() {
                 let value = loadSetting(key);
                 let element = settings[key];
                 let element_state = element.disabled;
-                //console.log("setting:" + key + " value " + value + " ele " + element);
                 if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
                 	for (let i = 0; i < element.length; i++) {
                         if (element[i].id !== undefined && element[i].id == value) {
@@ -1031,16 +1031,31 @@ function loadSettings() {
                 } else {
                     if (typeof value !== "undefined" && value !== null) {
                     	const t = element.type=="checkbox" ? 'checked' : 'value';
-                    	console.log("\tsettings['"+key+"']['"+t+"']="+value);
-                    	element[t]=value;
-                    	console.log(element);
-                    	console.log(element[t]);
+                    	if(debugState){
+                    		console.log("\tsettings['"+key+"']['"+t+"']="+value);
+                    	}
+                    	// this should be as simple as 
+                    	// element[t]=value
+                    	// but we need some added complexity due to all string inputs
+                    	if(t=="value"){
+                    		element.value=value;
+                    	} else {
+                    		// we don't evaluate json anymore so this is how we have to do it
+                    		if(value==="true"){
+                    			value=true;
+                    		} else {
+                    			value=false;
+                    		}
+	                    	element.checked=value;
+                    	}
                     } else {
-                    	console.log("element undefined" + element);
+                    	if(debugState){
+                    		console.log("element undefined: " + element);
+                    	}
                     }
                 } 
             } catch(e) {
-                console.log("setting:" + key + " is invalid and being skipped");
+                console.log("setting: " + key + " is invalid and being skipped");
             	console.error("Exception thrown", e);
             }
         }
