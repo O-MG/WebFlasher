@@ -6,12 +6,11 @@
 var espTool;
 
 const baudRates = [115200];
-
 const bufferSize = 512;
-
 const eraseFillByte = 0x00;
 
 const maxLogLength = 100;
+
 const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
 const butWelcome = document.getElementById("btnWelcome");
@@ -59,11 +58,13 @@ var logMsgs = [];
 var skipWelcome = false;
 
 var settings = {
-    "customizeConfig": butCustomize,
-    "darkMode": darkMode,
+    "customizeConfig": butCustomize, 
+    "preEraseCable": butEraseCable,
+    "setUIDarkMode": darkMode,
     "devWiFiSSID": txtSSIDName,
+    "devWiFiPass": txtSSIDPass,
     "devWifiMode": butWifiMode,
-    "firmwareRelease": null,
+    "firmwareRelease": butBranch,
     "skipWelcome": butSkipWelcome
 }
 
@@ -117,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // set the clear button and reset
     document.addEventListener("keydown", (event) => {
         if (isConnected && (event.isComposing || event.key == "Shift")) {
-            console.log("Shift Key Pressed");
+            //console.log("Shift Key Pressed");
             butProgram.classList.replace("btn-danger", "btn-warning");
             butProgram.innerText = "Erase";
         }
@@ -125,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.addEventListener("keyup", (event) => {
         if (isConnected && event.key == "Shift") {
-            console.log("Shift Key Unpressed");
+            //console.log("Shift Key Unpressed");
             butProgram.classList.replace("btn-warning", "btn-danger");
             butProgram.innerText = "Program"
         }
@@ -704,15 +705,16 @@ async function clickProgram() {
             }
         }
         if (flash_successful) {
-            setStatusAlert("Cable Programmed, please reload web page and remove programmer and cable");
+            setStatusAlert("Device Programmed, please reload web page and remove programmer and cable");
             toggleUIProgram(true);
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
             endHelper();
         } else {
-            setStatusAlert("Cable flash failed and could not be completed.");
+            setStatusAlert("Device flash failed and could not be completed.");
+            printSettings(true);
             toggleUIProgram(true);    
-            logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
+            logMsg("Failed to flash device successfully");
             logMsg(" ");
             endHelper();
         }
@@ -943,11 +945,19 @@ function toggleUIConnected(connected) {
 }
 
 function saveSetting(setting, value) {
+	if(debugState){
+		console.log("Saving data to setting '" + setting + "' with value '" + value + "'.");
+	}
     window.localStorage.setItem(setting, value);
 }
 
 function loadSetting(setting) {
-    return window.localStorage.getItem(setting);
+
+	let data = window.localStorage.getItem(setting);
+	if(debugState){
+		console.log("Fetching data from setting '" + setting + "' with value '" + data + "'.");
+	}
+    return data;
 }
 
 function setCookie(name, value, days) {
@@ -987,31 +997,64 @@ function loadSettings() {
             try {
                 let value = loadSetting(key);
                 let element = settings[key];
-                console.log("setting:" + key + " value " + value + " ele " + element);
+                let element_state = element.disabled;
+                //console.log("setting:" + key + " value " + value + " ele " + element);
                 if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
-                    for (let i = 0; i < element.length; i++) {
+                	for (let i = 0; i < element.length; i++) {
                         if (element[i].id !== undefined && element[i].id == value) {
+							if(debugState){
+								console.log("Found element with id " + value + " to select to true");
+							}
                             element[i].checked = true;
                         } else {
+							if(debugState){
+								console.log("Searching for element with id " + value + " to select to false");
+							}
                             element[i].checked = false;
                         }
                     }
                 } else {
-                    if (typeof value !== "undefined") {
-                        if (element.type == "checkbox") {
-                            element.checked = value;
-                        } else {
-                            element.value = value;
-                        }
+                    if (typeof value !== "undefined" && value !== null) {
+                    	const t = element.type=="checkbox" ? 'checked' : 'value';
+                    	console.log("\tsettings['"+key+"']['"+t+"']="+value);
+                    	element[t]=value;
+                    	console.log(element);
+                    	console.log(element[t]);
+                    } else {
+                    	console.log("element undefined" + element);
                     }
-                }
-            } catch {
+                } 
+            } catch(e) {
                 console.log("setting:" + key + " is invalid and being skipped");
+            	console.error("Exception thrown", e);
             }
         }
     }
 }
 
+function printSettings(traceReport=false) {
+	let tabs = "\t\t";
+	logMsg("")
+    logMsg("======================================");
+    if(traceReport){
+    	logMsg(tabs + "Settings Trace");
+    	logMsg("[Please provide this information to support when asked]");    	
+    } else {
+    	logMsg(tabs + "Configured Settings");
+    }
+    logMsg("======================================");
+    for (var key in settings) {
+        if (settings[key] !== null) {
+            try {
+                let value = loadSetting(key);
+                logMsg("Key: " + key + " \t=>\t Value: '" + value + "'");
+            } catch {
+            }
+        }
+    }
+    logMsg("======================================");
+    logMsg("");
+}
 
 function saveSettings() {
     // special setting here
@@ -1027,7 +1070,9 @@ function saveSettings() {
                 console.log("unable to save setting " + key + " due to it not being defined")
             } else {
                 if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
+
                     for (let i = 0; i < element.length; i++) {
+                    	console.log(element[i])
                         if (element[i].checked) {
                             saveSetting(key, element[i].id);
                         }
