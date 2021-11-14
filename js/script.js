@@ -1091,6 +1091,7 @@ function saveSettings() {
     if (butSkipWelcome.checked) {
         setCookie("OMGWebFlasherSkipWelcome", "true", 30);
         skipWelcome = true;
+        butSkipWelcome.checked=true; // so we save our settings
     }
     for (var key in settings) {
         if (settings[key] !== null) {
