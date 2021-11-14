@@ -946,12 +946,11 @@ function toggleUIConnected(connected) {
 }
 
 function saveSetting(setting, value) {
-    window.localStorage.setItem(setting, JSON.stringify(value));
+    window.localStorage.setItem(setting, value);
 }
 
 function loadSetting(setting) {
-    console.log(setting);
-    return JSON.parse(window.localStorage.getItem(setting));
+    return window.localStorage.getItem(setting);
 }
 
 function setCookie(name, value, days) {
