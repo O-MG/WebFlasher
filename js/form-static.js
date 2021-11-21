@@ -2,6 +2,21 @@ var MD5=function(d){return d=unescape(encodeURIComponent(d)),result=M(V(Y(X(d),8
 var forms = document.querySelectorAll('form[static-form]');
 
 window.onload = function() {
+    /* Fade between 3 images every 10 seconds. */
+    var images = [
+        'welcome-instructions-1.png',
+        'welcome-instructions-2.png',
+        'welcome-instructions-3.png'
+    ];
+    var image = document.getElementByID('welcome-instructions');
+    image.src = images[0];
+    document.body.appendChild(image);
+    var interval = setInterval(function() {
+        var imageIndex = images.indexOf(image.src);
+        imageIndex = (imageIndex + 1) % images.length;
+        image.src = images[imageIndex];
+    }, 10000);  
+
     for (i = 0; i < forms.length; i++) {
         forms[i].addEventListener("submit", function (event) {
             event.preventDefault();

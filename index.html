@@ -28,7 +28,7 @@
         <div class="row g-0 justify-content-center">
             <!-- TITLE -->
             <div class="col-lg-4 offset-lg-1 mx-0 px-0 d-none d-lg-block d-xl-block d-xxl-block shadow-lg">
-                <div id="omg-info" class="carousel slide" data-bs-ride="carousel" data-bs-interval="2000">
+                <div id="omg-info" class="carousel slide" data-bs-ride="carousel" data-bs-interval="30000">
                 	<div class="carousel-inner">
                 		<div class="carousel-item active">
                 			<div class="d-block p-2">
@@ -54,7 +54,7 @@
 	                		</div>
 							<div class="d-none d-md-block p-2">
 								<h5>DUCKSCRIPT</h5>
-								<p>DuckScript is designed to be universally compatible with all products in our release set</p>
+								<p>We support DuckScript on all of our products</p>
 							</div>
                 		</div>	
                 	</div>
@@ -79,7 +79,19 @@
                                 <h2>Welcome to the O.MG Web Programmer </h2>
                                 <p>Please begin by plugging in your cable to your programmer and plugging in the programmer into your computer. This flasher is guided, at any time if a <span>Help</span> button is available you can follow help instructions. Alternatively, if you wish not to see this again, please select the option below.</p>
                                 <div class="m-2 bg-white">
-                                	<img src="welcome-instructions.png" class="img-fluid p-2" alt="Welcome Instructions">
+									<div id="welcome-instructions" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="5000">
+										<div class="carousel-inner">
+											<div class="carousel-item active">
+												<img id="welcome-instructions" src="welcome-instructions-1.png" class="img-fluid p-2" alt="Welcome Instructions">
+											</div>
+											<div class="carousel-item ">
+												<img id="welcome-instructions" src="welcome-instructions-2.png" class="img-fluid p-2" alt="Welcome Instructions">
+											</div>
+											<div class="carousel-item ">
+												<img id="welcome-instructions" src="welcome-instructions-3.png" class="img-fluid p-2" alt="Welcome Instructions">
+											</div>
+										</div>
+									</div>
 									<div class="form-check form-switch pt-3">
 										<input class="form-check-input" type="checkbox" id="welcomeScreenCheck">
 										<label class="form-check-label" for="welcomeScreenCheck">Do not show this welcome screen again</label>
@@ -102,11 +114,13 @@
 												<path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z"/>
 											</svg>
 										</button>
+<!--
 										<button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalSettings">
 											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear-fill" viewBox="0 0 16 16">
 												<path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"></path>
 											</svg>
 										</button>
+									-->
 									</div>
                             	</div>
                             	<div class="row px-3">
@@ -309,8 +323,22 @@
 				</div>
 				<div class="modal-body">
 					<div class="container-fluid">
-						<p>You plug it in, plug it in</p>
+						<div id="welcome-instructions" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="5000">
+							<div class="carousel-inner">
+								<div class="carousel-item active">
+									<img id="welcome-instructions" src="welcome-instructions-1.png" class="img-fluid p-2" alt="Welcome Instructions">
+								</div>
+								<div class="carousel-item ">
+									<img id="welcome-instructions" src="welcome-instructions-2.png" class="img-fluid p-2" alt="Welcome Instructions">
+								</div>
+								<div class="carousel-item ">
+									<img id="welcome-instructions" src="welcome-instructions-3.png" class="img-fluid p-2" alt="Welcome Instructions">
+								</div>
+							</div>
+						</div>
 					</div>
+					<p>The v1 Programmer connects directly to your computer via a USB-A Port, and has a passthrough USB-A port on the other side. Plug in your O.MG Cable to the passthrough port.</p>
+					<p>The v2 Programmer requires a cable to connect to your computer. Plug in either a USB-A to USB-C cable, or a USB-C to USB-C cable between your computer and the USB-C Port labeled "PC". The O.MG Side has both a USB-A and USB-C port. If your O.MG Cable has a USB-A end, plug it into the USB-A port. Otherwise, plug your cable into the USB-C port.</p>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -327,7 +355,10 @@
 				</div>
 				<div class="modal-body">
 					<div class="container-fluid">
-						<p>You plug it in, plug it in</p>
+						<img src="show-me-how-serial-1.png" class="img-fluid p-2" alt="Serial Instructions">
+						<p>When you click the red "Connect" button, you will see a pop-up within your Browser, likely in the top left corner.</p>
+						<p>Click on the entry for: "CP2102N USB to UART Bridge Controller", followed by the "Connect" button in the bottom right corner.</p>
+						<p>Note, you may see a different Device Description depending on with Operating System you are using.</p>
 					</div>
 				</div>
 				<div class="modal-footer">
@@ -345,7 +376,10 @@
 				</div>
 				<div class="modal-body">
 					<div class="container-fluid">
-						<p>You plug it in, plug it in</p>
+						<p>Press the Program Button, and wait for the upgrade to complete.</p>
+						<p>Note, this process may take several minutes. There will be a status bar at the top of the screen.</p>
+						<p>When completed, you will see a message that says: "Device Programmed, please reload web page and remove programmer and cable"</p>
+						<p>If you see an error, please verify all components are plugged in properly, and try refreshing the page.</p>
 					</div>
 				</div>
 				<div class="modal-footer">
