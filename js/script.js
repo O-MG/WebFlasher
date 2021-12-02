@@ -916,6 +916,7 @@ function toggleUIProgram(state) {
         // error
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-x-circle");
+        setStatusAlert("Flashing failed, you can check log for more information and <br>click \"Show me How\" to get further help.","danger");
         accordionExpand(3);
         btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
         progress[0].remove("progress-bar-animated");
@@ -931,6 +932,7 @@ function toggleUIHardware(ready) {
         accordionExpand(2);
     } else {
         // error
+        setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help.","danger");
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-x-circle");
         accordionExpand(1);
@@ -953,6 +955,8 @@ function toggleUIConnected(connected) {
         statusStep2.classList.add("bi-x-circle");
         //butProgram.disabled = true;
         lbl = "Error";
+        err = "Make sure to select a device to flash, no device found to use. Click \"Show me How\" for more information.";
+        setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
     }
