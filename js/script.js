@@ -704,21 +704,23 @@ async function clickProgram() {
             } catch (e) {
                 flash_successful = false;
                 errorMsg(e);
+                setStatusAlert("Exception during flashing: " + e, "danger");
                 // for good measure
                 break;
             }
         }
         if (flash_successful) {
             setStatusAlert("Device Programmed, please reload web page and remove programmer and cable");
-            toggleUIProgram(true);
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
+            // disable components and prepare to move on
             endHelper();
+            toggleUIProgram(true);
         } else {
             setStatusAlert("Device flash failed and could not be completed.");
             printSettings(true);
-            toggleUIProgram(true);    
             logMsg("Failed to flash device successfully");
+            toggleUIProgram(false);    
             logMsg(" ");
             endHelper();
         }
@@ -911,12 +913,13 @@ function toggleUIProgram(state) {
     if (state) {
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-check-circle");
-        //switchStep("step-success");
+        sleep(5000)
+        switchStep("step-success");
     } else {
         // error
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-x-circle");
-        setStatusAlert("Flashing failed, you can check log for more information and <br>click \"Show me How\" to get further help.","danger");
+        setStatusAlert("Flashing failed, you can check log for more information and click \"Show me How\" to get further help.","danger");
         accordionExpand(3);
         btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
         progress[0].remove("progress-bar-animated");
@@ -955,7 +958,7 @@ function toggleUIConnected(connected) {
         statusStep2.classList.add("bi-x-circle");
         //butProgram.disabled = true;
         lbl = "Error";
-        err = "Make sure to select a device to flash, no device found to use. Click \"Show me How\" for more information.";
+        let err = "Make sure to select a device to flash, no device found to use. Click \"Show me How\" for more information.";
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
