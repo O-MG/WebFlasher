@@ -58,7 +58,7 @@ var logMsgs = [];
 var skipWelcome = false;
 
 var settings = {
-    "customizeConfig": butCustomize, 
+    "customizeConfig": butCustomize,
     "preEraseCable": butEraseCable,
     "setUIDarkMode": darkMode,
     "devWiFiSSID": txtSSIDName,
@@ -137,7 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
     butWelcome.addEventListener("click", clickWelcome);
     butSkipWelcome.addEventListener("click", clickSkipWelcome);
     butSave.addEventListener("click", clickSave);
-    butDebug.addEventListener("click",clickDebug);
+    butDebug.addEventListener("click", clickDebug);
     butCustomize.addEventListener("click", toggleDevConf);
     butHardware.addEventListener("click", clickHardware);
     butProgram.addEventListener("click", clickProgramErase);
@@ -192,56 +192,56 @@ function initBaudRate() {
 function updateProgress(part, percentage) {
     let progress_raw = ((part + 1) * 100) + percentage;
     currProgress = (progress_raw / maxProgress) * 100;
-    console.log("part progress ("+part+"/"+percentage+")= " + currProgress);
-	for(let i = 0 ; i<progress.length; i++){
-		let progressBar = progress[i];
-		progressBar.setAttribute("aria-valuenow", currProgress);
-		progressBar.style.width = currProgress + "%";
-		if (debugState) {
-			console.log("current progress is " + currProgress + "% based on " + progress_raw + "/" + maxProgress);
-		}
-	}
+    console.log("part progress (" + part + "/" + percentage + ")= " + currProgress);
+    for (let i = 0; i < progress.length; i++) {
+        let progressBar = progress[i];
+        progressBar.setAttribute("aria-valuenow", currProgress);
+        progressBar.style.width = currProgress + "%";
+        if (debugState) {
+            console.log("current progress is " + currProgress + "% based on " + progress_raw + "/" + maxProgress);
+        }
+    }
 }
 
 function updateCoreProgress(percentage) {
     currProgress = (percentage / maxProgress) * 100;
     console.log("core progress = " + currProgress);
-	for(let i = 0 ; i<progress.length; i++){
-		let progressBar = progress[i];
-		progressBar.setAttribute("aria-valuenow", currProgress);
-		progressBar.style.width = currProgress + "%";
-		if (debugState) {
-			console.log("current progress is " + currProgress + "% based on " + percentage + "/" + maxProgress);
-		}
-	}
-}
-
-function completeProgress(){
-	for(let i = 0 ; i<progress.length; i++){
-		let progressBar = progress[i];
-		let maxValue = maxProgress;
-		progressBar.setAttribute("aria-valuenow", maxValue);
-		progressBar.style.width = maxValue + "%";
-		progressBar.remove("progress-bar-animated");
-	}	
-}
-
-
-async function setProgressMax(resources) {
-	if (butEraseCable.checked) {
-		// the current erase system is yikes, but seems to provide good results. 
-		let eraseres = await eraseFiles(0x00000, 1022976, 0xff);
-		resources=resources+eraseres;
-	}
-	maxProgress = 110 + (resources * 100);
-	for(let i = 0 ; i<progress.length; i++){
-		let progressBar = progress[i];
-		progressBar.setAttribute("aria-valuemax", maxProgress);
-		if (debugState) {
-			console.log("max of progress bar is set to " + maxProgress + " based on " + resources + " resources.");
-		}
+    for (let i = 0; i < progress.length; i++) {
+        let progressBar = progress[i];
+        progressBar.setAttribute("aria-valuenow", currProgress);
+        progressBar.style.width = currProgress + "%";
+        if (debugState) {
+            console.log("current progress is " + currProgress + "% based on " + percentage + "/" + maxProgress);
+        }
     }
 }
+
+function completeProgress() {
+    for (let i = 0; i < progress.length; i++) {
+        let progressBar = progress[i];
+        let maxValue = maxProgress;
+        progressBar.setAttribute("aria-valuenow", maxValue);
+        progressBar.style.width = maxValue + "%";
+        progressBar.classList.remove("progress-bar-animated");
+    }
+}
+
+async function setProgressMax(resources) {
+    if (butEraseCable.checked) {
+        // the current erase system is yikes, but seems to provide good results. 
+        let eraseres = await eraseFiles(0x00000, 1022976, 0xff);
+        resources = resources + eraseres;
+    }
+    maxProgress = 110 + (resources * 100);
+    for (let i = 0; i < progress.length; i++) {
+        let progressBar = progress[i];
+        progressBar.setAttribute("aria-valuemax", maxProgress);
+        if (debugState) {
+            console.log("max of progress bar is set to " + maxProgress + " based on " + resources + " resources.");
+        }
+    }
+}
+
 
 /**
  * @name disconnect
@@ -390,7 +390,7 @@ async function reset() {
     logMsgs = [];
 }
 
-async function clickSkipWelcome(){
+async function clickSkipWelcome() {
     await saveSettings();
 }
 
@@ -456,9 +456,9 @@ async function clickConnect() {
         return;
     }
     // give us access to the ESP session
-    if(debugState){
-	    console.log(espTool);
-	}
+    if (debugState) {
+        console.log(espTool);
+    }
 }
 /**
  * @name changeBaudRate
@@ -534,9 +534,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     } else {
         logMsg("Error, invalid flash size found " + chip_flash_size);
     }
-    // add to the front our files for erasing
-    
-    await setProgressMax(chip_files.length);
+    setProgressMax(chip_files.length);
     updateCoreProgress(25);
     for (let i = 0; i < chip_files.length; i++) {
         if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
@@ -705,8 +703,8 @@ async function clickProgram() {
             if (debugState) {
                 console.log("performing flash erase before writing");
             }
-            //await eraseFlash(await espTool.getFlashID());
-            //logMsg("Erasing complete, continuing with flash process");
+            await eraseFlash(await espTool.getFlashID());
+            logMsg("Erasing complete, continuing with flash process");
             //toggleUIProgram(true);
         }
         // update the bins with patching
@@ -740,6 +738,7 @@ async function clickProgram() {
             setStatusAlert("Device Programmed, please reload web page and remove programmer and cable");
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
+            completeProgress();
             // disable components and prepare to move on
             endHelper();
             toggleUIProgram(true);
@@ -747,7 +746,7 @@ async function clickProgram() {
             setStatusAlert("Device flash failed and could not be completed.");
             printSettings(true);
             logMsg("Failed to flash device successfully");
-            toggleUIProgram(false);    
+            toggleUIProgram(false);
             logMsg(" ");
             endHelper();
         }
@@ -865,7 +864,7 @@ async function eraseSection(offset, ll = 1024, b = 0xff) {
 }
 
 async function eraseFiles(offset, ll = 1024, b = 0xff) {
-	let erase_files = 0;
+    let erase_files = 0;
     let block_split = 4096 * 4;
     let offset_end_size = offset + ll;
     do {
@@ -873,23 +872,21 @@ async function eraseFiles(offset, ll = 1024, b = 0xff) {
         if ((offset_end_size - offset) < block_split) {
             write_size = offset_end_size - offset;
         }
-        let contents = ((new Uint8Array(write_size)).fill(b)).buffer;
-        erase_files+=1;
+        erase_files += 1;
         offset = offset + block_split;
     } while (offset < offset_end_size);
     return erase_files;
 }
 
-
-async function clickDebug(){
-	const urlParams = new URLSearchParams(window.location.search);
-	if(urlParams.has("debug")){
-		urlParams.delete("debug");
-	} else {
-		urlParams.set('debug', 'true');
-	}
-	window.location.search = urlParams;
-  	//location.replace('http://example.com/#' + initialPage);
+async function clickDebug() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has("debug")) {
+        urlParams.delete("debug");
+    } else {
+        urlParams.set('debug', 'true');
+    }
+    window.location.search = urlParams;
+    //location.replace('http://example.com/#' + initialPage);
 }
 
 async function clickErase() {
@@ -953,9 +950,9 @@ function convertJSON(chunk) {
 }
 
 function toggleUIProgram(state) {
-	for(let i = 0 ; i<progress.length; i++){
-		progress[i].classList.remove("progress-bar-animated");
-	}
+    for (let i = 0; i < progress.length; i++) {
+        progress[i].classList.remove("progress-bar-animated");
+    }
     //isConnected = true;
     if (state) {
         statusStep3.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
@@ -966,7 +963,7 @@ function toggleUIProgram(state) {
         // error
         statusStep3.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep3.classList.add("bi-x-circle");
-        setStatusAlert("Flashing failed, you can check log for more information and click \"Show me How\" to get further help.","danger");
+        setStatusAlert("Flashing failed, you can check log for more information and click \"Show me How\" to get further help.", "danger");
         accordionExpand(3);
         btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
         accordionDisable();
@@ -981,7 +978,7 @@ function toggleUIHardware(ready) {
         accordionExpand(2);
     } else {
         // error
-        setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help.","danger");
+        setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help.", "danger");
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-x-circle");
         accordionExpand(1);
@@ -1013,18 +1010,18 @@ function toggleUIConnected(connected) {
 }
 
 function saveSetting(setting, value) {
-	if(debugState){
-		console.log("Saving data to setting '" + setting + "' with value '" + value + "'.");
-	}
+    if (debugState) {
+        console.log("Saving data to setting '" + setting + "' with value '" + value + "'.");
+    }
     window.localStorage.setItem(setting, value);
 }
 
 function loadSetting(setting) {
 
-	let data = window.localStorage.getItem(setting);
-	if(debugState){
-		console.log("Fetching data from setting '" + setting + "' with value '" + data + "'.");
-	}
+    let data = window.localStorage.getItem(setting);
+    if (debugState) {
+        console.log("Fetching data from setting '" + setting + "' with value '" + data + "'.");
+    }
     return data;
 }
 
@@ -1058,7 +1055,7 @@ function loadSettings() {
     let welcomeScreen = getCookie("OMGWebFlasherSkipWelcome");
     if (welcomeScreen !== null) {
         skipWelcome = true;
-        butSkipWelcome.checked=true;
+        butSkipWelcome.checked = true;
     }
     for (var key in settings) {
         if (settings[key] !== null) {
@@ -1068,62 +1065,62 @@ function loadSettings() {
                 let element = settings[key];
                 let element_state = element.disabled;
                 if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
-                	for (let i = 0; i < element.length; i++) {
+                    for (let i = 0; i < element.length; i++) {
                         if (element[i].id !== undefined && element[i].id == value) {
-							if(debugState){
-								console.log("Found element with id " + value + " to select to true");
-							}
+                            if (debugState) {
+                                console.log("Found element with id " + value + " to select to true");
+                            }
                             element[i].checked = true;
                         } else {
-							if(debugState){
-								console.log("Searching for element with id " + value + " to select to false");
-							}
+                            if (debugState) {
+                                console.log("Searching for element with id " + value + " to select to false");
+                            }
                             element[i].checked = false;
                         }
                     }
                 } else {
                     if (typeof value !== "undefined" && value !== null) {
-                    	const t = element.type=="checkbox" ? 'checked' : 'value';
-                    	if(debugState){
-                    		console.log("\tsettings['"+key+"']['"+t+"']="+value);
-                    	}
-                    	// this should be as simple as 
-                    	// element[t]=value
-                    	// but we need some added complexity due to all string inputs
-                    	if(t=="value"){
-                    		element.value=value;
-                    	} else {
-                    		// we don't evaluate json anymore so this is how we have to do it
-                    		if(value==="true"){
-                    			value=true;
-                    		} else {
-                    			value=false;
-                    		}
-	                    	element.checked=value;
-                    	}
+                        const t = element.type == "checkbox" ? 'checked' : 'value';
+                        if (debugState) {
+                            console.log("\tsettings['" + key + "']['" + t + "']=" + value);
+                        }
+                        // this should be as simple as 
+                        // element[t]=value
+                        // but we need some added complexity due to all string inputs
+                        if (t == "value") {
+                            element.value = value;
+                        } else {
+                            // we don't evaluate json anymore so this is how we have to do it
+                            if (value === "true") {
+                                value = true;
+                            } else {
+                                value = false;
+                            }
+                            element.checked = value;
+                        }
                     } else {
-                    	if(debugState){
-                    		console.log("element undefined: " + element);
-                    	}
+                        if (debugState) {
+                            console.log("element undefined: " + element);
+                        }
                     }
-                } 
-            } catch(e) {
+                }
+            } catch (e) {
                 console.log("setting: " + key + " is invalid and being skipped");
-            	console.error("Exception thrown", e);
+                console.error("Exception thrown", e);
             }
         }
     }
 }
 
-function printSettings(traceReport=false) {
-	let tabs = "\t\t";
-	logMsg("")
+function printSettings(traceReport = false) {
+    let tabs = "\t\t";
+    logMsg("")
     logMsg("======================================");
-    if(traceReport){
-    	logMsg(tabs + "Settings Trace");
-    	logMsg("[Please provide this information to support when asked]");    	
+    if (traceReport) {
+        logMsg(tabs + "Settings Trace");
+        logMsg("[Please provide this information to support when asked]");
     } else {
-    	logMsg(tabs + "Configured Settings");
+        logMsg(tabs + "Configured Settings");
     }
     logMsg("======================================");
     for (var key in settings) {
@@ -1131,8 +1128,7 @@ function printSettings(traceReport=false) {
             try {
                 let value = loadSetting(key);
                 logMsg("Key: " + key + " \t=>\t Value: '" + value + "'");
-            } catch {
-            }
+            } catch {}
         }
     }
     logMsg("======================================");
@@ -1144,26 +1140,26 @@ function saveSettings() {
     if (butSkipWelcome.checked) {
         setCookie("OMGWebFlasherSkipWelcome", "true", 30);
         skipWelcome = true;
-        butSkipWelcome.checked=true; // so we save our settings
+        butSkipWelcome.checked = true; // so we save our settings
     }
     for (var key in settings) {
         if (settings[key] !== null) {
             let element = settings[key];
             // shouldn't need to double check here but we do right now 
-            if(typeof element === "undefined"||element === null) {
+            if (typeof element === "undefined" || element === null) {
                 console.log("unable to save setting " + key + " due to it not being defined")
             } else {
                 if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
 
                     for (let i = 0; i < element.length; i++) {
-                    	console.log(element[i])
+                        console.log(element[i])
                         if (element[i].checked) {
                             saveSetting(key, element[i].id);
                         }
                     }
                 } else {
-                    const value = element.type=="checkbox" ? 'checked' : 'value';
-                    saveSetting(key,element[value]);
+                    const value = element.type == "checkbox" ? 'checked' : 'value';
+                    saveSetting(key, element[value]);
                 }
             }
         }
@@ -1175,3 +1171,4 @@ function saveSettings() {
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
