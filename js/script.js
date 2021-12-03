@@ -192,31 +192,47 @@ function initBaudRate() {
 function updateProgress(part, percentage) {
     let progress_raw = ((part + 1) * 100) + percentage;
     currProgress = (progress_raw / maxProgress) * 100;
-    let progressBar = progress[0]; //.querySelector("div");
-    progressBar.setAttribute("aria-valuenow", currProgress);
-    progressBar.style.width = currProgress + "%";
-    if (debugState) {
-        console.log("current progress is " + currProgress + "% based on " + progress_raw + "/" + maxProgress);
-    }
+	for(let i = 0 ; i<progress.length; i++){
+		let progressBar = progress[i];
+		progressBar.setAttribute("aria-valuenow", currProgress);
+		progressBar.style.width = currProgress + "%";
+		if (debugState) {
+			console.log("current progress is " + currProgress + "% based on " + progress_raw + "/" + maxProgress);
+		}
+	}
 }
 
 function updateCoreProgress(percentage) {
     currProgress = (percentage / maxProgress) * 100;
-    let progressBar = progress[0];
-    progressBar.setAttribute("aria-valuenow", currProgress);
-    progressBar.style.width = currProgress + "%";
-    if (debugState) {
-        console.log("current progress is " + currProgress + "% based on " + percentage + "/" + maxProgress);
-    }
+	for(let i = 0 ; i<progress.length; i++){
+		let progressBar = progress[i];
+		progressBar.setAttribute("aria-valuenow", currProgress);
+		progressBar.style.width = currProgress + "%";
+		if (debugState) {
+			console.log("current progress is " + currProgress + "% based on " + percentage + "/" + maxProgress);
+		}
+	}
+}
+
+function completeProgress(){
+	for(let i = 0 ; i<progress.length; i++){
+		let progressBar = progress[i];
+		let maxValue = progressBar.getAttribute("aria-valuemax");
+		progressBar.setAttribute("aria-valuenow", maxValue);
+		progressBar.style.width = maxValue + "%";
+		progressBar.remove("progress-bar-animated");
+	}	
 }
 
 
 function setProgressMax(resources) {
-    let progressBar = progress[0]; //.querySelector("div");
-    maxProgress = 110 + (resources * 100);
-    progressBar.setAttribute("aria-valuemax", maxProgress);
-    if (debugState) {
-        console.log("max of progress bar is set to " + maxProgress);
+	for(let i = 0 ; i<progress.length; i++){
+		let progressBar = progress[i];
+		maxProgress = 110 + (resources * 100);
+		progressBar.setAttribute("aria-valuemax", maxProgress);
+		if (debugState) {
+			console.log("max of progress bar is set to " + maxProgress);
+		}
     }
 }
 
@@ -387,6 +403,8 @@ async function clickConnect() {
         toggleUIConnected(false);
         return;
     }
+    butConnect.textContent = " Connecting";
+    butConnect.insertAdjacentHTML('afterbegin', '<span class="spinner-border spinner-border-sm"></span> ');
     await connect();
     try {
         if (await espTool.sync()) {
@@ -922,7 +940,9 @@ function toggleUIProgram(state) {
         setStatusAlert("Flashing failed, you can check log for more information and click \"Show me How\" to get further help.","danger");
         accordionExpand(3);
         btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
-        progress[0].remove("progress-bar-animated");
+		for(let i = 0 ; i<progress.length; i++){
+			progress[i].remove("progress-bar-animated");
+		}
         accordionDisable();
     }
 }
