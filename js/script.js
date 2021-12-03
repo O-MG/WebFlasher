@@ -219,7 +219,7 @@ function updateCoreProgress(percentage) {
 function completeProgress() {
     for (let i = 0; i < progress.length; i++) {
         let progressBar = progress[i];
-        let maxValue = maxProgress;
+        let maxValue = maxProgress+10; // for good measure
         progressBar.setAttribute("aria-valuenow", maxValue);
         progressBar.style.width = maxValue + "%";
         progressBar.classList.remove("progress-bar-animated");
