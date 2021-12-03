@@ -192,6 +192,7 @@ function initBaudRate() {
 function updateProgress(part, percentage) {
     let progress_raw = ((part + 1) * 100) + percentage;
     currProgress = (progress_raw / maxProgress) * 100;
+    console.log("part progress ("+part+"/"+percentage+")= " + currProgress);
 	for(let i = 0 ; i<progress.length; i++){
 		let progressBar = progress[i];
 		progressBar.setAttribute("aria-valuenow", currProgress);
@@ -204,6 +205,7 @@ function updateProgress(part, percentage) {
 
 function updateCoreProgress(percentage) {
     currProgress = (percentage / maxProgress) * 100;
+    console.log("core progress = " + currProgress);
 	for(let i = 0 ; i<progress.length; i++){
 		let progressBar = progress[i];
 		progressBar.setAttribute("aria-valuenow", currProgress);
@@ -217,7 +219,7 @@ function updateCoreProgress(percentage) {
 function completeProgress(){
 	for(let i = 0 ; i<progress.length; i++){
 		let progressBar = progress[i];
-		let maxValue = progressBar.getAttribute("aria-valuemax");
+		let maxValue = maxProgress;
 		progressBar.setAttribute("aria-valuenow", maxValue);
 		progressBar.style.width = maxValue + "%";
 		progressBar.remove("progress-bar-animated");
@@ -225,13 +227,18 @@ function completeProgress(){
 }
 
 
-function setProgressMax(resources) {
+async function setProgressMax(resources) {
+	if (butEraseCable.checked) {
+		// the current erase system is yikes, but seems to provide good results. 
+		let eraseres = await eraseFiles(0x00000, 1022976, 0xff);
+		resources=resources+eraseres;
+	}
+	maxProgress = 110 + (resources * 100);
 	for(let i = 0 ; i<progress.length; i++){
 		let progressBar = progress[i];
-		maxProgress = 110 + (resources * 100);
 		progressBar.setAttribute("aria-valuemax", maxProgress);
 		if (debugState) {
-			console.log("max of progress bar is set to " + maxProgress);
+			console.log("max of progress bar is set to " + maxProgress + " based on " + resources + " resources.");
 		}
     }
 }
@@ -527,7 +534,9 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     } else {
         logMsg("Error, invalid flash size found " + chip_flash_size);
     }
-    setProgressMax(chip_files.length);
+    // add to the front our files for erasing
+    
+    await setProgressMax(chip_files.length);
     updateCoreProgress(25);
     for (let i = 0; i < chip_files.length; i++) {
         if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
@@ -696,8 +705,8 @@ async function clickProgram() {
             if (debugState) {
                 console.log("performing flash erase before writing");
             }
-            await eraseFlash(await espTool.getFlashID());
-            logMsg("Erasing complete, continuing with flash process");
+            //await eraseFlash(await espTool.getFlashID());
+            //logMsg("Erasing complete, continuing with flash process");
             //toggleUIProgram(true);
         }
         // update the bins with patching
@@ -855,6 +864,23 @@ async function eraseSection(offset, ll = 1024, b = 0xff) {
     } while (offset < offset_end_size);
 }
 
+async function eraseFiles(offset, ll = 1024, b = 0xff) {
+	let erase_files = 0;
+    let block_split = 4096 * 4;
+    let offset_end_size = offset + ll;
+    do {
+        let write_size = block_split;
+        if ((offset_end_size - offset) < block_split) {
+            write_size = offset_end_size - offset;
+        }
+        let contents = ((new Uint8Array(write_size)).fill(b)).buffer;
+        erase_files+=1;
+        offset = offset + block_split;
+    } while (offset < offset_end_size);
+    return erase_files;
+}
+
+
 async function clickDebug(){
 	const urlParams = new URLSearchParams(window.location.search);
 	if(urlParams.has("debug")){
@@ -927,22 +953,22 @@ function convertJSON(chunk) {
 }
 
 function toggleUIProgram(state) {
+	for(let i = 0 ; i<progress.length; i++){
+		progress[i].classList.remove("progress-bar-animated");
+	}
     //isConnected = true;
     if (state) {
-        statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
-        statusStep1.classList.add("bi-check-circle");
+        statusStep3.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
+        statusStep3.classList.add("bi-check-circle");
         sleep(5000)
         switchStep("step-success");
     } else {
         // error
-        statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
-        statusStep1.classList.add("bi-x-circle");
+        statusStep3.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
+        statusStep3.classList.add("bi-x-circle");
         setStatusAlert("Flashing failed, you can check log for more information and click \"Show me How\" to get further help.","danger");
         accordionExpand(3);
         btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
-		for(let i = 0 ; i<progress.length; i++){
-			progress[i].remove("progress-bar-animated");
-		}
         accordionDisable();
     }
 }
