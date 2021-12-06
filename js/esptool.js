@@ -84,6 +84,7 @@ class EspLoader {
     this.readTimeout = 3000;  // Arbitrary number for now. This should be set more dynamically in the sendCommand function
     this._efuses = new Array(4).fill(0);
     this._flashsize = 4 * 1024 * 1024;
+    this.currFile = 0;
     if (this.isFunction(params.updateProgress)) {
       this.updateProgress = params.updateProgress
     } else {
@@ -727,6 +728,7 @@ class EspLoader {
       this.logMsg(
           "Writing at " + this.toHex(address + seq * flashWriteSize, 8) + "... (" + percentage + " %)"
       );
+      this.updateProgress(this.currFile,percentage);
       if (filesize - position >= flashWriteSize) {
         block = Array.from(new Uint8Array(binaryData, position, flashWriteSize));
       } else {
@@ -742,6 +744,7 @@ class EspLoader {
       position += flashWriteSize;
     }
     this.logMsg("Took " + (Date.now() - stamp) + "ms to write " + filesize + " bytes");
+    this.currFile+=1;
   };
 
   /**
