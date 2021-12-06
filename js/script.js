@@ -546,7 +546,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             if (response.status >= 400 && response.status < 600) {
                 errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
                 flashingReady = false;
-                let consiseError = "Invalid file received from server ";
+                let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
                 setStatusAlert(consiseError, "danger");
                 throw new Error(consiseError);
                 return false;
@@ -579,7 +579,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             if (content_length < 1 || flash_list[i].data.byteLength < 1) {
                 flashingReady = false;
                 errorMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
-                let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue";
+                let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue. Refresh WebFlasher page when ready to attempt flashing again.";
                 setStatusAlert(consiseError, "danger");
                 throw new Error(consiseError);
                 return false;
@@ -735,7 +735,7 @@ async function clickProgram() {
             }
         }
         if (flash_successful) {
-            setStatusAlert("Device Programmed, please reload web page and remove programmer and cable");
+            setStatusAlert("Device Programmed, please reload web page and remove programmer and cable. ");
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
             completeProgress();
@@ -743,7 +743,7 @@ async function clickProgram() {
             endHelper();
             toggleUIProgram(true);
         } else {
-            setStatusAlert("Device flash failed and could not be completed.");
+            setStatusAlert("Device flash failed and could not be completed. Refresh WebFlasher page when ready to attempt flashing again.","danger");
             printSettings(true);
             logMsg("Failed to flash device successfully");
             toggleUIProgram(false);
@@ -963,7 +963,7 @@ function toggleUIProgram(state) {
         // error
         statusStep3.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep3.classList.add("bi-x-circle");
-        setStatusAlert("Flashing failed, you can check log for more information and click \"Show me How\" to get further help.", "danger");
+        setStatusAlert("Flashing failed, you can check log for more information and click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
         accordionExpand(3);
         btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
         accordionDisable();
@@ -978,7 +978,7 @@ function toggleUIHardware(ready) {
         accordionExpand(2);
     } else {
         // error
-        setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help.", "danger");
+        setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-x-circle");
         accordionExpand(1);
@@ -1001,7 +1001,7 @@ function toggleUIConnected(connected) {
         statusStep2.classList.add("bi-x-circle");
         //butProgram.disabled = true;
         lbl = "Error";
-        let err = "Make sure to select a device to flash, no device found to use. Click \"Show me How\" for more information.";
+        let err = "Make sure to select a device to flash, no device found to use. Click \"Show me How\" for more information. Refresh WebFlasher page when ready to attempt flashing again.";
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
