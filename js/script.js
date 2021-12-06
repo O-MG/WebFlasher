@@ -161,7 +161,10 @@ document.addEventListener("DOMContentLoaded", () => {
     accordionExpand(1);
     // disable the programming button until we are connected
     butProgram.disabled = true;
+    accordionDisable();
+        
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
+    
 });
 
 
