@@ -218,10 +218,25 @@
 										</button>
 									</div>
                             	</div>
-                                <div class="mt-5 text-center">
-                                    <h3 class="display-1">Success!</h3>
-                                    <p class="lead">Flashing was successful</p>
-                                    <p id="success-status" class="text-center" style="font-size:10em;">&#x2705;</p> <!-- faillure use 274C -->
+                                <div class="mt-2">
+                                	<span class="text-center" style="margin:0;padding:0;">
+										<h3 class="display-6" id="success-notification">Success!</h3>
+										<p class="lead" id="success-msg">Flashing was successful</p>
+										<img src="assets/check.png" alt="success" class="mx-auto d-block img-fluid"></img>
+										<br/>
+									</span>
+									<span class="d-none" id="success-info">
+										<p class="lh-sm">
+											<strong>WiFi SSID:</strong> &nbsp; <span id="success-wifi-ssid" class="font-monospace fst-italic fw-lighter" id="">Unknown</span><br/>
+											<strong>WiFi Password:</strong> &nbsp; <span id="success-wifi-pass" class="font-monospace fst-italic fw-lighter">Unknown</span><br/>
+											<strong>Configuration Mode:</strong> &nbsp; <span id="success-config-type" class="font-monospace fst-italic fw-lighter">Unknown</span>
+										</p>
+									</span>
+									<span>
+										<p class="text-center">
+										Further details can be seen in the console and corresponding log from the flasher log button in the top right of the interface
+										</p> 
+									</span>
                                 </div>
                             </div>
                         </div>

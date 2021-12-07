@@ -952,6 +952,36 @@ function convertJSON(chunk) {
     }
 }
 
+function statusPageUpdate(status=true){
+	// bit of a special function
+	// since we need to control things here internally
+	let successHeader = document.getElementById("success-notification");
+	let successMessage = document.getElementById("success-msg");
+	let successInfo = document.getElementById("success-info");
+	let successWifiSSID = document.getElementById("success-wifi-ssid");
+	let successWifiPass = document.getElementById("success-wifi-pass");
+	let successStatusConfig = document.getElementById("success-config-type");
+	if(status){
+		// update fields
+		successWifiSSID.textContent=txtSSIDName.value;
+		successWifiPass.textContent=txtSSIDPass.value;
+		if(butCustomize.checked){
+			successStatusConfig.textContent="Customized";
+		} else {
+			successStatusConfig.textContent="Defaults";
+		}
+		// set headers
+		successHeader.textContent = "Success!";
+		successMessage.textcontent = "Programming was successful";						
+		// unhide
+		successInfo.classList.remove("d-none");
+	} else {
+		// set headers
+		successHeader.textContent = "Failure!";
+		successMessage.textcontent = "Programming did not complete. Check log file!";
+	}							
+}
+
 function toggleUIProgram(state) {
     for (let i = 0; i < progress.length; i++) {
         progress[i].classList.remove("progress-bar-animated");
@@ -962,6 +992,7 @@ function toggleUIProgram(state) {
         statusStep3.classList.add("bi-check-circle");
         sleep(5000)
         switchStep("step-success");
+        statusPageUpdate(state);
     } else {
         // error
         statusStep3.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
