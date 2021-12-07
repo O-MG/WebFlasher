@@ -974,7 +974,7 @@ function statusPageUpdate(status=true){
 		}
 		// set headers
 		successHeader.textContent = "Success!";
-		stateInfoMessage.classList.remove("d-none");
+		//stateInfoMessage.classList.remove("d-none");
 		//stateIcon.src=("assets/check.png");		
 		// unhide
 		successInfo.classList.remove("d-none");
