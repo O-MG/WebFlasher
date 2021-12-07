@@ -11,18 +11,18 @@
     <link href="https://fonts.gstatic.com" rel="preconnect">
     <!-- icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.2.2/font/bootstrap-icons.css">
-    <!--<link href="assets/icons/icon-57x57.png" rel="touch-icon" sizes="57x57">
-    <link href="assets/icons/icon-60x60.png" rel="touch-icon" sizes="60x60">-->
-    <link href="assets/icons/icon-72x72.png" rel="touch-icon" sizes="72x72">
-    <link href="assets/icons/icon-76x76.png" rel="touch-icon" sizes="76x76">
-    <!--<link href="assets/icons/icon-114x114.png" rel="touch-icon" sizes="114x114">-->
+    <!--<link href="assets/icons/icon-57x57.png" rel="apple-touch-icon" sizes="57x57">
+    <link href="assets/icons/icon-60x60.png" rel="apple-touch-icon" sizes="60x60">-->
+    <link href="assets/icons/icon-72x72.png" rel="apple-touch-icon" sizes="72x72">
+    <link href="assets/icons/icon-76x76.png" rel="apple-touch-icon" sizes="76x76">
+    <!--<link href="assets/icons/icon-114x114.png" rel="apple-touch-icon" sizes="114x114">-->
     <link href="assets/icons/icon-96x96.png" rel="icon" sizes="96x96" type="image/png">
-    <link href="assets/icons/icon-120x120.png" rel="touch-icon" sizes="120x120">
-    <link href="assets/icons/icon-144x144.png" rel="touch-icon" sizes="144x144">
-    <link href="assets/icons/icon-152x152.png" rel="touch-icon" sizes="152x152">
-    <link href="assets/icons/icon-192x192.png" rel="touch-icon" sizes="192x192">
-    <link href="assets/icons/icon-384x384.png" rel="touch-icon" sizes="384x384">
-    <link href="assets/icons/icon-512x512.png" rel="touch-icon" sizes="512x512">
+    <link href="assets/icons/icon-120x120.png" rel="apple-touch-icon" sizes="120x120">
+    <link href="assets/icons/icon-144x144.png" rel="apple-touch-icon" sizes="144x144">
+    <link href="assets/icons/icon-152x152.png" rel="apple-touch-icon" sizes="152x152">
+    <link href="assets/icons/icon-192x192.png" rel="apple-touch-icon" sizes="192x192">
+    <link href="assets/icons/icon-384x384.png" rel="apple-touch-icon" sizes="384x384">
+    <link href="assets/icons/icon-512x512.png" rel="apple-touch-icon" sizes="512x512">
     <!--<link href="assets/icons/android-icon-192x192.png" rel="icon" sizes="192x192" type="image/png">
     <link href="assets/icons/favicon-32x32.png" rel="icon" sizes="32x32" type="image/png">-->
     <!--<link href="assets/icons/favicon-16x16.png" rel="icon" sizes="16x16" type="image/png">-->
@@ -102,13 +102,13 @@
 									<div id="welcome-instructions" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="3000">
 										<div class="carousel-inner">
 											<div class="carousel-item active">
-												<img id="welcome-instructions" src="assets/welcome-instructions.png" class="img-fluid p-2" alt="Welcome Instructions">
+												<img src="assets/welcome-instructions.png" class="img-fluid p-2" alt="Welcome Instructions">
 											</div>
 											<!--<div class="carousel-item ">
-												<img id="welcome-instructions" src="assets/welcome-instructions-2.png" class="img-fluid p-2" alt="Welcome Instructions">
+												<img src="assets/welcome-instructions-2.png" class="img-fluid p-2" alt="Welcome Instructions">
 											</div>
 											<div class="carousel-item ">
-												<img id="welcome-instructions" src="assets/welcome-instructions-3.png" class="img-fluid p-2" alt="Welcome Instructions">
+												<img src="assets/welcome-instructions-3.png" class="img-fluid p-2" alt="Welcome Instructions">
 											</div>-->
 										</div>
 									</div>
@@ -218,10 +218,29 @@
 										</button>
 									</div>
                             	</div>
-                                <div class="mt-5 text-center">
-                                    <h3 class="display-1">Success!</h3>
-                                    <p class="lead">Flashing was successful</p>
-                                    <p id="success-status" class="text-center" style="font-size:10em;">&#x2705;</p> <!-- faillure use 274C -->
+                                <div class="mt-2">
+                                	<div class="text-center" style="margin:0;padding:0;">
+										<h3 class="display-6" id="success-notification">Success!</h3>
+										<br/>
+									</div>
+									<div class="d-none text-center" id="success-info">
+										<p class="lh-sm">
+											<strong>WiFi SSID:</strong> &nbsp; <span id="success-wifi-ssid" class="font-monospace fst-italic fw-lighter">Unknown</span><br/>
+											<strong>WiFi Password:</strong> &nbsp; <span id="success-wifi-pass" class="font-monospace fst-italic fw-lighter">Unknown</span><br/>
+											<strong>Configuration Mode:</strong> &nbsp; <span id="success-config-type" class="font-monospace fst-italic fw-lighter">Unknown</span>
+										</p>
+									</div>
+									<div>
+										<img src="assets/check.png" alt="success" class="mx-auto d-block img-fluid" id="success-state"/>
+										<p class="lead text-center" id="success-msg">
+											To use the O.MG Cable: Connect cable to a USB port. 
+											Then connect to the WiFi network and browse to <a href="http://192.168.4.1/">http://192.168.4.1/</a>.  
+											For additional instructions, please go <a href=" https://github.com/O-MG/O.MG_Cable-Firmware/wiki">here</a>.
+										</p>
+										<p class="d-none text-center" id="success-state-msg"> 
+											Further details can be seen in the console and corresponding log from the flasher log button in the top right of the interface
+										</p> 
+									</div>
                                 </div>
                             </div>
                         </div>
@@ -245,7 +264,7 @@
 				<div class="modal-footer">
 					<div class="form-check form-switch form-control-lg">
 						<label class="form-check-label" for="flexSwitchCheckDefault">Auto Scroll</label>
-						<input class="form-check-input" type="checkbox" id="btnAutoscroll" checked>
+						<input class="form-check-input" type="checkbox" id="btnAutoscroll" id="flexSwitchCheckDefault" checked>
 					</div>
 					<button type="button" class="btn btn-dark" id="btnDownload">Download</button>
 					<button type="button" class="btn btn-dark" id="btnClear">Clear</button>
@@ -290,7 +309,7 @@
 									</div>
 								</div>
 								<div class="col-md-6  text-left form-control-lg">
-										<input class="btn btn-dark" type="button" id="btnDebug" value="Toggle Debug Mode"></input>
+										<input class="btn btn-dark" type="button" id="btnDebug" value="Toggle Debug Mode">
 								</div>
 							</div>				
 							<hr/>
@@ -320,11 +339,11 @@
 								</div>
 								<div class="col-12 pt-2">
 									<label for="ssidName" class="form-label">SSID Name</label>
-									<input type="text" class="form-control deviceConfigOptions" id="ssidName" maxlength="32" value="O.MG-Cable" placeholder="O.MG-Cable">
+									<input type="text" class="form-control deviceConfigOptions" id="ssidName" maxlength="32" pattern=".{8,32}" value="O.MG-Cable" placeholder="O.MG-Cable">
 								</div>
 								<div class="col-12 pt-2">
 									<label for="ssidPass" class="form-label">Password</label>
-									<input type="text" class="form-control deviceConfigOptions" id="ssidPass" maxlength="60" value="12345678" placeholder="12345678">
+									<input type="text" class="form-control deviceConfigOptions" id="ssidPass" maxlength="60" pattern=".{8,60}" value="12345678" placeholder="12345678">
 								</div>
 							</div>
 						</form>
@@ -349,13 +368,13 @@
 						<div id="welcome-instructions" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="5000">
 							<div class="carousel-inner">
 								<div class="carousel-item active">
-									<img id="welcome-instructions" src="assets/welcome-instructions-1.png" class="img-fluid p-2" alt="Welcome Instructions">
+									<img src="assets/welcome-instructions-1.png" class="img-fluid p-2" alt="Welcome Instructions">
 								</div>
 								<div class="carousel-item ">
-									<img id="welcome-instructions" src="assets/welcome-instructions-2.png" class="img-fluid p-2" alt="Welcome Instructions">
+									<img src="assets/welcome-instructions-2.png" class="img-fluid p-2" alt="Welcome Instructions">
 								</div>
 								<div class="carousel-item ">
-									<img id="welcome-instructions" src="assets/welcome-instructions-3.png" class="img-fluid p-2" alt="Welcome Instructions">
+									<img src="assets/welcome-instructions-3.png" class="img-fluid p-2" alt="Welcome Instructions">
 								</div>
 							</div>
 						</div>
@@ -430,5 +449,3 @@
     <script src="js/bootstrap.min.js "></script>
 </body>
 </html>
-
-
