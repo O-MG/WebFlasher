@@ -957,10 +957,12 @@ function statusPageUpdate(status=true){
 	// since we need to control things here internally
 	let successHeader = document.getElementById("success-notification");
 	let successMessage = document.getElementById("success-msg");
+	let stateIcon = document.getElementById("success-state");
+	let stateInfoMessage = document.getElementById("success-state-msg");	
 	let successInfo = document.getElementById("success-info");
 	let successWifiSSID = document.getElementById("success-wifi-ssid");
 	let successWifiPass = document.getElementById("success-wifi-pass");
-	let successStatusConfig = document.getElementById("success-config-type");
+	let successStatusConfig = document.getElementById("success-config-type");							
 	if(status){
 		// update fields
 		successWifiSSID.textContent=txtSSIDName.value;
@@ -972,14 +974,17 @@ function statusPageUpdate(status=true){
 		}
 		// set headers
 		successHeader.textContent = "Success!";
-		successMessage.textcontent = "Programming was successful";						
+		stateInfoMessage.classList.remove("d-none");
+		//stateIcon.src=("assets/check.png");		
 		// unhide
 		successInfo.classList.remove("d-none");
 	} else {
 		// set headers
 		successHeader.textContent = "Failure!";
+		stateIcon.src=("assets/cross.png");
+		stateInfoMessage.classList.remove("d-none");
 		successMessage.textcontent = "Programming did not complete. Check log file!";
-	}							
+	}
 }
 
 function toggleUIProgram(state) {
