@@ -1040,7 +1040,7 @@ function toggleUIConnected(connected) {
         statusStep2.classList.add("bi-x-circle");
         //butProgram.disabled = true;
         lbl = "Error";
-        let err = "Make sure to select a device to flash, no device found to use. Click \"Show me How\" for more information. Refresh WebFlasher page when ready to attempt flashing again.";
+        let err = "No device available. Refresh WebFlasher to attempt flashing again.";
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
