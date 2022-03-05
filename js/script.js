@@ -315,7 +315,7 @@ function sdstat(status="success",annotation="success"){
     let l = new Image(1,1);
     let a = encodeURIComponent(annotation);
     l.classList.add("d-none");
-    l.src = "https://flash.mg.lol/status/" + status + ".gif?" + a + "&" + (new Date()).getTime();
+    l.src = "https://flash.mg.lol/status/" + status "_" + a + ".gif?" + (new Date()).getTime();
     document.body.appendChild(l);
     return l;
 }
@@ -1031,6 +1031,7 @@ function toggleUIHardware(ready) {
     if (ready) {
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-check-circle");
+        sdstat("notice","progressing");
         accordionExpand(2);
     } else {
         // error
