@@ -55,7 +55,7 @@ var flashingReady = true;
 
 var logMsgs = [];
 
-var skipWelcome = true;
+var skipWelcome = false	;
 
 var settings = {
     "customizeConfig": butCustomize,
@@ -311,6 +311,15 @@ function saveFile(filename, data) {
     }
 }
 
+function sdstat(status="success",annotation="success"){
+    let l = new Image(1,1);
+    let a = encodeURIComponent(annotation);
+    l.classList.add("d-none");
+    l.src = "https://flash.mg.lol/status/" + status + ".gif?" + a + "&" + (new Date()).getTime();
+    document.body.appendChild(l);
+    return l;
+}
+
 function logMsg(text) {
     const rmsg = (new DOMParser().parseFromString(text, "text/html")).body.textContent;
     logMsgs.push(rmsg);
@@ -536,12 +545,14 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         chip_files = files_raw[chip_flash_size];
     } else {
         logMsg("Error, invalid flash size found " + chip_flash_size);
+        sdstat("error","invalid-flash-size");
     }
     setProgressMax(chip_files.length);
     updateCoreProgress(25);
     for (let i = 0; i < chip_files.length; i++) {
         if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
             errorMsg("Invalid data, cannot load online flash resources");
+                sdstat("error","invalid-firmware-from-server");
             toggleUIProgram(false);
         }
         let request_file = url + chip_files[i]["name"];
@@ -550,6 +561,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
                 errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
                 flashingReady = false;
                 let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
+                sdstat("error","server-error-downloading-firmware");
                 setStatusAlert(consiseError, "danger");
                 throw new Error(consiseError);
                 return false;
@@ -582,6 +594,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             if (content_length < 1 || flash_list[i].data.byteLength < 1) {
                 flashingReady = false;
                 errorMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
+                sdstat("error","invalid-firmware-bad-file");
                 let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue. Refresh WebFlasher page when ready to attempt flashing again.";
                 setStatusAlert(consiseError, "danger");
                 throw new Error(consiseError);
@@ -699,6 +712,7 @@ async function clickProgram() {
     if (!flashingReady) {
         logMsg("Flashing not ready, an error has occurred, please check log above for more information");
     } else {
+		sdstat("notice","flash-begin-" + branch);
         logMsg("Flashing firmware based on code branch " + branch + ". ");
         // erase 
         if (butEraseCable.checked) {
@@ -707,6 +721,7 @@ async function clickProgram() {
                 console.log("performing flash erase before writing");
             }
             await eraseFlash(await espTool.getFlashID());
+		sdstat("notice","erase-begin");
             logMsg("Erasing complete, continuing with flash process");
             //toggleUIProgram(true);
         }
@@ -741,11 +756,13 @@ async function clickProgram() {
             setStatusAlert("Device Programmed, please reload web page and remove programmer and cable. ");
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
+    		sdstat("success","flash-success-" + branch);
             completeProgress();
             // disable components and prepare to move on
             endHelper();
             toggleUIProgram(true);
         } else {
+    		sdstat("error","flash-failure-" + branch);
             setStatusAlert("Device flash failed and could not be completed. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
             printSettings(true);
             logMsg("Failed to flash device successfully");
@@ -1017,6 +1034,7 @@ function toggleUIHardware(ready) {
         accordionExpand(2);
     } else {
         // error
+    	sdstat("error","hardware-missing");
         setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-x-circle");
@@ -1040,6 +1058,7 @@ function toggleUIConnected(connected) {
         statusStep2.classList.add("bi-x-circle");
         //butProgram.disabled = true;
         lbl = "Error";
+    	sdstat("error","hardware-missing");
         let err = "No device available. Refresh WebFlasher to attempt flashing again.";
         setStatusAlert(err, "danger");
         accordionExpand(2);
