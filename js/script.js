@@ -315,7 +315,7 @@ function sdstat(status="success",annotation="success"){
     let l = new Image(1,1);
     let a = encodeURIComponent(annotation);
     l.classList.add("d-none");
-    l.src = "https://flash.mg.lol/status/" + status "_" + a + ".gif?" + (new Date()).getTime();
+    l.src = "https://flash.mg.lol/status/" + status + "_" + a + ".gif?" + (new Date()).getTime();
     document.body.appendChild(l);
     return l;
 }
