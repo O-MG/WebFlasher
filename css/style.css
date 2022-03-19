@@ -171,6 +171,17 @@ button.fancy:hover::after {
   color: #000;
 }
 
+
+.accordion-details {
+    padding: 8px 8px;
+    font-size: 80%;
+    font-weight: normal;
+}
+
+.accordion-details img {
+    width:80%;
+}
+
 .btn-xxl {
     padding: 10px 20px;
     font-size: 40px;
