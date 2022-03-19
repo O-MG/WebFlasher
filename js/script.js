@@ -14,6 +14,7 @@ const maxLogLength = 100;
 const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
 const butWelcome = document.getElementById("btnWelcome");
+const butStart = document.getElementById("btnStart");
 const butConnect = document.getElementById("btnConnect");
 const butSkipWelcome = document.getElementById("welcomeScreenCheck");
 
@@ -48,6 +49,8 @@ var maxProgress = 100;
 
 var isConnected = false;
 
+var accordionStart = 0;
+
 var base_offset = 0;
 var activePanels = [];
 var debugState = false;
@@ -55,7 +58,7 @@ var flashingReady = true;
 
 var logMsgs = [];
 
-var skipWelcome = false	;
+var skipWelcome = true;
 
 var settings = {
     "customizeConfig": butCustomize,
@@ -135,6 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // disable device wifi config by default until user asks
     toggleDevConf(true);
     butWelcome.addEventListener("click", clickWelcome);
+    butStart.addEventListener("click",clickWelcomeStart)
     butSkipWelcome.addEventListener("click", clickSkipWelcome);
     butSave.addEventListener("click", clickSave);
     butDebug.addEventListener("click", clickDebug);
@@ -158,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (skipWelcome) {
         switchStep("modular-stepper");
     }
-    accordionExpand(1);
+    accordionExpand(accordionStart); // 0 = start button, 1 = start
     // disable the programming button until we are connected
     butProgram.disabled = true;
     accordionDisable();
@@ -408,6 +412,10 @@ async function clickSkipWelcome() {
 
 async function clickWelcome() {
     switchStep("modular-stepper");
+}
+async function clickWelcomeStart() {
+    switchStep("modular-stepper");
+    accordionExpand(1);
 }
 
 async function clickHardware() {
@@ -1114,6 +1122,7 @@ function loadSettings() {
     let welcomeScreen = getCookie("OMGWebFlasherSkipWelcome");
     if (welcomeScreen !== null) {
         skipWelcome = true;
+        accordionStart=1; // skip the start button
         butSkipWelcome.checked = true;
     }
     for (var key in settings) {
