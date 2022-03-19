@@ -7,7 +7,7 @@
     <meta content="O.MG" name="author">
     <title> O.MG Web Flasher </title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/form-style.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
     <link href="https://fonts.gstatic.com" rel="preconnect">
     <!-- icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.2.2/font/bootstrap-icons.css">
@@ -138,6 +138,19 @@
                             	<div class="row px-3">
                         			<div class="alert d-none" role="alert" id="statusAlert"></div>
 									<div class="accordion text-left justify-content-left pt-2" id="programmingAcc">
+										<div class="accordion-item">
+											<h2 class="accordion-header d-none" id="programmerStep0">
+												<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#programmerStep0-collapse" aria-expanded="true" aria-controls="programmerStep1" >
+													<i class="bi-circle step-icon" id="programmerStep0-status"></i>
+													&nbsp;&nbsp;&nbsp; Begin
+												</button>
+											</h2>
+											<div id="programmerStep0-collapse" class="accordion-collapse collapse show" aria-labelledby="programmerStep0">
+												<div class="pb-2 pt-3 justify-content-center text-center">
+													<button type="button" class="btn btn-success btn-xxl" id="btnStart">Start!</button>
+												</div>
+											</div>
+										</div>
 										<div class="accordion-item">
 											<h2 class="accordion-header" id="programmerStep1">
 												<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#programmerStep1-collapse" aria-expanded="true" aria-controls="programmerStep1" >
