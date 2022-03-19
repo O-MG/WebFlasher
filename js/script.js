@@ -1232,7 +1232,6 @@ function saveSettings() {
             }
         }
     }
-
 }
 
 
