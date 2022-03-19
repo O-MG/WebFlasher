@@ -55,7 +55,7 @@ var flashingReady = true;
 
 var logMsgs = [];
 
-var skipWelcome = false	;
+var skipWelcome = true;
 
 var settings = {
     "customizeConfig": butCustomize,
