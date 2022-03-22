@@ -20,6 +20,10 @@
 		{
 			"name": "blank.bin",
 			"offset": "0x7f000"
+		},
+		{
+			"name": "blank-settings.bin",
+			"offset": "0x7c000"
 		}
 	],
 	"2048": 
@@ -43,6 +47,10 @@
 		{
 			"name": "blank.bin",
 			"offset": "0x7f000"
+		},
+		{
+			"name": "blank-settings.bin",
+			"offset": "0x7c000"
 		}
 	]
 }
