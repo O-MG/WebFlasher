@@ -102,6 +102,9 @@ document.addEventListener("DOMContentLoaded", () => {
         debugState = debug;
     }
 
+	// for 2.5 BETA RELEASE ONLY
+	window.localStorage.clear();
+
     loadSettings();
 
     espTool = new EspLoader({
@@ -119,7 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // set the clear button and reset
-    document.addEventListener("keydown", (event) => {
+    /*document.addEventListener("keydown", (event) => {
         if (isConnected && (event.isComposing || event.key == "Shift")) {
             //console.log("Shift Key Pressed");
             butProgram.classList.replace("btn-danger", "btn-warning");
@@ -133,7 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
             butProgram.classList.replace("btn-warning", "btn-danger");
             butProgram.innerText = "Program"
         }
-    });
+    });*/
 
     // disable device wifi config by default until user asks
     toggleDevConf(true);
@@ -166,7 +169,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // disable the programming button until we are connected
     butProgram.disabled = true;
     accordionDisable();
-
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
 
 });
@@ -690,11 +692,12 @@ async function clickProgramErase() {
         }
     });
     if (isConnected) {
-        if (shiftkeypress) {
+        /*if (shiftkeypress) {
             clickErase();
         } else {
             clickProgram();
-        }
+        }*/
+        clickProgram();
     } else {
         if (debugState) {
             console.log("Programmer clicked but cowardly refusing to " +
