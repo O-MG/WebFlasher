@@ -626,7 +626,7 @@ class EspLoader {
       await this.sleep(100);
     }
 
-    throw("Couldn't sync to Cable. Try resetting.");
+    throw("Couldn't sync to O.MG Device. Try unplugging & replugging the programmer and try again.");
   };
 
   /**
