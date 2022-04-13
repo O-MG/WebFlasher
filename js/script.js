@@ -1063,7 +1063,7 @@ function toggleUIConnected(connected) {
         //butProgram.disabled = true;
         lbl = "Error";
     	sdstat("error","hardware-missing");
-        let err = "No device available. Refresh WebFlasher to attempt flashing again.";
+        let err = "No device available. Click the Show Me How button for help. Refresh WebFlasher to attempt flashing again.";
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
