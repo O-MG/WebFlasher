@@ -97,14 +97,21 @@ class EspLoader {
       this.logMsg = console.log
     }
     this.debug = false;
+    this.debugValue=0;
     if (this.isFunction(params.debugMsg)) {
-      if (params.debug !== false) {
-        this.debug = true;
+      this.debugValue = parseInt(params.debug);
+      if(!isNaN(this.debugValue)){
+          this.debugValue=params.debug;
+      }
+      if(this.debugValue>2){
+         this.debug=true;
       }
       this._debugMsg = params.debugMsg
     } else {
-      this._debugMsg = this.logMsg()
+      this._debugMsg = console.log
     }
+ 
+    this.abort = false;
     this.IS_STUB = false;
     this.syncStubDetected = false;
   }
@@ -121,6 +128,16 @@ class EspLoader {
     let raw = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./);
 
     return raw ? parseInt(raw[2], 10) : false;
+  }
+  
+  /**
+   * @name exceptiontrigger
+   * Abort actions if true
+  */
+  exceptionTrigger(state=false){
+      if(state){
+        this.abort = true;
+      }
   }
 
   /**
@@ -626,7 +643,7 @@ class EspLoader {
       await this.sleep(100);
     }
 
-    throw("Couldn't sync to Cable. Try resetting.");
+    throw("Couldn't sync to Device. Try resetting.");
   };
 
   /**
@@ -654,45 +671,45 @@ class EspLoader {
   async getFlashID(){ 
       // try to read data if its unset
       if(!this._flash_size){
-      	console.log(this)
-		  if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
-			//await this._readEfuses();
-			console.log("error unable to fetch chip id");
-		  }
-		  let lfuse=this._efuses[3];
-		  console.log(this._efuses);
-		  // try to read one more time before doing defaults
-		  var mem_size;
-		  if(lfuse===undefined){
-			mem_size=0x0;
-		  } else {
-			mem_size = (lfuse&0xFF000000)>>24;
-		  }
-		let calculated_mem = 1;
-		switch(mem_size){
-			case (0x4):
-				calculated_mem = 2;
-				break;
-			case (0x1):
-			case (0x0):
-				calculated_mem = 1;
-				break;
-		}
-		this._flash_size = (0x400*calculated_mem);
-		this._flashsize = (1024*1024*calculated_mem);
-		// initial set
-		//FLASH_WRITE_SIZE=this._flash_size;
-		//STUBLOADER_FLASH_WRITE_SIZE=this._flash_size;
-		//FLASH_SECTOR_SIZE=this._flash_size;
-	}
-	let m = this._flash_size;
-	console.log("detected memory is " + m);
+          console.log(this)
+          if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
+            //await this._readEfuses();
+            console.log("error unable to fetch chip id");
+          }
+          let lfuse=this._efuses[3];
+          console.log(this._efuses);
+          // try to read one more time before doing defaults
+          var mem_size;
+          if(lfuse===undefined){
+            mem_size=0x0;
+          } else {
+            mem_size = (lfuse&0xFF000000)>>24;
+          }
+        let calculated_mem = 1;
+        switch(mem_size){
+            case (0x4):
+                calculated_mem = 2;
+                break;
+            case (0x1):
+            case (0x0):
+                calculated_mem = 1;
+                break;
+        }
+        this._flash_size = (0x400*calculated_mem);
+        this._flashsize = (1024*1024*calculated_mem);
+        // initial set
+        //FLASH_WRITE_SIZE=this._flash_size;
+        //STUBLOADER_FLASH_WRITE_SIZE=this._flash_size;
+        //FLASH_SECTOR_SIZE=this._flash_size;
+    }
+    let m = this._flash_size;
+    //console.log("detected memory is " + m);
     return m;
   }
   
   async getFlashMB(){
-  	let flash_id = await this.getFlashID();
-  	return (flash_id/1024) + " MB";
+      let flash_id = await this.getFlashID();
+      return (flash_id/1024) + " MB";
   }
 
   /**
@@ -724,10 +741,16 @@ class EspLoader {
     let flashWriteSize = await this.getFlashWriteSize();
 
     while (filesize - position > 0) {
+      if(this.abort){
+         this.logMsg("Error, giving up on flashing");
+         break;
+      }
       let percentage = Math.floor(100 * (seq + 1) / blocks);
-      this.logMsg(
-          "Writing at " + this.toHex(address + seq * flashWriteSize, 8) + "... (" + percentage + " %)"
-      );
+      if(this.debugValue==1){
+          this.logMsg(
+              "Writing at " + this.toHex(address + seq * flashWriteSize, 8) + "... (" + percentage + " %)"
+          );
+      }
       this.updateProgress(this.currFile,percentage);
       if (filesize - position >= flashWriteSize) {
         block = Array.from(new Uint8Array(binaryData, position, flashWriteSize));
@@ -973,7 +996,7 @@ class EspLoader {
       updateProgress: this.updateProgress,
       logMsg: this.logMsg,
       debugMsg: this._debugMsg,
-      debug: this.debug,
+      debug: this.debugValue,
       flash_size: this._flash_size,
       efuses: this._efuses
     });

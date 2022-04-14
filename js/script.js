@@ -46,6 +46,7 @@ const butProgram = document.getElementById("btnProgram");
 
 const progress = document.querySelectorAll(".progress-bar");
 var currProgress = 0;
+var currHighestProgress = 0;
 var maxProgress = 100;
 
 var isWriting = false;
@@ -95,35 +96,39 @@ Uint8Array.prototype.indexOfString = function(searchElements, fromIndex) {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-    let debug = false;
+    let debug = 1;
     var getParams = {}
     location.search.substr(1).split("&").forEach(function(item) {
         getParams[item.split("=")[0]] = item.split("=")[1]
     })
     if (getParams["debug"] !== undefined) {
-        debug = getParams["debug"] == "1" || getParams["debug"].toLowerCase() == "true";
+        let debugValue = parseInt(getParams["debug"].toLowerCase());
+        if(isNaN(debugValue)){
+            debug = 1;
+        } else {
+            debug = debugValue;
+        }
         debugState = debug;
     }
 
-	let urlloc = String(window.location.href);
-	if(urlloc.includes("localhost") || urlloc.includes("Test")){
-		debugState=true;
-		skipWelcome=false;
-		debug=true;
-		toggleDevConf(true);
-		butCustomize.disabled=false;
-		butSettings.classList.remove("d-none");
-		let debug_im="Debug Mode Detected: URL is: " + window.location.href;
-		logMsg(debug_im);
-		console.log(debug_im);
-	} else {
-		// for 2.5 BETA RELEASE ONLY
-		butCustomize.disabled=true;
-		window.localStorage.clear();	
-	}
-	
+    let urlloc = String(window.location.href);
+    if(urlloc.includes("localhost") || urlloc.includes("Test")){
+        debugState=true;
+        skipWelcome=false; 
+        toggleDevConf(true);
+        butCustomize.disabled=false;
+        butSettings.classList.remove("d-none");
+        let debug_im="Debug Mode Detected: URL is: " + window.location.href;
+        logMsg(debug_im);
+        console.log(debug_im);
+    } else {
+        // for 2.5 BETA RELEASE ONLY
+        butCustomize.disabled=true;
+        window.localStorage.clear();    
+    }
+    
     loadSettings();
-
+    
     espTool = new EspLoader({
         updateProgress: updateProgress,
         logMsg: logMsg,
@@ -139,38 +144,38 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // set the clear button and reset
-	document.addEventListener('keydown', (event) => {
-		keysPressed[event.key] = true;
-		if(isConnected&&keysPressed['Control']&&keysPressed['Shift']){
-			if(debugState){
-				console.log("Ctrl+Shift Pressed! Erase Mode Activated")
-			}
+    document.addEventListener('keydown', (event) => {
+        keysPressed[event.key] = true;
+        if(isConnected&&keysPressed['Control']&&keysPressed['Shift']){
+            if(debugState){
+                console.log("Ctrl+Shift Pressed! Erase Mode Activated")
+            }
             butProgram.classList.replace("btn-danger", "btn-warning");
             butProgram.getElementsByClassName("programMsg")[0].innerText = "Erase";
-		}
-	});
-	/*document.addEventListener('keyup', (event) => {
-		delete keysPressed[event.key];
-		if(event.key == 'Control' || event.key == 'Shift'){
-			if(debugState){
-				console.log("Ctrl+Shift Pressed! Erase Mode Activated")
-			}
-	        butProgram.classList.replace("btn-warning", "btn-danger");
+        }
+    });
+    /*document.addEventListener('keyup', (event) => {
+        delete keysPressed[event.key];
+        if(event.key == 'Control' || event.key == 'Shift'){
+            if(debugState){
+                console.log("Ctrl+Shift Pressed! Erase Mode Activated")
+            }
+            butProgram.classList.replace("btn-warning", "btn-danger");
             butProgram.innerText = "Program"
-		}
-	});*/
+        }
+    });*/
 
-	setInterval((function fn() {
-		if(keysPressed['Control']&&keysPressed['Shift']&&(!isWriting)){
-			butProgram.classList.replace("btn-warning", "btn-danger");
+    setInterval((function fn() {
+        if(keysPressed['Control']&&keysPressed['Shift']&&(!isWriting)){
+            butProgram.classList.replace("btn-warning", "btn-danger");
             butProgram.getElementsByClassName("programMsg")[0].innerText = "Program";
             keysPressed={};
         }
-	}), 4000);
+    }), 4000);
 
     // disable device wifi config by default until user asks
 
-	
+    
     butWelcome.addEventListener("click", clickWelcome);
     butStart.addEventListener("click",clickWelcomeStart)
     butSkipWelcome.addEventListener("click", clickSkipWelcome);
@@ -224,6 +229,12 @@ function initBaudRate() {
 function updateProgress(part, percentage) {
     let progress_raw = ((part + 1) * 100) + percentage;
     currProgress = (progress_raw / maxProgress) * 100;
+    // fix a bug with the progress bar?
+    if(currHighestProgress>currProgress){
+    	currProgress=currHighestProgress;
+    } else {
+    	currHighestProgress=currProgress;
+    }
     console.log("part progress (" + part + "/" + percentage + ")= " + currProgress);
     for (let i = 0; i < progress.length; i++) {
         let progressBar = progress[i];
@@ -574,87 +585,87 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     setProgressMax(chip_files.length);
     updateCoreProgress(25);
     for (let i = 0; i < chip_files.length; i++) {
-    	if(!"type" in chip_files[i]){
-				errorMsg("Invalid data, cannot load online flash resources");
-					sdstat("error","invalid-memmap-from-server");
-				toggleUIProgram(false);    		
-    	} else {
-    		if(chip_files[i]["type"] == "file"){
-				if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
-					errorMsg("Invalid data, cannot load online flash resources");
-						sdstat("error","invalid-firmware-from-server");
-					toggleUIPro
-					gram(false);
-				}
-				if(debugState){
-					console.log("Loading configuration from file source")
-				}
-				let request_file = url + chip_files[i]["name"];
-				let tmp = await fetch(request_file).then((response) => {
-					if (response.status >= 400 && response.status < 600) {
-						errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
-						flashingReady = false;
-						let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
-						sdstat("error","server-error-downloading-firmware");
-						setStatusAlert(consiseError, "danger");
-						throw new Error(consiseError);
-						return false;
+        if(!"type" in chip_files[i]){
+                errorMsg("Invalid data, cannot load online flash resources");
+                    sdstat("error","invalid-memmap-from-server");
+                toggleUIProgram(false);            
+        } else {
+            if(chip_files[i]["type"] == "file"){
+                if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
+                    errorMsg("Invalid data, cannot load online flash resources");
+                        sdstat("error","invalid-firmware-from-server");
+                    toggleUIPro
+                    gram(false);
+                }
+                if(debugState){
+                    console.log("Loading configuration from file source")
+                }
+                let request_file = url + chip_files[i]["name"];
+                let tmp = await fetch(request_file).then((response) => {
+                    if (response.status >= 400 && response.status < 600) {
+                        errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
+                        flashingReady = false;
+                        let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
+                        sdstat("error","server-error-downloading-firmware");
+                        setStatusAlert(consiseError, "danger");
+                        throw new Error(consiseError);
+                        return false;
 
-					}
-					logMsg("Loaded online version of " + request_file + ". ");
-					return response.blob();
-				}).then((myblob) => myblob).catch((error) => {
-					console.log(error)
-				});
-				updateCoreProgress(40);
-				if (tmp === undefined) {
-					// missing file
-					logMsg("Invalid file downloaded " + chip_files["name"]);
-				} else {
-					let contents = await readUploadedFileAsArrayBuffer(tmp);
-					let content_length = contents.byteLength;
-					// if we want to "erase", we set this to be true
+                    }
+                    logMsg("Loaded online version of " + request_file + ". ");
+                    return response.blob();
+                }).then((myblob) => myblob).catch((error) => {
+                    console.log(error)
+                });
+                updateCoreProgress(40);
+                if (tmp === undefined) {
+                    // missing file
+                    logMsg("Invalid file downloaded " + chip_files["name"]);
+                } else {
+                    let contents = await readUploadedFileAsArrayBuffer(tmp);
+                    let content_length = contents.byteLength;
+                    // if we want to "erase", we set this to be true
 
-					if (erase) {
-						contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
-					}
-					flash_list.push({
-						"url": request_file,
-						"name": chip_files[i]["name"],
-						"offset": chip_files[i]["offset"],
-						"size": content_length,
-						"data": contents
-					});
-					if (content_length < 1 || flash_list[i].data.byteLength < 1) {
-						flashingReady = false;
-						errorMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
-						sdstat("error","invalid-firmware-bad-file");
-						let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue. Refresh WebFlasher page when ready to attempt flashing again.";
-						setStatusAlert(consiseError, "danger");
-						throw new Error(consiseError);
-						return false;
-					}
-					if (debugState) {
-						console.log("data queried for flash size " + chip_flash_size);
-						console.log(flash_list);
-					}
-				}
-			} else {
-				// erase command, not all blank items here 
-				let content_length = chip_files[i]["size"]
-				let contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
-				if(debugState){
-					console.log("Loading configuration from eraser source")
-				}
-				flash_list.push({
-					"url": "unknown",
-					"name": "blank-" + chip_files[i]["offset"] + ".bin",
-					"offset": chip_files[i]["offset"],
-					"size": content_length,
-					"data": contents
-				});
-			}
-		}
+                    if (erase) {
+                        contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
+                    }
+                    flash_list.push({
+                        "url": request_file,
+                        "name": chip_files[i]["name"],
+                        "offset": chip_files[i]["offset"],
+                        "size": content_length,
+                        "data": contents
+                    });
+                    if (content_length < 1 || flash_list[i].data.byteLength < 1) {
+                        flashingReady = false;
+                        errorMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
+                        sdstat("error","invalid-firmware-bad-file");
+                        let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue. Refresh WebFlasher page when ready to attempt flashing again.";
+                        setStatusAlert(consiseError, "danger");
+                        throw new Error(consiseError);
+                        return false;
+                    }
+                    if (debugState) {
+                        console.log("data queried for flash size " + chip_flash_size);
+                        console.log(flash_list);
+                    }
+                }
+            } else {
+                // erase command, not all blank items here 
+                let content_length = chip_files[i]["size"]
+                let contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
+                if(debugState){
+                    console.log("Loading configuration from eraser source")
+                }
+                flash_list.push({
+                    "url": "unknown",
+                    "name": "blank-" + chip_files[i]["offset"] + ".bin",
+                    "offset": chip_files[i]["offset"],
+                    "size": content_length,
+                    "data": contents
+                });
+            }
+        }
     }
     return flash_list;
 }
@@ -722,9 +733,9 @@ async function toggleDevConf(s = true) {
 async function clickProgramErase() {
     let shiftkeypress = false;
     if(isConnected && keysPressed['Control'] && keysPressed['Shift']){
-    	shiftkeypress = true;
+        shiftkeypress = true;
     } else {
-    	shiftkeypress = false;
+        shiftkeypress = false;
     }
     if (isConnected) {
         if (shiftkeypress) {
@@ -758,7 +769,7 @@ async function clickProgram() {
     if (!flashingReady) {
         logMsg("Flashing not ready, an error has occurred, please check log above for more information");
     } else {
-		sdstat("notice","flash-begin-" + branch);
+        sdstat("notice","flash-begin-" + branch);
         logMsg("Flashing firmware based on code branch " + branch + ". ");
         // erase 
         if (butEraseCable.checked) {
@@ -767,7 +778,7 @@ async function clickProgram() {
                 console.log("performing flash erase before writing");
             }
             await eraseFlash(await espTool.getFlashID());
-		sdstat("notice","erase-begin");
+        sdstat("notice","erase-begin");
             logMsg("Erasing complete, continuing with flash process");
             //toggleUIProgram(true);
         }
@@ -788,12 +799,20 @@ async function clickProgram() {
                 let name = bin["name"];
                 // write
                 logMsg("Attempting to write " + name + " to " + offset);
+                if(debugState){
+                    console.log("Attempting to write " + name + " to " + offset);
+                }
                 await espTool.flashData(contents, offset, name);
+                if(espTool.abort){
+                	flash_successful = false;
+                	break; // idk
+                }
                 await sleep(1000);
             } catch (e) {
                 flash_successful = false;
                 errorMsg(e);
                 setStatusAlert("Exception during flashing: " + e, "danger");
+                espTool.exceptionTrigger(true);
                 // for good measure
                 break;
             }
@@ -802,15 +821,16 @@ async function clickProgram() {
             setStatusAlert("Device Programmed, please reload web page and remove programmer and device. ");
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
-    		sdstat("success","flash-success-" + branch);
+            sdstat("success","flash-success-" + branch);
             completeProgress();
             // disable components and prepare to move on
             endHelper();
             toggleUIProgram(true);
         } else {
-    		sdstat("error","flash-failure-" + branch);
+            sdstat("error","flash-failure-" + branch);
             setStatusAlert("Device flash failed and could not be completed. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
             printSettings(true);
+            espTool.exceptionTrigger(true);
             logMsg("Failed to flash device successfully");
             toggleUIProgram(false);
             logMsg(" ");
@@ -850,55 +870,55 @@ async function patchFlash(bin_list) {
 
         let perform_patch = false; // set this to true once we verify html elements
  
-		let configuration = {} 
-		// this is first 
-		if(settings['customizeConfig'].checked){
-			perform_patch=true;
-			configuration['wifiset']="1";
-			// edge case here, need error trapping
-			configuration["wifimode"] = loadSetting("devWifiMode").replace("wifiMode","");
-			configuration["wifissid"] = settings["devWiFiSSID"].value;
-			configuration["wifipass"] = settings["devWiFiPass"].value;
-		}
+        let configuration = {} 
+        // this is first 
+        if(settings['customizeConfig'].checked){
+            perform_patch=true;
+            configuration['wifiset']="1";
+            // edge case here, need error trapping
+            configuration["wifimode"] = loadSetting("devWifiMode").replace("wifiMode","");
+            configuration["wifissid"] = settings["devWiFiSSID"].value;
+            configuration["wifipass"] = settings["devWiFiPass"].value;
+        } else {
+            perform_patch=true;
+        }
         let pos = 0 ;
         // mod_array.indexOfString(utf8Encoder.encode("INIT;"));
         if (pos > -1 && perform_patch) {
             if (debugState) {
-                console.log("found match at " + pos + " for data ");
-                console.log(orig_data);
-                console.log(search);
+                console.log("found cfg match at " + pos + " for data ");
             }
             
             let ccfg = "INIT;";
             for (var setting in configuration) {
-            	ccfg+=`S:${setting}="${configuration[setting]}"`;
+                ccfg+=`S:${setting}="${configuration[setting]}"`;
             }
 
             let cfglen = ccfg.length;
             let final_cfg = utf8Encoder.encode(`${ccfg}`);
-
             let re_pos = 0;
             for (let i = pos; i < pos + final_cfg.length; i++) {
-                mod_array[i] = final_cfg[re_pos];
+                mod_array[i] = final_cfg[re_pos];   
                 re_pos += 1;
+            }
+            if(debugState){
+                logMsg("Writing SSID Configuration: '" + ccfg + "'");
+                console.log(mod_array);
             }
             // reset again just in case? 
             re_pos = 0;
         }
         // and send back
-        if(debugState){
-        	logMsg("Writing SSID Configuration: " + String(mod_array));
-        }
         return mod_array.buffer;
     }
 
     // not the most elegant way of doing things 
     if (debugState) {
-        console.log("original data");
-        console.log(bin_list);
+        console.log("original data"); 
     }
     for (let i = 0; i < bin_list.length; i++) {
         let orig_bin = bin_list[i];
+        console.log(orig_bin);
         if (debugState) {
             console.log("searching for potential match on offset " + orig_bin.offset + " with file name " + orig_bin.name);
         }
@@ -906,8 +926,11 @@ async function patchFlash(bin_list) {
             // replace the data
             bin_list[i].data = findBase330(orig_bin.data, [0, 32], [3, 48]);
         } else if(orig_bin.offset == "0x7f000"){
-        	// search for INIT;
-        	bin_list[i].data = configPatcher(orig_bin.data, [73, 78, 73, 84, 59])
+            // search for INIT;
+            console.log("found match at " + i + " for file " + orig_bin.name + "with offset=" + (orig_bin.offset));
+            bin_list[i].data = configPatcher(orig_bin.data, [73, 78, 73, 84, 59]);
+            console.log(orig_bin);
+            console.log(bin_list[i]);
         }
     }
     return bin_list
@@ -1025,38 +1048,38 @@ function convertJSON(chunk) {
 }
 
 function statusPageUpdate(status=true){
-	// bit of a special function
-	// since we need to control things here internally
-	let successHeader = document.getElementById("success-notification");
-	let successMessage = document.getElementById("success-msg");
-	let stateIcon = document.getElementById("success-state");
-	let stateInfoMessage = document.getElementById("success-state-msg");	
-	let successInfo = document.getElementById("success-info");
-	let successWifiSSID = document.getElementById("success-wifi-ssid");
-	let successWifiPass = document.getElementById("success-wifi-pass");
-	let successStatusConfig = document.getElementById("success-config-type");							
-	if(status){
-		// update fields
-		successWifiSSID.textContent=txtSSIDName.value;
-		successWifiPass.textContent=txtSSIDPass.value;
-		if(butCustomize.checked){
-			successStatusConfig.textContent="Customized";
-		} else {
-			successStatusConfig.textContent="Defaults";
-		}
-		// set headers
-		successHeader.textContent = "Success!";
-		//stateInfoMessage.classList.remove("d-none");
-		//stateIcon.src=("assets/check.png");		
-		// unhide
-		successInfo.classList.remove("d-none");
-	} else {
-		// set headers
-		successHeader.textContent = "Failure!";
-		stateIcon.src=("assets/cross.png");
-		stateInfoMessage.classList.remove("d-none");
-		successMessage.textcontent = "Programming did not complete. Check log file!";
-	}
+    // bit of a special function
+    // since we need to control things here internally
+    let successHeader = document.getElementById("success-notification");
+    let successMessage = document.getElementById("success-msg");
+    let stateIcon = document.getElementById("success-state");
+    let stateInfoMessage = document.getElementById("success-state-msg");    
+    let successInfo = document.getElementById("success-info");
+    let successWifiSSID = document.getElementById("success-wifi-ssid");
+    let successWifiPass = document.getElementById("success-wifi-pass");
+    let successStatusConfig = document.getElementById("success-config-type");                            
+    if(status){
+        // update fields
+        successWifiSSID.textContent=txtSSIDName.value;
+        successWifiPass.textContent=txtSSIDPass.value;
+        if(butCustomize.checked){
+            successStatusConfig.textContent="Customized";
+        } else {
+            successStatusConfig.textContent="Defaults";
+        }
+        // set headers
+        successHeader.textContent = "Success!";
+        //stateInfoMessage.classList.remove("d-none");
+        //stateIcon.src=("assets/check.png");        
+        // unhide
+        successInfo.classList.remove("d-none");
+    } else {
+        // set headers
+        successHeader.textContent = "Failure!";
+        stateIcon.src=("assets/cross.png");
+        stateInfoMessage.classList.remove("d-none");
+        successMessage.textcontent = "Programming did not complete. Check log file!";
+    }
 }
 
 function toggleUIProgram(state) {
@@ -1074,6 +1097,7 @@ function toggleUIProgram(state) {
         // error
         statusStep3.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep3.classList.add("bi-x-circle");
+        espTool.exceptionTrigger(true);
         setStatusAlert("Flashing failed, you can check log for more information and click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
         accordionExpand(3);
         btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
@@ -1090,7 +1114,7 @@ function toggleUIHardware(ready) {
         accordionExpand(2);
     } else {
         // error
-    	sdstat("error","hardware-missing");
+        sdstat("error","hardware-missing");
         setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-x-circle");
@@ -1114,7 +1138,7 @@ function toggleUIConnected(connected) {
         statusStep2.classList.add("bi-x-circle");
         //butProgram.disabled = true;
         lbl = "Error";
-    	sdstat("error","hardware-missing");
+        sdstat("error","hardware-missing");
         let err = "No device available. Refresh WebFlasher to attempt flashing again.";
         setStatusAlert(err, "danger");
         accordionExpand(2);
@@ -1192,11 +1216,11 @@ function loadSettings() {
                             }
                             // odd way to check for null but ok
                             if(value !== undefined && value !== null){
-                            	if(debugState) {
-                            		console.log("Unsetting value for " + value);
-                            	}
-	                            element[i].checked = false;
-	                        }
+                                if(debugState) {
+                                    console.log("Unsetting value for " + value);
+                                }
+                                element[i].checked = false;
+                            }
                         }
                     }
                 } else {
@@ -1215,7 +1239,7 @@ function loadSettings() {
                             if (value === "true") {
                                 value = true;
                             } else {
-                            	console.log("running on element" + value)
+                                console.log("running on element" + value)
                                 value = false;
                             }
                             element.checked = value;

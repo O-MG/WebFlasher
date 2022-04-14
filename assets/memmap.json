@@ -22,15 +22,15 @@
 			"offset": "0x80000"
 		},
 		{
-			"type": "file",
-			"name": "blank.bin",
-			"offset": "0x7f000"
-		},
-		{
 			"type": "erase",
 			"offset": "0x7c000",
 			"size": 16384
-		}
+		},
+                {
+                        "type": "erase",
+                        "offset": "0x7f000",
+			"size": 4096
+                }
 	],
 	"2048": 
 	[
@@ -55,14 +55,14 @@
 			"offset": "0x80000"
 		},
 		{
-			"type": "file",
-			"name": "blank.bin",
-			"offset": "0x7f000"
-		},
-		{
 			"type": "erase",
 			"offset": "0x7c000",
 			"size": 16384
-		}
+		},
+                {
+                        "type": "erase",
+                        "offset": "0x7f000",
+                        "size": 4096
+                }
 	]
 }
