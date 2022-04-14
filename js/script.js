@@ -294,7 +294,7 @@ async function endHelper() {
     baudRate.disabled = true;
     butClear.disabled = true;
     butProgram.disabled = true;
-    butProgram.textContent = "Reload Web Page To Continue";
+    butProgram.getElementsByClassName("programMsg")[0].innerText = "Reload Web Page To Continue";
     autoscroll.disabled = true;
 }
 
@@ -579,7 +579,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
 					sdstat("error","invalid-memmap-from-server");
 				toggleUIProgram(false);    		
     	} else {
-    		if(chip_flash[i]["type"] == "file"){
+    		if(chip_files[i]["type"] == "file"){
 				if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
 					errorMsg("Invalid data, cannot load online flash resources");
 						sdstat("error","invalid-firmware-from-server");
@@ -642,12 +642,12 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
 			} else {
 				// erase command, not all blank items here 
 				let content_length = chip_files[i]["size"]
-				contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
+				let contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
 				if(debugState){
 					console.log("Loading configuration from eraser source")
 				}
 				flash_list.push({
-					"url": request_file,
+					"url": "unknown",
 					"name": "blank-" + chip_files[i]["offset"] + ".bin",
 					"offset": chip_files[i]["offset"],
 					"size": content_length,
@@ -799,7 +799,7 @@ async function clickProgram() {
             }
         }
         if (flash_successful) {
-            setStatusAlert("Device Programmed, please reload web page and remove programmer and cable. ");
+            setStatusAlert("Device Programmed, please reload web page and remove programmer and device. ");
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
     		sdstat("success","flash-success-" + branch);
@@ -844,7 +844,7 @@ async function patchFlash(bin_list) {
     }
 
 
-    const wifiPatcher = (orig_data,search) => {
+    const configPatcher = (orig_data,search) => {
         let utf8Encoder = new TextEncoder();
         let mod_array = new Uint8Array(orig_data);
 
@@ -855,13 +855,14 @@ async function patchFlash(bin_list) {
 		if(settings['customizeConfig'].checked){
 			perform_patch=true;
 			configuration['wifiset']="1";
+			// edge case here, need error trapping
 			configuration["wifimode"] = loadSetting("devWifiMode").replace("wifiMode","");
 			configuration["wifissid"] = settings["devWiFiSSID"].value;
 			configuration["wifipass"] = settings["devWiFiPass"].value;
 		}
-        let ssid_pos = 0 ;
+        let pos = 0 ;
         // mod_array.indexOfString(utf8Encoder.encode("INIT;"));
-        if (ssid_pos > -1 && perform_patch) {
+        if (pos > -1 && perform_patch) {
             if (debugState) {
                 console.log("found match at " + pos + " for data ");
                 console.log(orig_data);
@@ -877,7 +878,7 @@ async function patchFlash(bin_list) {
             let final_cfg = utf8Encoder.encode(`${ccfg}`);
 
             let re_pos = 0;
-            for (let i = ssid_pos; i < ssid_pos + final_cfg.length; i++) {
+            for (let i = pos; i < pos + final_cfg.length; i++) {
                 mod_array[i] = final_cfg[re_pos];
                 re_pos += 1;
             }
@@ -969,7 +970,7 @@ async function clickErase() {
 
     var confirm_erase = confirm("Warning: Erasing should only be performed " +
         "when recommended by support. This operations will require you to reload the " +
-        "web page to continue and disconnect and reconnect cable to flasher. " +
+        "web page to continue and disconnect and reconnect device to flasher. " +
         "Normally this operation is not needed. Are you ready to proceed?");
 
     if (confirm_erase) {
@@ -990,9 +991,9 @@ async function clickErase() {
                 errorMsg(e);
             }
         }
-        setStatusAlert("Cable Erased, please reload web page and remove programmer and cable");
+        setStatusAlert("Device Erased, please reload web page and remove programmer and device");
         logMsg("Erasing complete, please continue with flash process after " +
-            "reloading web page (Ctrl+F5) and reconnecting to cable");
+            "reloading web page (Ctrl+F5) and reconnecting to device");
         logMsg(" ");
     } else {
         logMsg("Erasing operation skipped.");
@@ -1189,7 +1190,13 @@ function loadSettings() {
                             if (debugState) {
                                 console.log("Searching for element with id " + value + " to select to false");
                             }
-                            element[i].checked = false;
+                            // odd way to check for null but ok
+                            if(value !== undefined && value !== null){
+                            	if(debugState) {
+                            		console.log("Unsetting value for " + value);
+                            	}
+	                            element[i].checked = false;
+	                        }
                         }
                     }
                 } else {
@@ -1208,6 +1215,7 @@ function loadSettings() {
                             if (value === "true") {
                                 value = true;
                             } else {
+                            	console.log("running on element" + value)
                                 value = false;
                             }
                             element.checked = value;
@@ -1265,8 +1273,7 @@ function saveSettings() {
             } else {
                 if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
 
-                    for (let i = 0; i < element.length; i++) {
-                        console.log(element[i])
+                    for (let i = 0; i < element.length; i++) { 
                         if (element[i].checked) {
                             saveSetting(key, element[i].id);
                         }
