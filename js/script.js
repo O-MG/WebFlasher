@@ -1022,7 +1022,7 @@ function toggleUIProgram(state) {
         // error
         statusStep3.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep3.classList.add("bi-x-circle");
-        setStatusAlert("Flashing failed, you can check log for more information and click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
+        setStatusAlert("Flashing failed! Click Help button for solutions. Then refresh this page to attempt flashing again.", "danger");
         accordionExpand(3);
         btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
         accordionDisable();
@@ -1039,7 +1039,7 @@ function toggleUIHardware(ready) {
     } else {
         // error
     	sdstat("error","hardware-missing");
-        setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
+        setStatusAlert("Hardware is unavailable. Click the Help button below. Then refresh this page to attempt flashing again.", "danger");
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-x-circle");
         accordionExpand(1);
@@ -1063,7 +1063,7 @@ function toggleUIConnected(connected) {
         //butProgram.disabled = true;
         lbl = "Error";
     	sdstat("error","hardware-missing");
-        let err = "No device available. Click the Show Me How button for help. Refresh WebFlasher to attempt flashing again.";
+        let err = "No device available. Click the Help button below below. Then refresh this page to attempt flashing again.";
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
