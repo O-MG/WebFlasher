@@ -1063,7 +1063,7 @@ function toggleUIConnected(connected) {
         //butProgram.disabled = true;
         lbl = "Error";
     	sdstat("error","hardware-missing");
-        let err = "No device available. Click the Help button below below. Then refresh this page to attempt flashing again.";
+        let err = "Either no device was selected, or we cannot connect to the device you did select. Click the Help button below below. Then refresh this page to attempt flashing again.";
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
