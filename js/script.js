@@ -1063,7 +1063,7 @@ function toggleUIConnected(connected) {
         //butProgram.disabled = true;
         lbl = "Error";
     	sdstat("error","hardware-missing");
-        let err = "Either you did not select the CP2102 device, or we cannot connect to the device you selected. Click the Help button below below for common fixes. Then refresh this page to attempt flashing again.";
+        let err = "Either you did not select the CP2102 device, or we cannot connect to the device you selected. Click the Help button below for common fixes. Then refresh this page to attempt flashing again.";
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
