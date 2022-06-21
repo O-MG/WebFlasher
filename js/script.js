@@ -235,6 +235,7 @@ function updateProgress(part, percentage) {
 		if(currHighestProgress>currProgress){
 			currProgress=currHighestProgress;
 		} else {
+			console.log("progress went down somehow");
 			currHighestProgress=currProgress;
 		}
         progressBar.setAttribute("aria-valuenow", currProgress);
@@ -594,59 +595,84 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     setProgressMax(chip_files.length);
     updateCoreProgress(25);
     for (let i = 0; i < chip_files.length; i++) {
-        if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
-            errorMsg("Invalid data, cannot load online flash resources");
-                sdstat("error","invalid-firmware-from-server");
-            toggleUIProgram(false);
-        }
-        let request_file = url + chip_files[i]["name"];
-        let tmp = await fetch(request_file).then((response) => {
-            if (response.status >= 400 && response.status < 600) {
-                errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
-                flashingReady = false;
-                let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
-                sdstat("error","server-error-downloading-firmware");
-                setStatusAlert(consiseError, "danger");
-                throw new Error(consiseError);
-                return false;
-
-            }
-            logMsg("Loaded online version of " + request_file + ". ");
-            return response.blob();
-        }).then((myblob) => myblob).catch((error) => {
-            console.log(error)
-        });
-        updateCoreProgress(40);
-        if (tmp === undefined) {
-            // missing file
-            logMsg("Invalid file downloaded " + chip_files["name"]);
+        if(!"type" in chip_files[i]){
+                errorMsg("Invalid data, cannot load online flash resources");
+                    sdstat("error","invalid-memmap-from-server");
+                toggleUIProgram(false);            
         } else {
-            let contents = await readUploadedFileAsArrayBuffer(tmp);
-            let content_length = contents.byteLength;
-            // if we want to "erase", we set this to be true
+            if(chip_files[i]["type"] == "file"){
+                if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
+                    errorMsg("Invalid data, cannot load online flash resources");
+                        sdstat("error","invalid-firmware-from-server");
+                    toggleUIProgram(false);
+                }
+                if(debugState){
+                    console.log("Loading configuration from file source")
+                }
+                let request_file = url + chip_files[i]["name"];
+                let tmp = await fetch(request_file).then((response) => {
+                    if (response.status >= 400 && response.status < 600) {
+                        errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
+                        flashingReady = false;
+                        let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
+                        sdstat("error","server-error-downloading-firmware");
+                        setStatusAlert(consiseError, "danger");
+                        throw new Error(consiseError);
+                        return false;
 
-            if (erase) {
-                contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
-            }
-            flash_list.push({
-                "url": request_file,
-                "name": chip_files[i]["name"],
-                "offset": chip_files[i]["offset"],
-                "size": content_length,
-                "data": contents
-            });
-            if (content_length < 1 || flash_list[i].data.byteLength < 1) {
-                flashingReady = false;
-                errorMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
-                sdstat("error","invalid-firmware-bad-file");
-                let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue. Refresh WebFlasher page when ready to attempt flashing again.";
-                setStatusAlert(consiseError, "danger");
-                throw new Error(consiseError);
-                return false;
-            }
-            if (debugState) {
-                console.log("data queried for flash size " + chip_flash_size);
-                console.log(flash_list);
+                    }
+                    logMsg("Loaded online version of " + request_file + ". ");
+                    return response.blob();
+                }).then((myblob) => myblob).catch((error) => {
+                    console.log(error)
+                });
+                updateCoreProgress(40);
+                if (tmp === undefined) {
+                    // missing file
+                    logMsg("Invalid file downloaded " + chip_files["name"]);
+                } else {
+                    let contents = await readUploadedFileAsArrayBuffer(tmp);
+                    let content_length = contents.byteLength;
+                    // if we want to "erase", we set this to be true
+
+                    if (erase) {
+                        contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
+                    }
+                    flash_list.push({
+                        "url": request_file,
+                        "name": chip_files[i]["name"],
+                        "offset": chip_files[i]["offset"],
+                        "size": content_length,
+                        "data": contents
+                    });
+                    if (content_length < 1 || flash_list[i].data.byteLength < 1) {
+                        flashingReady = false;
+                        errorMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
+                        sdstat("error","invalid-firmware-bad-file");
+                        let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue. Refresh WebFlasher page when ready to attempt flashing again.";
+                        setStatusAlert(consiseError, "danger");
+                        throw new Error(consiseError);
+                        return false;
+                    }
+                    if (debugState) {
+                        console.log("data queried for flash size " + chip_flash_size);
+                        console.log(flash_list);
+                    }
+                }
+            } else {
+                // erase command, not all blank items here 
+                let content_length = chip_files[i]["size"]
+                let contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
+                if(debugState){
+                    console.log("Loading configuration from eraser source")
+                }
+                flash_list.push({
+                    "url": "undefined",
+                    "name": "blank-" + chip_files[i]["offset"] + ".bin",
+                    "offset": chip_files[i]["offset"],
+                    "size": content_length,
+                    "data": contents
+                });
             }
         }
     }
@@ -848,41 +874,45 @@ async function patchFlash(bin_list) {
         return mod_array.buffer;
     }
 
-
-    const wifiPatcher = (orig_data) => {
+    const configPatcher = (orig_data,search) => {
         let utf8Encoder = new TextEncoder();
         let mod_array = new Uint8Array(orig_data);
 
-        let perform_patch = false; // set this to true once we verify html elements
-
-        /*let access_log_str = utf8Encoder.encode("access.log"); 
-        // search for "access.log", this is a bit more complex then python
-        // but it works for what we need and since this is not user interactive
-        // we don"t care
-        let pos = mod_array.indexOfString(access_log_str);
-        let offset = int.from_bytes(BL[pos+24:pos+28], "little");
-
-        let ssid = "testq2345654";
-        let pass = "123456789";
-        let mode = "2";*/
-
-        let ssid_pos = mod_array.indexOfString(utf8Encoder.encode("SSID "));
-
-        if (ssid_pos > -1 && perform_patch) {
+        let perform_patch = true; // set this to true once we verify html elements
+ 
+        let configuration = {} 
+        // this is first 
+        if(settings['customizeConfig'].checked){
+            perform_patch=true;
+            // edge case here, need error trapping
+            configuration["wifimode"] = loadSetting("devWifiMode").replace("wifiMode","");
+            configuration["wifissid"] = settings["devWiFiSSID"].value;
+            configuration["wifikey"] = settings["devWiFiPass"].value;
+        } else {
+            perform_patch=true;
+        }
+        let pos = 0 ;
+        // mod_array.indexOfString(utf8Encoder.encode("INIT;"));
+        if (pos > -1 && perform_patch) {
             if (debugState) {
-                console.log("found match at " + pos + " for data ");
-                console.log(orig_data);
-                console.log(search);
+                console.log("found cfg match at " + pos + " for data ");
             }
-            let aligned = 114;
-            let ccfg = "SSID " + ssid + " PASS " + pass + " MODE " + mode;
-            let cfglen = ccfg.length
-            let final_cfg = utf8Encoder.encode(`${ccfg}`.padEnd((aligned), "\0"));
+            
+            let ccfg = "INIT;";
+            for (var setting in configuration) {
+                ccfg+=`S:${setting}=${configuration[setting]};`;
+            }
 
+            let cfglen = ccfg.length;
+            let final_cfg = utf8Encoder.encode(`${ccfg}`);
             let re_pos = 0;
-            for (let i = ssid_pos; i < ssid_pos + final_cfg.length; i++) {
-                mod_array[i] = final_cfg[re_pos];
+            for (let i = pos; i < pos + final_cfg.length; i++) {
+                mod_array[i] = final_cfg[re_pos];   
                 re_pos += 1;
+            }
+            if(debugState){
+                logMsg("Writing Initialization Configuration: '" + ccfg + "'");
+                console.log(mod_array);
             }
             // reset again just in case? 
             re_pos = 0;
@@ -904,6 +934,12 @@ async function patchFlash(bin_list) {
         if (orig_bin.offset == "0x00000") {
             // replace the data
             bin_list[i].data = findBase330(orig_bin.data, [0, 32], [3, 48]);
+        } else if(orig_bin.offset == "0x7f000"){
+            // search for INIT;
+            console.log("found match at " + i + " for file " + orig_bin.name + "with offset=" + (orig_bin.offset));
+            bin_list[i].data = configPatcher(orig_bin.data, [73, 78, 73, 84, 59]);
+            console.log(orig_bin);
+            console.log(bin_list[i]);
         }
     }
     return bin_list
@@ -1021,38 +1057,38 @@ function convertJSON(chunk) {
 }
 
 function statusPageUpdate(status=true){
-	// bit of a special function
-	// since we need to control things here internally
-	let successHeader = document.getElementById("success-notification");
-	let successMessage = document.getElementById("success-msg");
-	let stateIcon = document.getElementById("success-state");
-	let stateInfoMessage = document.getElementById("success-state-msg");	
-	let successInfo = document.getElementById("success-info");
-	let successWifiSSID = document.getElementById("success-wifi-ssid");
-	let successWifiPass = document.getElementById("success-wifi-pass");
-	let successStatusConfig = document.getElementById("success-config-type");							
-	if(status){
-		// update fields
-		successWifiSSID.textContent=txtSSIDName.value;
-		successWifiPass.textContent=txtSSIDPass.value;
-		if(butCustomize.checked){
-			successStatusConfig.textContent="Customized";
-		} else {
-			successStatusConfig.textContent="Defaults";
-		}
-		// set headers
-		successHeader.textContent = "Success!";
-		//stateInfoMessage.classList.remove("d-none");
-		//stateIcon.src=("assets/check.png");		
-		// unhide
-		successInfo.classList.remove("d-none");
-	} else {
-		// set headers
-		successHeader.textContent = "Failure!";
-		stateIcon.src=("assets/cross.png");
-		stateInfoMessage.classList.remove("d-none");
-		successMessage.textcontent = "Programming did not complete. Check log file!";
-	}
+    // bit of a special function
+    // since we need to control things here internally
+    let successHeader = document.getElementById("success-notification");
+    let successMessage = document.getElementById("success-msg");
+    let stateIcon = document.getElementById("success-state");
+    let stateInfoMessage = document.getElementById("success-state-msg");    
+    let successInfo = document.getElementById("success-info");
+    let successWifiSSID = document.getElementById("success-wifi-ssid");
+    let successWifiPass = document.getElementById("success-wifi-pass");
+    let successStatusConfig = document.getElementById("success-config-type");                            
+    if(status){
+        // update fields
+        successWifiSSID.textContent=txtSSIDName.value;
+        successWifiPass.textContent=txtSSIDPass.value;
+        if(butCustomize.checked){
+            successStatusConfig.textContent="Customized";
+        } else {
+            successStatusConfig.textContent="Defaults";
+        }
+        // set headers
+        successHeader.textContent = "Success!";
+        //stateInfoMessage.classList.remove("d-none");
+        //stateIcon.src=("assets/check.png");        
+        // unhide
+        successInfo.classList.remove("d-none");
+    } else {
+        // set headers
+        successHeader.textContent = "Failure!";
+        stateIcon.src=("assets/cross.png");
+        stateInfoMessage.classList.remove("d-none");
+        successMessage.textcontent = "Programming did not complete. Check log file!";
+    }
 }
 
 function toggleUIProgram(state) {
