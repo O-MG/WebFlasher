@@ -7,7 +7,7 @@
     <meta content="O.MG" name="author">
     <title> O.MG Web Flasher </title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/form-style.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
     <link href="https://fonts.gstatic.com" rel="preconnect">
     <!-- icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.2.2/font/bootstrap-icons.css">
@@ -30,6 +30,7 @@
     <meta content="#ffffff" name="msapplication-TileColor">
     <meta content="assets/icons/icons-144x144.png" name="msapplication-TileImage">
     <meta content="#ffffff" name="theme-color">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <!-- next -->
     <script>
       // Redirect to HTTPS if HTTP is requested.
@@ -91,29 +92,60 @@
             <!-- FORMS -->
             <div class="col-lg-7 mx-0 px-0 shadow-lg">
                 <div class="progress">
-                    <div aria-valuemax="100" aria-valuemin="0" aria-valuenow="50" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%"></div>
+                    <div aria-valuemax="100" aria-valuemin="0" aria-valuenow="50" class="progress-bar progress-bar-striped d-none" style="width: 0%"></div>
                 </div>
                 <div id="qbox-container" class="p-4">
                         <div id="steps-container" class="p-5">
                             <div class="step" id="step-welcome">
                                 <h2>Welcome to the O.MG Web Programmer </h2>
-                                <p>Please begin by plugging in your cable to your programmer and plugging in the programmer into your computer. This flasher is guided, at any time if a <span>Help</span> button is available you can follow help instructions. Alternatively, if you wish not to see this again, please select the option below.</p>
+                                <div class="m-2 bg-white agreement-modal" id="agreement-modal">
+									<h4>Agreement</h4>
+									<p>O.MG Core is a trademark of Mischief Gadgets, LLC. Mischief Gadgets, LLC requires that all users read and accept the provisions of the Terms of Use Policy and the Privacy Policy prior to granting users any authorization to use pentesting hardware created by Mischief Gadgets, LLC and/or its affiliates. The Terms of Use Policy and the Privacy Policy can be found at https://o.mg.lol, and must be affirmatively consented to by users prior to using any pentesting hardware created by Mischief Gadgets, LLC and/or its affiliates (hereinafter referred to as “O.MG Devices”).
+									Reading and Accepting the Terms of Use and the Privacy Policy are REQUIRED CONSIDERTIONS for Mischief Gadgets, LLC and/or its affiliates granting users the right to use any O.MG Device. All persons are DENIED permission to use any O.MG Device, unless they read and affirmatively accept the Terms of Use Policy and the Privacy Policy located at https://o.mg.lol.</p>
+									<h4>Privacy Policy</h4>
+									<br/>
+									<p>All persons under the age of 18 are denied access to the website located at https://o.mg.lol, as well as denied authorization to use any O.MG Device. If you are under the age of 18, it is unlawful for you to visit, communicate, or interact with Mischief Gadgets, LLC and/or its affiliates in any manner. Mischief Gadgets, LLC and/or its affiliates specifically denies access to any individual that is covered by the Child Online Privacy Act (COPA) of 1998.</p>
+									<p>Mischief Gadgets, LLC and/or its affiliates reserve the right to deny access to any person or viewer for any reason. Under the provisions of this Privacy Policy, Mischief Gadgets, LLC and/or its affiliates are allowed to collect and store data and information for the purpose of exclusion, and for any other uses seen fit. </p>
+									<p>Mischief Gadgets, LLC and/or its affiliates have established safeguards to help prevent unauthorized access to or misuse of your information but cannot guarantee that your information will never be disclosed in a manner inconsistent with this Privacy Policy (for example, as a result of any unauthorized act by third parties that violate applicable law or our affiliates’ policies). To protect your privacy and security, we may use passwords or other technologies to register or authenticate you and enable you to take advantage of our services, and before granting access or making corrections to your information.
+									<p>Mischief Gadgets, LLC and/or its affiliates do not rent or sell your personally identifiable information (such as name, address, telephone number, and credit card information) to third parties for their marketing purposes.</p>
+									<p>This Privacy Policy may change from time to time. Users have an affirmative duty, as part of the consideration for permission to use O.MG Devices, to keep themselves informed of changes to this Privacy Policy. All changes to this Privacy Policy will be posted at https://o.mg.lol.</p>
+									<br/>
+									<h4>Terms of Use</h4>
+									<p>Pentesting hardware designed by Mischief Gadgets, LLC and/or its affiliates (hereinafter referred to as “O.MG Devices”) are network administration and pentesting tools used for authorized auditing and security analysis purposes only where permitted, subject to local and international laws where applicable. Users are solely responsible for compliance with all laws of their locality. Mischief Gadgets, LLC and/or its affiliates claim no responsibility for unauthorized or unlawful use.</p>
+									<p>O.MG Devices are packaged with a limited warranty, the acceptance of which is a condition of sale. See https://o.mg.lol for additional warranty details and limitations. Availability and performance of certain features, services, and applications are device and network dependent and may not be available in all areas; additional terms, conditions and/or charges may apply. </p>
+									<p>You agree not to access or use any O.MG Device or the website located at https://o.mg.lol in any unlawful way or for any unlawful or illegitimate purpose or in any manner that contravenes this Agreement. You shall not use any O.MG Device to post, use, store, or transmit any information that is unlawful, libelous, defamatory, obscene, fraudulent, predatory of minors, harassing, threatening or hateful towards any individual, this includes any information that infringes or violates any of the intellectual property rights of others or the privacy rights of others. You shall not use any O.MG Device to attempt to disturb the peace by any method, including through use of viruses, Trojan horses, worms, time bombs, denial of service attacks, flooding or spamming. You shall not use any O.MG Device in any manner that could damage, disable or impair Mischief Gadgets, LLC and/or its affiliates, or any third-party. You shall not use any O.MG Device to attempt to gain unauthorized access to any user account, computer systems, or networks through hacking, password mining or any other means. You shall not use any O.MG Device alongside any robot, data scraper, miner or virtual computer to gain unlawful access to protected computer systems. </p>
+									<p>All features, functionality and other product specifications are subject to change without notice or obligation. Mischief Gadgets, LLC and/or its affiliates reserve the right to make changes to the product description in this document without notice. Mischief Gadgets, LLC and/or its affiliates do not assume any liability that may occur due to the use or application of the product(s) described herein.</p>
+									<p>These terms and conditions shall be governed by and construed in accordance with the laws of the state of New York, United States of America, and you agree to submit to the personal jurisdiction of the courts of the state of New York. In the event that any portion of these terms and conditions is deemed by a court to be invalid, the remaining provisions shall remain in full force and effect. You agree that regardless of any statute or law to the contrary, any claim or cause of action arising out of or related to this Web site, or the use of this Website, must be filed within one year after such claim or cause of action arose and must be filed in a court in New York, New York, U.S.A.</p>
+									<p>As required by Section 512(c)(2) of Title 17 of the United States Code, if you believe that any material on the website located at https://o.mg.lol infringes your copyright, you must send a notice of claimed infringement to Mischief Gadget, LLC’s General Counsel at the following address:</p>
+									<p>c/o Mischief Gadgets, LLC - General Counsel </p>
+									<p>Tor Ekeland Law, PLLC</p>
+									<p>30 Wall St., 8th Floor</p>
+									<p>New York, NY 10005</p>
+									<p>[info@torekeland.com]</p>
+									<br/>
+									<p>If you do not agree to be bound by this Agreement, do not access or use any O.MG Device, or the website located at https://o.mg.lol. We reserve the right, with or without notice, to make changes to this Agreement at our discretion. Continued use of any O.MG Device or the website located at https://o.mg.lol constitutes your acceptance of these Terms, as they may appear at the time of your access.</p>
+									<p>By clicking the “I Agree” button, by availing yourself of any O.MG Device or the website located at https://o.mg.lol, or by accessing, visiting, browsing, using or attempting to interact with or use any O.MG Device or the website located at https://o.mg.lol, you agree that you have read, understand, and agree to be bound by this Agreement as well as our Privacy Policy, which is a part of this Agreement and which can be viewed here: https://o.mg.lol.</p>
+                                </div>
+                                <div class="progress">
+									<div class="progress-bar progress-bar-striped bg-danger" id="agreement-progress" role="progressbar" style="width: 0%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+								</div>
                                 <div class="m-2 bg-white">
 									<div id="welcome-instructions" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="3000">
 										<div class="carousel-inner">
 											<div class="carousel-item active">
-												<img src="assets/welcome-instructions.png" class="img-fluid p-2" alt="Welcome Instructions">
+												<p>By clicking "I Agree" you agree to the above.</p>
 											</div>
 										</div>
 									</div>
-									<div class="form-check form-switch pt-3">
+									<!--<div class="form-check form-switch pt-3 d-none">
 										<input class="form-check-input" type="checkbox" id="welcomeScreenCheck">
-										<label class="form-check-label" for="welcomeScreenCheck">Do not show this welcome screen again</label>
-									</div>
+										<label class="form-check-label" for="welcomeScreenCheck">Do not show this screen again</label>
+									</div>-->
 									<!--<button id="btnWelcomeHelp" class="fancy btn" type="button">Help</button>-->
 								</div>
 								<div class="m-2 text-center justify-content-center">
-									<button id="btnWelcome" class="fancy btn btn-success btn-lg" type="button">Continue</button>
+									<button id="btnWelcome" class="fancy btn btn-secondary btn-lg" type="button" disabled>I agree</button>
+									<button id="btnDeny" class="fancy btn btn-danger btn-lg" type="button">I do not agree</button>
 								</div>
 								<!--<div class="p-4"></div>-->
                             </div>
@@ -128,7 +160,7 @@
 												<path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z"/>
 											</svg>
 										</button>
-										<button type="button" class="d-none btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalSettings">
+										<button type="button" class="d-none btn btn-secondary" data-bs-toggle="modal" data-bs-target="#modalSettings" id="settingsButton">
 											<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear-fill" viewBox="0 0 16 16">
 												<path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"></path>
 											</svg>
@@ -138,6 +170,23 @@
                             	<div class="row px-3">
                         			<div class="alert d-none" role="alert" id="statusAlert"></div>
 									<div class="accordion text-left justify-content-left pt-2" id="programmingAcc">
+										<div class="accordion-item">
+											<h2 class="accordion-header d-none" id="programmerStep0">
+												<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#programmerStep0-collapse" aria-expanded="true" aria-controls="programmerStep1" >
+													<i class="bi-circle step-icon" id="programmerStep0-status"></i>
+													&nbsp;&nbsp;&nbsp; Begin
+												</button>
+											</h2>
+											<div id="programmerStep0-collapse" class="accordion-collapse collapse show" aria-labelledby="programmerStep0">
+												<div class="pb-2 pt-3 justify-content-center text-center">
+													<button type="button" class="btn btn-success btn-xxl" id="btnStart">Start!</button>
+												</div>
+												<div class="accordion-details">
+													<img src="assets/welcome-instructions.png" class="rounded mx-auto d-block img-fluid p-1" alt="Welcome Instructions">
+													<p>The "C+A" Programmer requires a cable to connect to your computer and uses a USB Type C connector so either a C to A or C to C cable to connect the programmer to your computer. The programmer port labeled "PC" should go to your computer. Then plug your O.MG Cable into one of the programmer ports labeled "O.MG". The "A" Programmer connects directly to your computer via a USB Type A Port. </p>
+												</div>
+											</div>
+										</div>
 										<div class="accordion-item">
 											<h2 class="accordion-header" id="programmerStep1">
 												<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#programmerStep1-collapse" aria-expanded="true" aria-controls="programmerStep1" >
@@ -184,21 +233,22 @@
 											<div id="programmerStep3-collapse" class="accordion-collapse collapse show" aria-labelledby="programmerStep2">
 												<div class="accordion-body">
 													Press the <strong>Program</strong> button below, thats it! Just wait for the progress bar to complete. 
-													<div class="pb-2 pt-3 justify-content-center text-center">
+													<!--<div class="pb-2 pt-3 justify-content-center text-center">
 														<label for="branch" class="form-label">Firmware Build</label>
 														<select id="branch" class="form-select">
 															<option value="master" selected>v2.5 [Default]</option>
 															<option value="legacy-2.0">v2.0 (Legacy)</option>
 															<option value="legacy-1.5">v1.5 (Legacy)</option>
 														</select>
-
+													</div>-->
+													<div class="pb-2 pt-3 justify-content-center text-center">
 														<div class="progress">
 															<div class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
 														</div>
 													</div>
 
 													<div class="pb-2 pt-3 justify-content-center text-center">
-														<button type="button" class="btn btn-danger btn-lg fancy" id="btnProgram"><span class="spinner-border spinner-border-sm d-none"></span> Program<i></i></button> <button type="button" class="btn btn-secondary btn-lg fancy" data-bs-toggle="modal"  data-bs-target="#modalHelpFlash">Show me How</button>
+														<button type="button" class="btn btn-danger btn-lg fancy" id="btnProgram"><span class="spinner-border spinner-border-sm d-none"></span> <span class="programMsg">Program</span></button> <button type="button" class="btn btn-secondary btn-lg fancy" data-bs-toggle="modal"  data-bs-target="#modalHelpFlash">Show me How</button>
 													</div>
 												</div>
 											</div>
@@ -288,8 +338,17 @@
 							<h4>Web Flasher Configuration</h4>
 							<div class="row">
 								<div class="col-md-6">
+									<label for="branch" class="form-label">Firmware Build</label>
+									<select id="branch" class="form-select">
+										<option value="master" selected>v2.5 [Stable]</option>
+										<option value="legacy-2.0">v2.0 [Legacy]</option>
+										<option value="legacy-1.5">v1.5 [Legacy]</option>
+										<option value="dev">Unstable</option>
+									</select>
 								</div>
-								<div class="col-md-6 pb-2">
+							</div>
+							<div class="row">
+								<div class="col-md-6 pb-2 d-none">
 									<label for="baudRate" class="form-label" >Baud Rate</label>
 									<select id="baudRate" class="form-select" disabled></select>
 								</div>
@@ -370,8 +429,8 @@
 							</div>
 						</div>
 					</div>
-					<p>The "C+A" Programmer requires a cable to connect to your computer. The programmer uses a USB Type C connector. So use either a C to A or C to C cable to connect the programmer to your computer. The programmer port labeled "PC" should go to your computer. Then plug your O.MG Cable into one of the programmer ports labeled "O.MG" </p>
-					<p>The "A" Programmer connects directly to your computer via a USB Type A Port. </p>
+					<p>The "A+C Programmer" requires a standard USB cable to connect to your computer. So use a standard C to A or C to C USB cable. The programmer port labeled "PC" should go to your computer. Then plug your O.MG Device into one of the programmer ports labeled "O.MG" </p>
+					<p>The "A Programmer" connects directly to your computer via a USB Type A Port. </p>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -413,7 +472,7 @@
 					<div class="container-fluid">
 						<p>Press the Program Button, and wait for the upgrade to complete.</p>
 						<p>Note, this process may take several minutes. There will be a status bar at the top of the screen.</p>
-						<p>When completed, you will see a message that says: "Device Programmed, please reload web page and remove programmer and cable"</p>
+						<p>When completed, you will see a message that says: "Device Programmed, please reload web page and remove programmer and device"</p>
 						<p>If you see an error, please verify all components are plugged in properly. Refresh the page to try flashing again.</p>
 						
 					</div>

@@ -15,8 +15,7 @@ const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
 const butWelcome = document.getElementById("btnWelcome");
 const butConnect = document.getElementById("btnConnect");
-const butSkipWelcome = document.getElementById("welcomeScreenCheck");
-
+const agreementModal = document.getElementById("agreement-modal");
 
 // Console Modal
 const butClear = document.getElementById("btnClear");
@@ -55,7 +54,7 @@ var flashingReady = true;
 
 var logMsgs = [];
 
-var skipWelcome = true;
+var skipWelcome = false;
 
 var settings = {
     "customizeConfig": butCustomize,
@@ -64,8 +63,7 @@ var settings = {
     "devWiFiSSID": txtSSIDName,
     "devWiFiPass": txtSSIDPass,
     "devWifiMode": butWifiMode,
-    "firmwareRelease": butBranch,
-    "skipWelcome": butSkipWelcome
+    "firmwareRelease": butBranch
 }
 
 const url_memmap = "assets/memmap.json";
@@ -138,7 +136,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // disable device wifi config by default until user asks
     toggleDevConf(true);
     butWelcome.addEventListener("click", clickWelcome);
-    butSkipWelcome.addEventListener("click", clickSkipWelcome);
     butSave.addEventListener("click", clickSave);
     butDebug.addEventListener("click", clickDebug);
     butCustomize.addEventListener("click", toggleDevConf);
@@ -148,6 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
     butClear.addEventListener("click", clickClear);
     autoscroll.addEventListener("click", clickAutoscroll);
     baudRate.addEventListener("change", changeBaudRate);
+    agreementModal.addEventListener("scroll",doScrollAgreements);
     darkMode.addEventListener("click", clickDarkMode);
     window.addEventListener("error", function(event) {
         console.log("Got an uncaught error: ", event.error)
@@ -168,8 +166,6 @@ document.addEventListener("DOMContentLoaded", () => {
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
 
 });
-
-
 
 
 /**
@@ -655,6 +651,22 @@ async function accordionDisable(disabled = true) {
     let collapsable_elements = document.querySelectorAll(".accordion-button");
     for (let i = 0; i < collapsable_elements.length; i++) {
         collapsable_elements[i].disabled = disabled;
+    }
+}
+
+async function doScrollAgreements(){
+    let res = this;
+    let button = butWelcome;
+    let scrollPercentage = res.scrollTop / (res.scrollHeight - res.offsetHeight);
+    if(scrollPercentage>0.98){
+    	if(button.disabled){
+    		button.classList.remove("btn-secondary");
+    		button.classList.add("btn-success");
+    		button.disabled=false;
+    	}
+    }
+    if(debugState){
+    	console.log("User has read " + (scrollPercentage*100.0) + " of the TOS agreement");
     }
 }
 
