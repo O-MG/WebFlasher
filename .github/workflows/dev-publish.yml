@@ -27,6 +27,7 @@ jobs:
           echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')  
       - name: Push to Dev Repo 
         run: |
+           MAINNAME="main"
            TEMPREPO=$(mktemp -d)
            AUTHURL="https://${{ secrets.WORKER_TOKEN }}:x-oauth-basic@github.com"
            PUBREPO="O-MG/WebFlasher-Test.git"
@@ -35,10 +36,12 @@ jobs:
            git config --global user.email nullworker@mg.lol
            git config --global user.name $WORKER_USER
            echo "Cloning repo '${PUBREPO}' branch '${PUBBRANCH}' into directory '${TEMPREPO}' via PAT for user ${WORKER_USER}"
-           git clone --single-branch --branch "${PUBBRANCH}" "${AUTHURL}/${PUBREPO}" "${TEMPREPO}"
-           cp -vrf ./* "${TEMPREPO}/"
+           git clone --depth 1 "${AUTHURL}/${PUBREPO}" "${TEMPREPO}"
            cd "${TEMPREPO}"
+           git checkout --orphan "publish-$(date '+%Y-%m-%d')"
+           cp -vrf ./* "${TEMPREPO}/"
            git add -fA ./
            git commit -m "automated publish of release '${{ steps.prep.outputs.commit }}' by ${{ github.actor }} for branch ${{ steps.prep.outputs.branch }}"
+           git branch -D ${PUBBRANCH}
+           git branch -m ${PUBBRANCH}
            git push
-
