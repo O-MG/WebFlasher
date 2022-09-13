@@ -1,0 +1,54 @@
+---
+name: publish-dev
+
+on:
+  push:
+    branches:    
+      - 'main'
+      - 'dev'
+
+env:
+   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+jobs:
+  build-on-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code repository 
+        run: sudo apt-get update && sudo apt-get -y install rsync
+      - name: Checkout code repository 
+        uses: actions/checkout@v2
+      - name: Set Variables
+        id: prep
+        run: |
+          COMMIT="${GITHUB_SHA::8}"
+          echo ::set-output name=commit::${COMMIT}    
+          echo "::set-output name=branch::${GITHUB_REF#refs/heads/}"
+          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')  
+      - name: Push to Dev Repo 
+        run: |
+           MAINNAME="main"
+           TEMPREPO=$(mktemp -d)
+           AUTHURL="https://${{ secrets.WORKER_TOKEN }}:x-oauth-basic@github.com"
+           PUBREPO="O-MG/WebFlasher-Test.git"
+           PUBBRANCH="main"
+           TMPBRANCH="publish-$(date '+%Y-%m-%d')"
+           WORKER_USER="omg-builds"
+           CURRPATH="$(pwd)"
+           ls 
+           pwd
+           git config --global user.email nullworker@mg.lol
+           git config --global user.name $WORKER_USER
+           echo "Cloning repo '${PUBREPO}' branch '${PUBBRANCH}' into directory '${TEMPREPO}' via PAT for user ${WORKER_USER}"
+           git clone --depth 1 "${AUTHURL}/${PUBREPO}" "${TEMPREPO}"
+           ls -la "${TEMPREPO}"
+           cd "${TEMPREPO}"
+           git checkout --orphan "${TMPBRANCH}"
+           rm -rfv ./*
+           cp -vrf ${CURRPATH}/* "${TEMPREPO}/"
+           git add -fA ./
+           git commit -m "automated publish of release '${{ steps.prep.outputs.commit }}' by ${{ github.actor }} for branch ${{ steps.prep.outputs.branch }}"
+           git branch -D ${PUBBRANCH}
+           git branch -m ${PUBBRANCH}
+           git push -f origin ${PUBBRANCH}
+           git gc --aggressive --prune=all  
