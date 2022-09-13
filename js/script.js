@@ -25,7 +25,7 @@ const autoscroll = document.getElementById("btnAutoscroll");
 // Settings Modal
 const elementsDevConf = document.getElementById("deviceConfigOptions");
 const butCustomize = document.getElementById("customizeDevice");
-const butEraseCable = document.getElementById("eraseCable");
+const butDeviceErase = document.getElementById("eraseCable");
 const butBranch = document.querySelector("#branch");
 const butWifiMode = document.getElementsByName("wifiMode");
 const txtSSIDName = document.getElementById("ssidName");
@@ -58,7 +58,7 @@ var skipWelcome = false;
 
 var settings = {
     "customizeConfig": butCustomize,
-    "preEraseCable": butEraseCable,
+    "preEraseCable": butDeviceErase,
     "setUIDarkMode": darkMode,
     "devWiFiSSID": txtSSIDName,
     "devWiFiPass": txtSSIDPass,
@@ -228,7 +228,7 @@ function completeProgress() {
 }
 
 async function setProgressMax(resources) {
-    if (butEraseCable.checked) {
+    if (butDeviceErase.checked) {
         // the current erase system is yikes, but seems to provide good results. 
         let eraseres = await eraseFiles(0x00000, 1022976, 0xff);
         resources = resources + eraseres;
@@ -262,7 +262,7 @@ async function setStatusAlert(message, status = "success") {
 }
 
 async function endHelper() {
-    //logMsg("Please reload this webpage and make sure to reconnect cable and flasher if trying to flash another cable or recovering from error.");
+    //logMsg("Please reload this webpage and make sure to reconnect OMG Device and flasher if trying to flash another OMG Device or recovering from error.");
     butConnect.disabled = true;
     baudRate.disabled = true;
     butClear.disabled = true;
@@ -730,7 +730,7 @@ async function clickProgram() {
 		sdstat("notice","flash-begin-" + branch);
         logMsg("Flashing firmware based on code branch " + branch + ". ");
         // erase 
-        if (butEraseCable.checked) {
+        if (butDeviceErase.checked) {
             logMsg("Erasing flash before performing writes. This may take some time... ");
             if (debugState) {
                 console.log("performing flash erase before writing");
@@ -930,7 +930,7 @@ async function clickErase() {
 
     var confirm_erase = confirm("Warning: Erasing should only be performed " +
         "when recommended by support. This operations will require you to reload the " +
-        "web page to continue and disconnect and reconnect cable to flasher. " +
+        "web page to continue and disconnect and reconnect OMG Device to flasher. " +
         "Normally this operation is not needed. Are you ready to proceed?");
 
     if (confirm_erase) {
@@ -951,9 +951,9 @@ async function clickErase() {
                 errorMsg(e);
             }
         }
-        setStatusAlert("Cable Erased, please reload web page and remove programmer and cable");
+        setStatusAlert("OMG Device Erased, please reload web page and remove programmer and device");
         logMsg("Erasing complete, please continue with flash process after " +
-            "reloading web page (Ctrl+F5) and reconnecting to cable");
+            "reloading web page (Ctrl+F5) and reconnecting to your OMG Device");
         logMsg(" ");
     } else {
         logMsg("Erasing operation skipped.");
