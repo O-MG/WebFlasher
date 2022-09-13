@@ -25,7 +25,7 @@ const autoscroll = document.getElementById("btnAutoscroll");
 // Settings Modal
 const elementsDevConf = document.getElementById("deviceConfigOptions");
 const butCustomize = document.getElementById("customizeDevice");
-const butDeviceErase = document.getElementById("eraseCable");
+const butDeviceErase = document.getElementById("eraseDevice");
 const butBranch = document.querySelector("#branch");
 const butWifiMode = document.getElementsByName("wifiMode");
 const txtSSIDName = document.getElementById("ssidName");
@@ -58,7 +58,7 @@ var skipWelcome = false;
 
 var settings = {
     "customizeConfig": butCustomize,
-    "preEraseCable": butDeviceErase,
+    "preeraseDevice": butDeviceErase,
     "setUIDarkMode": darkMode,
     "devWiFiSSID": txtSSIDName,
     "devWiFiPass": txtSSIDPass,
