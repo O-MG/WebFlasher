@@ -198,7 +198,7 @@ button.fancy:hover::after {
   /*text-align: center;*/
   text-decoration: none;
   font-family: 'Helvetica', 'Arial', sans-serif;
-  font-size: 11px; 
+  font-size: 11px;
   overflow-wrap: break-word;
   line-height: 10%;
 }

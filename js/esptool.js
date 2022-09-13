@@ -82,6 +82,8 @@ class EspLoader {
   constructor(params) {
     this._chipfamily = null;
     this.readTimeout = 3000;  // Arbitrary number for now. This should be set more dynamically in the sendCommand function
+    this._usbid = 0x0;
+    this._usbfamilyid = 0x0;
     this._efuses = new Array(4).fill(0);
     this._flashsize = 4 * 1024 * 1024;
     this.currFile = 0;
@@ -92,19 +94,26 @@ class EspLoader {
     }
 
     if (this.isFunction(params.logMsg)) {
-      this.logMsg = params.logMsg
+      this.logMsg = params.logMsg;
     } else {
-      this.logMsg = console.log
+      this.logMsg = console.log;
     }
     this.debug = false;
+    this.debugValue=0;
     if (this.isFunction(params.debugMsg)) {
-      if (params.debug !== false) {
-        this.debug = true;
+      this.debugValue = parseInt(params.debug);
+      if(!isNaN(this.debugValue)){
+          this.debugValue=params.debug;
+      }
+      if(this.debugValue>2){
+         this.debug=true;
       }
       this._debugMsg = params.debugMsg
     } else {
-      this._debugMsg = this.logMsg()
+      this._debugMsg = console.log
     }
+ 
+    this.abort = false;
     this.IS_STUB = false;
     this.syncStubDetected = false;
   }
@@ -121,6 +130,16 @@ class EspLoader {
     let raw = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./);
 
     return raw ? parseInt(raw[2], 10) : false;
+  }
+
+  /**
+   * @name exceptiontrigger
+   * Abort actions if true
+  */
+  exceptionTrigger(state=false){
+      if(state){
+        this.abort = true;
+      }
   }
 
   /**
@@ -222,9 +241,6 @@ class EspLoader {
    * Read a register within the ESP chip RAM, returns a 4-element list
    */
   async readRegister(reg) {
-    if (this.debug) {
-      this.debugMsg("Reading from Register " + this.toHex(reg, 8));
-    }
     let packet = struct.pack("<I", reg);
     await this.sendCommand(ESP_READ_REG, packet);
     let [val, data] = await this.getResponse(ESP_READ_REG);
@@ -236,9 +252,6 @@ class EspLoader {
    * Write to a register within the ESP chip RAM, returns a 4-element list
    */
   async writeRegister(reg, value) {
-    if (this.debug) {
-      this.debugMsg("Writing to Register " + this.toHex(reg, 8));
-    }
     let packet = struct.pack("<I", reg);
     return (await this.checkCommand(ESP_WRITE_REG, packet))[0];
   };
@@ -327,11 +340,6 @@ class EspLoader {
     }
     let status = data.slice(-statusLen, data.length);
     data = data.slice(0, -statusLen);
-    if (this.debug) {
-      this.debugMsg("status", status);
-      this.debugMsg("value", value);
-      this.debugMsg("data", data);
-    }
     if (status[0] == 1) {
       if (status[1] == ROM_INVALID_RECV_MSG) {
         throw("Invalid (unsupported) command " + this.toHex(opcode));
@@ -345,7 +353,7 @@ class EspLoader {
     }
     return value;
   };
-
+  
   /**
    * @name timeoutPerMb
    * Scales timeouts which are size-specific
@@ -368,7 +376,6 @@ class EspLoader {
     let packet = struct.pack("<BBHI", 0x00, opcode, buffer.length, checksum);
     packet = packet.concat(buffer);
     packet = this.slipEncode(packet);
-    this.debugMsg("Writing " + packet.length + " byte" + (packet.length == 1 ? "" : "s") + ":", packet);
     await this.writeToStream(packet);
   };
 
@@ -390,7 +397,11 @@ class EspLoader {
     }
 
     const signals = await port.getSignals();
-
+    let devinfo = port.getInfo();
+	if(!(devinfo === undefined)){
+		self._usbid=devinfo.usbProductId;
+		self._usbfamilyid=devinfo.usbVendorId;
+	}
     this.logMsg("Connected successfully.")
 
     this.logMsg("Try to reset.")
@@ -467,17 +478,20 @@ class EspLoader {
         }
         if (readBytes.length == 0) {
             let waitingFor = partialPacket === null ? "header" : "content";
-            this.debugMsg("Timed out waiting for packet " + waitingFor);
+            if(this.debug){
+                this.debugMsg("Timed out waiting for packet " + waitingFor);
+            }
             throw new SlipReadError("Timed out waiting for packet " + waitingFor);
         }
-        this.debugMsg("Read " + readBytes.length + " bytes: " + this.hexFormatter(readBytes));
         for (let b of readBytes) {
             if (partialPacket === null) {  // waiting for packet header
                 if (b == 0xc0) {
                     partialPacket = [];
                 } else {
-                    this.debugMsg("Read invalid data: " + this.hexFormatter(readBytes));
-                    this.debugMsg("Remaining data in serial buffer: " + this.hexFormatter(inputBuffer));
+                    if(this.debug){
+                        this.debugMsg("Read invalid data: " + this.hexFormatter(readBytes));
+                        this.debugMsg("Remaining data in serial buffer: " + this.hexFormatter(inputBuffer));
+                    }
                     throw new SlipReadError('Invalid head of packet (' + this.toHex(b) + ')');
                 }
             } else if (inEscape) {  // part-way through escape sequence
@@ -487,14 +501,15 @@ class EspLoader {
                 } else if (b == 0xdd) {
                     partialPacket.push(0xdb);
                 } else {
-                    this.debugMsg("Read invalid data: " + this.hexFormatter(readBytes));
-                    this.debugMsg("Remaining data in serial buffer: " + this.hexFormatter(inputBuffer));
+                    if(this.debug){
+                        this.debugMsg("Read invalid data: " + this.hexFormatter(readBytes));
+                        this.debugMsg("Remaining data in serial buffer: " + this.hexFormatter(inputBuffer));
+                    }
                     throw new SlipReadError('Invalid SLIP escape (0xdb, ' + this.toHex(b) + ')');
                 }
             } else if (b == 0xdb) {  // start of escape sequence
                 inEscape = true;
             } else if (b == 0xc0) {  // end of packet
-                this.debugMsg("Received full packet: " + this.hexFormatter(partialPacket))
                 return partialPacket;
                 partialPacket = null;
             } else {  // normal byte in packet
@@ -724,10 +739,16 @@ class EspLoader {
     let flashWriteSize = await this.getFlashWriteSize();
 
     while (filesize - position > 0) {
+      if(this.abort){
+         this.logMsg("Error, giving up on flashing");
+         break;
+      }
       let percentage = Math.floor(100 * (seq + 1) / blocks);
-      this.logMsg(
-          "Writing at " + this.toHex(address + seq * flashWriteSize, 8) + "... (" + percentage + " %)"
-      );
+      //if(this.debugValue==1){
+	      this.logMsg(
+	          "Writing at " + this.toHex(address + seq * flashWriteSize, 8) + "... (" + percentage + " %)"
+	      );
+	  //}
       this.updateProgress(this.currFile,percentage);
       if (filesize - position >= flashWriteSize) {
         block = Array.from(new Uint8Array(binaryData, position, flashWriteSize));
@@ -973,7 +994,7 @@ class EspLoader {
       updateProgress: this.updateProgress,
       logMsg: this.logMsg,
       debugMsg: this._debugMsg,
-      debug: this.debug,
+      debug: this.debugValue,
       flash_size: this._flash_size,
       efuses: this._efuses
     });
@@ -990,6 +1011,7 @@ class EspStubLoader extends EspLoader {
     super(params);
     this.IS_STUB = true;
   }
+  
   /**
    * @name eraseFlash
    * depending on flash chip model the erase may take this long (maybe longer!)
@@ -997,7 +1019,7 @@ class EspStubLoader extends EspLoader {
   async eraseFlash() {
     await this.checkCommand(ESP_ERASE_FLASH, [], 0, CHIP_ERASE_TIMEOUT);
   };
-
+  
   /**
    * @name getFlashWriteSize
    * Get the Flash write size based on the chip
