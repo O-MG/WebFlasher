@@ -67,8 +67,7 @@ var settings = {
 }
 
 const url_memmap = "assets/memmap.json";
-const url_base = "https://raw.githubusercontent.com/O-MG/O.MG_Cable-Firmware";
-
+const url_base = "https://raw.githubusercontent.com/O-MG/O.MG-Firmware";
 
 // sourced from
 // https://codereview.stackexchange.com/questions/20136/uint8array-indexof-method-that-allows-to-search-for-byte-sequences
