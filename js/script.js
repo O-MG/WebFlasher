@@ -54,7 +54,7 @@ var maxProgress = 100;
 var isWriting = false;
 var isConnected = false;
 var keysPressed = {};
-var accordionStart = 0;
+var accordionStart = 1;
 
 var base_offset = 0;
 var activePanels = [];
