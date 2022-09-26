@@ -798,7 +798,7 @@ async function toggleDevConf(s = true) {
 }
 
 async function toggleDiagnostics(s = false){
-	if(!diagnosticFirmware||s){
+	if(!diagnosticFirmware){
 		let m = confirm("You are about to enable Diagnostics Firmware Uploading. Do not use this feature unless instructed by support, it can break your device!");
 		if(m){
 			logMsg("! User has enabled Diagnostic Firmware Mode !");
@@ -932,6 +932,15 @@ async function clickProgram() {
         if (flash_successful) {
             setStatusAlert("Device Programmed, please reload web page and remove programmer and device. ");
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
+            logMsg(" ");
+    		sdstat("success","flash-success-" + branch);
+            completeProgress();
+            // disable components and prepare to move on
+            endHelper();
+            toggleUIProgram(true);
+        } else if (flash_successful&&diagnosticFirmware) {
+            setStatusAlert("Device Programmed, please follow support instructions and open Console  if needed.  ");
+            logMsg("");
             logMsg(" ");
     		sdstat("success","flash-success-" + branch);
             completeProgress();
@@ -1182,6 +1191,8 @@ function statusPageUpdate(status=true){
         //stateIcon.src=("assets/check.png");        
         // unhide
         successInfo.classList.remove("d-none");
+    } else if(status&&diagnosticFirmware){
+		successHeader.textContent = "Success! Diagnostic Mode Active";
     } else {
         // set headers
         successHeader.textContent = "Failure!";
