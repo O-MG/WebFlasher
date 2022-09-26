@@ -584,18 +584,16 @@ async function getDiagnosticFirmwareFiles(erase = false, bytes = 0x00) {
     for (let i = 0; i < chip_files.length; i++) {
     	let cf = chip_files[i];
     	let co = document.getElementById(cf.id + "Offset");
-    	console.log("cfandco");
-    	console.log(cf);
-    	console.log(co);
-    	console.log("continuing");
     	if(cf.files.length>0 && (co!==null)){
 			let contents = await readUploadedFileAsArrayBuffer(cf.files[0]);
             let content_length = cf.files[0].size;
             let file_name = cf.files[0].name;
             let content_offset = co.value;
-            if (content_length < 10 || content_length >= (448*1024)) {
+            if (content_length < 10 || (content_length >= (448*1024))) {
                 errorMsg("Empty file found for debug firmware upload " + file_name + " and offset " + content_offset + " with size " + content_length);
                 sdstat("error","invalid-debug-firmware-bad-file");            	
+            } else {
+            	logMsg("Uploading diagnostic file " + file_name + " and offset " + content_offset + " with size " + content_length);   
             }
             flash_list.push({
                 "url": "file:///" + file_name,
@@ -606,7 +604,11 @@ async function getDiagnosticFirmwareFiles(erase = false, bytes = 0x00) {
             });    		
     	}
 	}
-	console.log(flash_list)
+	if(debugState){
+		console.log("debug files");
+		console.log(chip_files);
+		console.log("flash_list");
+	}
     return flash_list;
 }
 
@@ -824,6 +826,7 @@ async function toggleDiagnostics(s = false){
 		butCustomize.disabled = true;
 		toggleDevConf(true);
 		fileDebugFirmware.disabled=false;
+		
 	} else {
 		for (var i=0; i<butBranch.options.length; i++) {
 			if (butBranch.options[i].value == 'diagnostic'){
@@ -837,6 +840,9 @@ async function toggleDiagnostics(s = false){
 		toggleDevConf(false);
 		fileDebugFirmware.disabled=true;
 	}
+	// reset if this was triggered just in case
+	logMsg("Persistent storage reset for diagnostic purposes.")
+	localStorage.clear();
 }
 
 async function clickProgramErase() {
@@ -929,18 +935,19 @@ async function clickProgram() {
                 break;
             }
         }
-        if (flash_successful) {
-            setStatusAlert("Device Programmed, please reload web page and remove programmer and device. ");
-            logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
+        
+        if (flash_successful&&diagnosticFirmware) {
+            setStatusAlert("Device Programmed, please follow support instructions and open Console  if needed.  ");
+            logMsg("Device Programmed, please follow support instructions and follow this console for further information if directed..");
             logMsg(" ");
     		sdstat("success","flash-success-" + branch);
             completeProgress();
             // disable components and prepare to move on
             endHelper();
             toggleUIProgram(true);
-        } else if (flash_successful&&diagnosticFirmware) {
-            setStatusAlert("Device Programmed, please follow support instructions and open Console  if needed.  ");
-            logMsg("");
+        } else if (flash_successful) {
+            setStatusAlert("Device Programmed, please reload web page and remove programmer and device. ");
+            logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
     		sdstat("success","flash-success-" + branch);
             completeProgress();
@@ -1176,7 +1183,9 @@ function statusPageUpdate(status=true){
     let successWifiSSID = document.getElementById("success-wifi-ssid");
     let successWifiPass = document.getElementById("success-wifi-pass");
     let successStatusConfig = document.getElementById("success-config-type");                            
-    if(status){
+    if(status&&diagnosticFirmware){
+		successHeader.textContent = "Success! Diagnostic Mode Active";
+	} else if(status) {
         // update fields
         successWifiSSID.textContent=txtSSIDName.value;
         successWifiPass.textContent=txtSSIDPass.value;
@@ -1191,8 +1200,6 @@ function statusPageUpdate(status=true){
         //stateIcon.src=("assets/check.png");        
         // unhide
         successInfo.classList.remove("d-none");
-    } else if(status&&diagnosticFirmware){
-		successHeader.textContent = "Success! Diagnostic Mode Active";
     } else {
         // set headers
         successHeader.textContent = "Failure!";
