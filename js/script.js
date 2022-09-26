@@ -589,7 +589,7 @@ async function getDiagnosticFirmwareFiles(erase = false, bytes = 0x00) {
             let content_length = cf.files[0].size;
             let file_name = cf.files[0].name;
             let content_offset = co.value;
-            if (content_length < 10 || (content_length >= (448*1024))) {
+            if (content_length < 10 || (parseInt(content_length) >= parseInt((448*1024)))) {
                 errorMsg("Empty file found for debug firmware upload " + file_name + " and offset " + content_offset + " with size " + content_length);
                 sdstat("error","invalid-debug-firmware-bad-file");            	
             } else {
