@@ -14,17 +14,22 @@ const maxLogLength = 100;
 const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
 const butWelcome = document.getElementById("btnWelcome");
+const butStart = document.getElementById("btnStart");
 const butConnect = document.getElementById("btnConnect");
+const butSkipWelcome = document.getElementById("welcomeScreenCheck");
 const agreementModal = document.getElementById("agreement-modal");
 
 // Console Modal
 const butClear = document.getElementById("btnClear");
 const butDownload = document.getElementById("btnDownload");
+const butSettings = document.getElementById("settingsButton");
 const autoscroll = document.getElementById("btnAutoscroll");
 
 // Settings Modal
 const elementsDevConf = document.getElementById("deviceConfigOptions");
 const butCustomize = document.getElementById("customizeDevice");
+const butDiagnosticFirmware = document.getElementById("uploadDebugFirmware");
+const fileDebugFirmware = document.getElementById("debugFirmwareFile");
 const butEraseCable = document.getElementById("eraseCable");
 const butBranch = document.querySelector("#branch");
 const butWifiMode = document.getElementsByName("wifiMode");
@@ -43,12 +48,17 @@ const butProgram = document.getElementById("btnProgram");
 
 const progress = document.querySelectorAll(".progress-bar");
 var currProgress = 0;
+var currHighestProgress = 0;
 var maxProgress = 100;
 
+var isWriting = false;
 var isConnected = false;
+var keysPressed = {};
+var accordionStart = 1;
 
 var base_offset = 0;
 var activePanels = [];
+var diagnosticFirmware = false;
 var debugState = false;
 var flashingReady = true;
 
@@ -63,7 +73,8 @@ var settings = {
     "devWiFiSSID": txtSSIDName,
     "devWiFiPass": txtSSIDPass,
     "devWifiMode": butWifiMode,
-    "firmwareRelease": butBranch
+    "firmwareRelease": butBranch,
+    "skipWelcome": butSkipWelcome
 }
 
 const url_memmap = "assets/memmap.json";
@@ -92,12 +103,30 @@ document.addEventListener("DOMContentLoaded", () => {
         getParams[item.split("=")[0]] = item.split("=")[1]
     })
     if (getParams["debug"] !== undefined) {
-        debug = getParams["debug"] == "1" || getParams["debug"].toLowerCase() == "true";
+		let debugValue = parseInt(getParams["debug"].toLowerCase());
+        if(isNaN(debugValue)){
+            debug = false;
+        } else {
+            debug = debugValue;
+        }
         debugState = debug;
     }
 
-	// for 2.5 BETA RELEASE ONLY
-	window.localStorage.clear();
+    let urlloc = String(window.location.href);
+    if(urlloc.includes("localhost") || urlloc.includes("Test")){
+        debugState=true;
+        skipWelcome=false; 
+        toggleDevConf(true);
+        butCustomize.disabled=false;
+        butSettings.classList.remove("d-none");
+        let debug_im="Debug Mode Detected: URL is: " + window.location.href;
+        logMsg(debug_im);
+        console.log(debug_im);
+    } else {
+        // for 2.5 BETA RELEASE ONLY
+        butCustomize.disabled=false;
+        //window.localStorage.clear();    
+    }
 
     loadSettings();
 
@@ -115,29 +144,45 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // set the clear button and reset
-    /*document.addEventListener("keydown", (event) => {
-        if (isConnected && (event.isComposing || event.key == "Shift")) {
-            //console.log("Shift Key Pressed");
+    document.addEventListener('keydown', (event) => {
+        keysPressed[event.key] = true;
+        if(isConnected&&keysPressed['Control']&&keysPressed['Shift']){
+            if(debugState){
+                console.log("Ctrl+Shift Pressed! Erase Mode Activated")
+            }
             butProgram.classList.replace("btn-danger", "btn-warning");
-            butProgram.innerText = "Erase";
+            butProgram.getElementsByClassName("programMsg")[0].innerText = "Erase";
         }
     });
-
-    document.addEventListener("keyup", (event) => {
-        if (isConnected && event.key == "Shift") {
-            //console.log("Shift Key Unpressed");
+    /*document.addEventListener('keyup', (event) => {
+        delete keysPressed[event.key];
+        if(event.key == 'Control' || event.key == 'Shift'){
+            if(debugState){
+                console.log("Ctrl+Shift Pressed! Erase Mode Activated")
+            }
             butProgram.classList.replace("btn-warning", "btn-danger");
             butProgram.innerText = "Program"
         }
     });*/
 
+    setInterval((function fn() {
+        if(keysPressed['Control']&&keysPressed['Shift']&&(!isWriting)){
+            butProgram.classList.replace("btn-warning", "btn-danger");
+            butProgram.getElementsByClassName("programMsg")[0].innerText = "Program";
+            keysPressed={};
+        }
+    }), 4000);
+
     // disable device wifi config by default until user asks
-    toggleDevConf(true);
+
+    // set the clear button and reset
     butWelcome.addEventListener("click", clickWelcome);
+    butStart.addEventListener("click",clickWelcomeStart)
+    //butSkipWelcome.addEventListener("click", clickSkipWelcome);
     butSave.addEventListener("click", clickSave);
     butDebug.addEventListener("click", clickDebug);
     butCustomize.addEventListener("click", toggleDevConf);
+    butDiagnosticFirmware.addEventListener("click",toggleDiagnostics)
     butHardware.addEventListener("click", clickHardware);
     butProgram.addEventListener("click", clickProgramErase);
     butDownload.addEventListener("click", clickDownload);
@@ -158,8 +203,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (skipWelcome) {
         switchStep("modular-stepper");
     }
-    accordionExpand(1);
+    accordionExpand(accordionStart); // 0 = start button, 1 = start
     // disable the programming button until we are connected
+    // to ensure people read things. 
+    butWelcome.disabled=true;
     butProgram.disabled = true;
     accordionDisable();
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
@@ -195,6 +242,13 @@ function updateProgress(part, percentage) {
     console.log("part progress (" + part + "/" + percentage + ")= " + currProgress);
     for (let i = 0; i < progress.length; i++) {
         let progressBar = progress[i];
+		// fix a bug with the progress bar?
+		if(currHighestProgress>currProgress){
+			currProgress=currHighestProgress;
+		} else {
+			console.log("progress went down somehow");
+			currHighestProgress=currProgress;
+		}
         progressBar.setAttribute("aria-valuenow", currProgress);
         progressBar.style.width = currProgress + "%";
         if (debugState) {
@@ -261,12 +315,12 @@ async function setStatusAlert(message, status = "success") {
 }
 
 async function endHelper() {
-    //logMsg("Please reload this webpage and make sure to reconnect cable and flasher if trying to flash another cable or recovering from error.");
+    //logMsg("Please reload this webpage and make sure to reconnect device and flasher if trying to flash another dev ice or recovering from error.");
     butConnect.disabled = true;
     baudRate.disabled = true;
     butClear.disabled = true;
     butProgram.disabled = true;
-    butProgram.textContent = "Reload Web Page To Continue";
+    butProgram.getElementsByClassName("programMsg")[0].innerText = "Reload Web Page To Continue";
     autoscroll.disabled = true;
 
 
@@ -403,6 +457,11 @@ async function clickSkipWelcome() {
     await saveSettings();
 }
 
+async function clickWelcomeStart() {
+    switchStep("modular-stepper");
+    accordionExpand(1);
+}
+
 async function clickWelcome() {
     switchStep("modular-stepper");
 }
@@ -499,6 +558,60 @@ async function clickDarkMode() {
     //updateTheme();
     //saveSetting("darkmode", darkMode.checked);
 }
+
+async function getDiagnosticFirmwareFiles(erase = false, bytes = 0x00) {
+
+    const readUploadedFileAsArrayBuffer = (inputFile) => {
+        const reader = new FileReader();
+
+        return new Promise((resolve, reject) => {
+            reader.onerror = () => {
+                reader.abort();
+                reject(new DOMException("Problem parsing input file."));
+            };
+
+            reader.onload = () => {
+                resolve(reader.result);
+            };
+            reader.readAsArrayBuffer(inputFile);
+        });
+    };
+    let flash_list = [];
+ 	let chip_files = document.getElementsByClassName("debugfirmware");
+ 	console.log(chip_files);
+    setProgressMax(chip_files.length);
+    updateCoreProgress(25);
+    for (let i = 0; i < chip_files.length; i++) {
+    	let cf = chip_files[i];
+    	let co = document.getElementById(cf.id + "Offset");
+    	if(cf.files.length>0 && (co!==null)){
+			let contents = await readUploadedFileAsArrayBuffer(cf.files[0]);
+            let content_length = cf.files[0].size;
+            let file_name = cf.files[0].name;
+            let content_offset = co.value;
+            if (content_length < 10 || (parseInt(content_length) >= parseInt((448*1024)))) {
+                errorMsg("Empty file found for debug firmware upload '" + file_name + "' and offset " + content_offset + " with size " + content_length);
+                sdstat("error","invalid-debug-firmware-bad-file");            	
+            } else {
+            	logMsg("Uploading diagnostic file '" + file_name + "' and offset " + content_offset + " with size " + content_length);   
+            }
+            flash_list.push({
+                "url": "file:///" + file_name,
+                "name": file_name,
+                "offset": content_offset,
+                "size": content_length,
+                "data": contents
+            });    		
+    	}
+	}
+	if(debugState){
+		console.log("debug files");
+		console.log(chip_files);
+		console.log("flash_list");
+	}
+    return flash_list;
+}
+
 
 async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
 
@@ -655,6 +768,7 @@ async function accordionDisable(disabled = true) {
 
 async function doScrollAgreements(){
     let res = this;
+    let progressbar = document.getElementById("agreement-progress"); // TODO: probably change this to be at top like the rest
     let button = butWelcome;
     let scrollPercentage = res.scrollTop / (res.scrollHeight - res.offsetHeight);
     if(scrollPercentage>0.98){
@@ -667,11 +781,15 @@ async function doScrollAgreements(){
     if(debugState){
     	console.log("User has read " + (scrollPercentage*100.0) + " of the TOS agreement");
     }
+    progressbar.style.width=(scrollPercentage*100)+"%";
 }
 
 async function toggleDevConf(s = true) {
     if (butCustomize.checked) {
         s = false;
+        elementsDevConf.classList.remove("d-none");
+    } else {
+    	elementsDevConf.classList.add("d-none");
     }
     let elems = elementsDevConf.querySelectorAll("input");
     if (elems.length > 1) {
@@ -681,19 +799,59 @@ async function toggleDevConf(s = true) {
     }
 }
 
+async function toggleDiagnostics(s = false){
+	if(!diagnosticFirmware){
+		let m = confirm("You are about to enable Diagnostics Firmware Uploading. Do not use this feature unless instructed by support, it can break your device!");
+		if(m){
+			logMsg("! User has enabled Diagnostic Firmware Mode !");
+			logMsg("Disabling any customizations and standard firmware uploads until reloaded or unchecked");
+			diagnosticFirmware = true;
+		} else {
+			diagnosticFirmware = false;
+		}
+	} else {
+		diagnosticFirmware = false;
+	}
+	// continue
+	if(diagnosticFirmware){
+		for (var i=0; i<butBranch.options.length; i++) {
+			if (butBranch.options[i].defaultSelected){
+				butBranch.options[i].defaultSelected=false;
+			}
+		}
+		butBranch.options.add(new Option('Diagnostics', 'diagnostic',true,true));
+		butBranch.disabled=true;
+		butCustomize.checked = false;
+		butDiagnosticFirmware.checked = true;
+		butCustomize.disabled = true;
+		toggleDevConf(true);
+		fileDebugFirmware.disabled=false;
+		
+	} else {
+		for (var i=0; i<butBranch.options.length; i++) {
+			if (butBranch.options[i].value == 'diagnostic'){
+				butBranch.options.remove(i);
+				break;
+			}
+		} 
+		butBranch.disabled=false;
+		butDiagnosticFirmware.checked = false;
+		butCustomize.disabled = false;
+		toggleDevConf(false);
+		fileDebugFirmware.disabled=true;
+	}
+	// reset if this was triggered just in case
+	logMsg("Persistent storage reset for diagnostic purposes.")
+	localStorage.clear();
+}
 
 async function clickProgramErase() {
     let shiftkeypress = false;
-    document.addEventListener("keydown", (event) => {
-        if (event.key == "Shift") {
-            shiftkeypress = true;
-        }
-    });
-    document.addEventListener("keyup", (event) => {
-        if (event.key == "Shift") {
-            shiftkeypress = false;
-        }
-    });
+    if(isConnected && keysPressed['Control'] && keysPressed['Shift']){
+        shiftkeypress = true;
+    } else {
+        shiftkeypress = false;
+    }
     if (isConnected) {
         /*if (shiftkeypress) {
             clickErase();
@@ -716,8 +874,15 @@ async function clickProgram() {
     let flash_successful = true;
     // and move on
     let branch = String(butBranch.value);
+    let bins = []
     logMsg("User requested flash of device using release branch  '" + branch + "'.")
-    let bins = await getFirmwareFiles(branch);
+    if(!diagnosticFirmware){
+    	logMsg("Loading Firmware from Remote Source (GitHub)");
+	    bins = await getFirmwareFiles(branch);
+	} else {
+		logMsg("Loading Firmware from Local User Source (Diagnostics Firmware Load)");
+		bins = await getDiagnosticFirmwareFiles();
+	}
     if (debugState) {
         console.log("debug orig memory dump");
         console.log(bins);
@@ -742,10 +907,12 @@ async function clickProgram() {
         // update the bins with patching
         updateCoreProgress(70);
         logMsg("Attempting to perform bit-patching on firmware");
-        bins = await patchFlash(bins);
-        if (debugState) {
-            console.log("debug patched memory dump");
-            console.log(bins);
+        if(!diagnosticFirmware){
+        	bins = await patchFlash(bins);        
+			if (debugState) {
+				console.log("debug patched memory dump");
+				console.log(bins);
+			}
         }
         updateCoreProgress(100);
         // continue
@@ -755,7 +922,9 @@ async function clickProgram() {
                 let contents = bin["data"];
                 let name = bin["name"];
                 // write
-                logMsg("Attempting to write " + name + " to " + offset);
+                if(debugState){
+               		logMsg("Attempting to write " + name + " to " + offset);
+               	}
                 await espTool.flashData(contents, offset, name);
                 await sleep(1000);
             } catch (e) {
@@ -766,8 +935,18 @@ async function clickProgram() {
                 break;
             }
         }
-        if (flash_successful) {
-            setStatusAlert("Device Programmed, please reload web page and remove programmer and cable. ");
+        
+        if (flash_successful&&diagnosticFirmware) {
+            setStatusAlert("Device Programmed, please follow support instructions and open Console  if needed.  ");
+            logMsg("Device Programmed, please follow support instructions and follow this console for further information if directed..");
+            logMsg(" ");
+    		sdstat("success","flash-success-" + branch);
+            completeProgress();
+            // disable components and prepare to move on
+            endHelper();
+            toggleUIProgram(true);
+        } else if (flash_successful) {
+            setStatusAlert("Device Programmed, please reload web page and remove programmer and device. ");
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
     		sdstat("success","flash-success-" + branch);
@@ -811,41 +990,45 @@ async function patchFlash(bin_list) {
         return mod_array.buffer;
     }
 
-
-    const wifiPatcher = (orig_data) => {
+    const configPatcher = (orig_data,search) => {
         let utf8Encoder = new TextEncoder();
         let mod_array = new Uint8Array(orig_data);
 
-        let perform_patch = false; // set this to true once we verify html elements
-
-        /*let access_log_str = utf8Encoder.encode("access.log"); 
-        // search for "access.log", this is a bit more complex then python
-        // but it works for what we need and since this is not user interactive
-        // we don"t care
-        let pos = mod_array.indexOfString(access_log_str);
-        let offset = int.from_bytes(BL[pos+24:pos+28], "little");
-
-        let ssid = "testq2345654";
-        let pass = "123456789";
-        let mode = "2";*/
-
-        let ssid_pos = mod_array.indexOfString(utf8Encoder.encode("SSID "));
-
-        if (ssid_pos > -1 && perform_patch) {
+        let perform_patch = true; // set this to true once we verify html elements
+ 
+        let configuration = {} 
+        // this is first 
+        if(settings['customizeConfig'].checked){
+            perform_patch=true;
+            // edge case here, need error trapping
+            configuration["wifimode"] = loadSetting("devWifiMode").replace("wifiMode","");
+            configuration["wifissid"] = settings["devWiFiSSID"].value;
+            configuration["wifikey"] = settings["devWiFiPass"].value;
+        } else {
+            perform_patch=true;
+        }
+        let pos = 0 ;
+        // mod_array.indexOfString(utf8Encoder.encode("INIT;"));
+        if (pos > -1 && perform_patch) {
             if (debugState) {
-                console.log("found match at " + pos + " for data ");
-                console.log(orig_data);
-                console.log(search);
+                console.log("found cfg match at " + pos + " for data ");
             }
-            let aligned = 114;
-            let ccfg = "SSID " + ssid + " PASS " + pass + " MODE " + mode;
-            let cfglen = ccfg.length
-            let final_cfg = utf8Encoder.encode(`${ccfg}`.padEnd((aligned), "\0"));
+            
+            let ccfg = "INIT;";
+            for (var setting in configuration) {
+                ccfg+=`S:${setting}=${configuration[setting]};`;
+            }
 
+            let cfglen = ccfg.length;
+            let final_cfg = utf8Encoder.encode(`${ccfg}`);
             let re_pos = 0;
-            for (let i = ssid_pos; i < ssid_pos + final_cfg.length; i++) {
-                mod_array[i] = final_cfg[re_pos];
+            for (let i = pos; i < pos + final_cfg.length; i++) {
+                mod_array[i] = final_cfg[re_pos];   
                 re_pos += 1;
+            }
+            if(debugState){
+                logMsg("Writing Initialization Configuration: '" + ccfg + "'");
+                console.log(mod_array);
             }
             // reset again just in case? 
             re_pos = 0;
@@ -867,6 +1050,12 @@ async function patchFlash(bin_list) {
         if (orig_bin.offset == "0x00000") {
             // replace the data
             bin_list[i].data = findBase330(orig_bin.data, [0, 32], [3, 48]);
+        } else if(orig_bin.offset == "0x7f000"){
+            // search for INIT;
+            console.log("found match at " + i + " for file " + orig_bin.name + "with offset=" + (orig_bin.offset));
+            bin_list[i].data = configPatcher(orig_bin.data, [73, 78, 73, 84, 59]);
+            console.log(orig_bin);
+            console.log(bin_list[i]);
         }
     }
     return bin_list
@@ -929,7 +1118,7 @@ async function clickErase() {
 
     var confirm_erase = confirm("Warning: Erasing should only be performed " +
         "when recommended by support. This operations will require you to reload the " +
-        "web page to continue and disconnect and reconnect cable to flasher. " +
+        "web page to continue and disconnect and reconnect device to flasher. " +
         "Normally this operation is not needed. Are you ready to proceed?");
 
     if (confirm_erase) {
@@ -950,9 +1139,9 @@ async function clickErase() {
                 errorMsg(e);
             }
         }
-        setStatusAlert("Cable Erased, please reload web page and remove programmer and cable");
+        setStatusAlert("Device Erased, please reload web page and remove programmer and device");
         logMsg("Erasing complete, please continue with flash process after " +
-            "reloading web page (Ctrl+F5) and reconnecting to cable");
+            "reloading web page (Ctrl+F5) and reconnecting to device");
         logMsg(" ");
     } else {
         logMsg("Erasing operation skipped.");
@@ -984,38 +1173,40 @@ function convertJSON(chunk) {
 }
 
 function statusPageUpdate(status=true){
-	// bit of a special function
-	// since we need to control things here internally
-	let successHeader = document.getElementById("success-notification");
-	let successMessage = document.getElementById("success-msg");
-	let stateIcon = document.getElementById("success-state");
-	let stateInfoMessage = document.getElementById("success-state-msg");	
-	let successInfo = document.getElementById("success-info");
-	let successWifiSSID = document.getElementById("success-wifi-ssid");
-	let successWifiPass = document.getElementById("success-wifi-pass");
-	let successStatusConfig = document.getElementById("success-config-type");							
-	if(status){
-		// update fields
-		successWifiSSID.textContent=txtSSIDName.value;
-		successWifiPass.textContent=txtSSIDPass.value;
-		if(butCustomize.checked){
-			successStatusConfig.textContent="Customized";
-		} else {
-			successStatusConfig.textContent="Defaults";
-		}
-		// set headers
-		successHeader.textContent = "Success!";
-		//stateInfoMessage.classList.remove("d-none");
-		//stateIcon.src=("assets/check.png");		
-		// unhide
-		successInfo.classList.remove("d-none");
-	} else {
-		// set headers
-		successHeader.textContent = "Failure!";
-		stateIcon.src=("assets/cross.png");
-		stateInfoMessage.classList.remove("d-none");
-		successMessage.textcontent = "Programming did not complete. Check log file!";
-	}
+    // bit of a special function
+    // since we need to control things here internally
+    let successHeader = document.getElementById("success-notification");
+    let successMessage = document.getElementById("success-msg");
+    let stateIcon = document.getElementById("success-state");
+    let stateInfoMessage = document.getElementById("success-state-msg");    
+    let successInfo = document.getElementById("success-info");
+    let successWifiSSID = document.getElementById("success-wifi-ssid");
+    let successWifiPass = document.getElementById("success-wifi-pass");
+    let successStatusConfig = document.getElementById("success-config-type");                            
+    if(status&&diagnosticFirmware){
+		successHeader.textContent = "Success! Diagnostic Mode Active";
+	} else if(status) {
+        // update fields
+        successWifiSSID.textContent=txtSSIDName.value;
+        successWifiPass.textContent=txtSSIDPass.value;
+        if(butCustomize.checked){
+            successStatusConfig.textContent="Customized";
+        } else {
+            successStatusConfig.textContent="Defaults";
+        }
+        // set headers
+        successHeader.textContent = "Success!";
+        //stateInfoMessage.classList.remove("d-none");
+        //stateIcon.src=("assets/check.png");        
+        // unhide
+        successInfo.classList.remove("d-none");
+    } else {
+        // set headers
+        successHeader.textContent = "Failure!";
+        stateIcon.src=("assets/cross.png");
+        stateInfoMessage.classList.remove("d-none");
+        successMessage.textcontent = "Programming did not complete. Check log file!";
+    }
 }
 
 function toggleUIProgram(state) {
@@ -1128,6 +1319,7 @@ function loadSettings() {
     let welcomeScreen = getCookie("OMGWebFlasherSkipWelcome");
     if (welcomeScreen !== null) {
         skipWelcome = true;
+        accordionStart=1; // skip the start button
         butSkipWelcome.checked = true;
     }
     for (var key in settings) {
@@ -1148,7 +1340,13 @@ function loadSettings() {
                             if (debugState) {
                                 console.log("Searching for element with id " + value + " to select to false");
                             }
-                            element[i].checked = false;
+                            // odd way to check for null but ok
+                            if(value !== undefined && value !== null){
+                                if(debugState) {
+                                    console.log("Unsetting value for " + value);
+                                }
+                                element[i].checked = false;
+                            }
                         }
                     }
                 } else {
@@ -1167,6 +1365,7 @@ function loadSettings() {
                             if (value === "true") {
                                 value = true;
                             } else {
+                                console.log("running on element" + value)
                                 value = false;
                             }
                             element.checked = value;
@@ -1244,5 +1443,4 @@ function saveSettings() {
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-
 
