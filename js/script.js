@@ -78,7 +78,9 @@ var settings = {
 }
 
 const url_memmap = "assets/memmap.json";
+const url_releases = "https://api.github.com/repos/O-MG/O.MG-Firmware/releases";
 const url_base = "https://raw.githubusercontent.com/O-MG/O.MG-Firmware"; 
+
 
 // sourced from
 // https://codereview.stackexchange.com/questions/20136/uint8array-indexof-method-that-allows-to-search-for-byte-sequences
@@ -612,7 +614,85 @@ async function getDiagnosticFirmwareFiles(erase = false, bytes = 0x00) {
     return flash_list;
 }
 
+async function getFirmwareReleases(){
+    const getReleases = (url) => {
+        return fetch(url, {
+                method: "GET",
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                return data;
+            })
+    };	
+    let releases = {};
+    let release_list = []
+    let raw_releases = await getReleases(url_releases);
+    if("message" in raw_releases){
+    	if(debugState){
+    		console.log("Raw Release Data");
+    		console.log(raw_releases);
+    	}
+		errorMsg("Invalid data, cannot load current releases list");
+		sdstat("error","invalid-release-list-from-server");
+		toggleUIProgram(false);
+    } else {
+		// we're good to continue probably 
+		for (let i = 0; i < raw_releases.length; i++) {
+			let element = raw_releases[i];
+			console.log(element);	
+			if("target_commitish" in element && !(element["target_commitish"] in releases)){
+				// add 
+				if(element["draft"] == false){
+					// ideally we can use 
+					// https://api.github.com/repos/O-MG/O.MG-Firmware/releases/*/assets
+					// to populate this in the future, right now we have to build the list 
+					releases[element["target_commitish"]]=element;
+					releases[element["target_commitish"]]["version"]=element["tag_name"];
+					releases[element["target_commitish"]]["author"]=element["author"]["login"];
+					delete(element["target_commitish"]["author"]);
+					// for now
+					release_list.push(releases[element["target_commitish"]]);
+				}
+			}
+		}
+    }
+    return releases;
+}
 
+async function buildReleaseSelectors(dr=["stable","beta"]){
+	let releases = await getFirmwareReleases();
+	// forget about 1.5
+	if("legacy-v1.5" in releases):
+		delete(releases["legacy-v1.5"]);
+	}
+	// reset our list
+	butBranch.innerHTML="";
+	// get our defaults
+	let no_default = true;
+	for(let i =0; i<dr.length; i++){
+		if(dr[i] in releases){
+			// make sure it goes first
+			let dr_str = releases[dr[i]]["name"];
+			// select only one that is selected and default
+			if(no_default){
+				no_default = false;
+			}
+			butBranch.options.add(new Option(dr_str, dr[i],no_default,no_default));
+		}
+		delete(releases[dr[i]]);
+	}
+	// now do the rest 
+	let release_map = new Map(Object.entries(releases));
+	for (const [branch, details] of release_map) {
+		if(debugState){
+			console.log(details);
+		}
+		butBranch.options.add(new Option(details["name"], branch,no_default,no_default));
+	}
+}
+ 
 async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
 
     const readUploadedFileAsArrayBuffer = (inputFile) => {

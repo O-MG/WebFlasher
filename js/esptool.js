@@ -394,10 +394,8 @@ class EspLoader {
     this.logMsg("Connected successfully.")
 
     this.logMsg("Try to reset.")
-    await port.setSignals({ dataTerminalReady: false, requestToSend: true });
-    await port.setSignals({ dataTerminalReady: true, requestToSend: false });
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
+    await this.hardReset(true);
+    
     outputStream = port.writable;
     inputStream = port.readable;
   }
@@ -895,6 +893,19 @@ class EspLoader {
         throw(e);
       }
     }
+  }
+  
+  async hardReset(r = false) {
+    logMsg("Trying Serial Reset....")
+    await port.setSignals({
+      dataTerminalReady: false,
+      requestToSend: true,
+    });
+    await port.setSignals({
+      dataTerminalReady: r,
+      requestToSend: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
   async getStubCode() {
