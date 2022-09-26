@@ -664,7 +664,7 @@ async function getFirmwareReleases(){
 async function buildReleaseSelectors(dr=["stable","beta"]){
 	let releases = await getFirmwareReleases();
 	// forget about 1.5
-	if("legacy-v1.5" in releases):
+	if("legacy-v1.5" in releases){
 		delete(releases["legacy-v1.5"]);
 	}
 	// reset our list
