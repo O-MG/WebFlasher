@@ -210,6 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // to ensure people read things. 
     butWelcome.disabled=true;
     butProgram.disabled = true;
+    buildReleaseSelectors();
     accordionDisable();
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
 
@@ -321,6 +322,7 @@ async function endHelper() {
     butConnect.disabled = true;
     baudRate.disabled = true;
     butClear.disabled = true;
+    butBranch.disabled=true;
     butProgram.disabled = true;
     butProgram.getElementsByClassName("programMsg")[0].innerText = "Reload Web Page To Continue";
     autoscroll.disabled = true;
@@ -678,7 +680,9 @@ async function buildReleaseSelectors(dr=["stable","beta"]){
 			// select only one that is selected and default
 			if(no_default){
 				no_default = false;
+				dr_str = dr_str + " (Default)"
 			}
+			
 			butBranch.options.add(new Option(dr_str, dr[i],no_default,no_default));
 		}
 		delete(releases[dr[i]]);
