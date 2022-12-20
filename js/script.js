@@ -669,6 +669,10 @@ async function buildReleaseSelectors(dr=["stable","beta"]){
 	if("legacy-v1.5" in releases){
 		delete(releases["legacy-v1.5"]);
 	}
+	// forget about alpha
+	if("alpha" in releases){
+		delete(releases["alpha"]);
+	}
 	// reset our list
 	butBranch.innerHTML="";
 	// get our defaults
