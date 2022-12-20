@@ -681,13 +681,13 @@ async function buildReleaseSelectors(dr=["stable","beta"]){
 		if(dr[i] in releases){
 			// make sure it goes first
 			let dr_str = releases[dr[i]]["name"];
+			let dr_tag = releases[dr[i]]["tag_name"]
 			// select only one that is selected and default
 			if(no_default){
 				no_default = false;
 				dr_str = dr_str + " (Default)"
 			}
-			
-			butBranch.options.add(new Option(dr_str, dr[i],no_default,no_default));
+			butBranch.options.add(new Option(dr_str, dr_tag,no_default,no_default));
 		}
 		delete(releases[dr[i]]);
 	}
@@ -697,10 +697,10 @@ async function buildReleaseSelectors(dr=["stable","beta"]){
 		if(debugState){
 			console.log(details);
 		}
-		butBranch.options.add(new Option(details["name"], branch,no_default,no_default));
+		butBranch.options.add(new Option(details["name"], details["tag_name"],no_default,no_default));
 	}
 }
- 
+
 async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
 
     const readUploadedFileAsArrayBuffer = (inputFile) => {
