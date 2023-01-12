@@ -380,7 +380,11 @@ class EspLoader {
   async connect() {
     // - Request a port and open a connection.
     const filter = { usbVendorId: 0x10c4 };
-    port = await navigator.serial.requestPort({ filters: [filter] });
+    var filters = []
+    if (!this.debug) {
+	    filters.push(filter);
+    }
+    port = await navigator.serial.requestPort({ filters: filters });
 
     // - Wait for the port to open.toggleUIConnected
     if (this.getChromeVersion() < 86) {
