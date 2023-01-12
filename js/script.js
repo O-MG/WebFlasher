@@ -124,6 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let debug_im="Debug Mode Detected: URL is: " + window.location.href;
         logMsg(debug_im);
         console.log(debug_im);
+	debug=true;
     } else {
         // for 2.5 BETA RELEASE ONLY
         butCustomize.disabled=false;
