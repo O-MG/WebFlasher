@@ -781,6 +781,11 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         if (tmp === undefined) {
             // missing file
             logMsg("Invalid file downloaded " + chip_files[i]["name"]);
+            let consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out Python Flasher instead.";
+            sdstat("error","server-error-undefined-firmware");
+            setStatusAlert(consiseError, "danger");
+            throw new Error(consiseError);
+            return false;
         } else {
             let contents = await readUploadedFileAsArrayBuffer(tmp);
             let content_length = contents.byteLength;
