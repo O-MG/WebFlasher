@@ -688,6 +688,9 @@ async function buildReleaseSelectors(dr=["stable","beta"]){
 				no_default = false;
 				dr_str = dr_str + " (Default)"
 			}
+			// ADD DEBUG IF
+			console.log("Adding a new release " + dr_str + " with tag " + dr_tag);
+			console.log(dr);
 			butBranch.options.add(new Option(dr_str, dr_tag,no_default,no_default));
 		}
 		delete(releases[dr[i]]);
@@ -749,12 +752,14 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     setProgressMax(chip_files.length);
     updateCoreProgress(25);
     for (let i = 0; i < chip_files.length; i++) {
+    	console.log(chip_files[i]);
         if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
             errorMsg("Invalid data, cannot load online flash resources");
                 sdstat("error","invalid-firmware-from-server");
             toggleUIProgram(false);
         }
         let request_file = url + chip_files[i]["name"];
+        logMsg("Attempting to download file " + request_file)
         let tmp = await fetch(request_file).then((response) => {
             if (response.status >= 400 && response.status < 600) {
                 errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
@@ -774,7 +779,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         updateCoreProgress(40);
         if (tmp === undefined) {
             // missing file
-            logMsg("Invalid file downloaded " + chip_files["name"]);
+            logMsg("Invalid file downloaded " + chip_files[i]["name"]);
         } else {
             let contents = await readUploadedFileAsArrayBuffer(tmp);
             let content_length = contents.byteLength;
