@@ -764,6 +764,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             if (response.status >= 400 && response.status < 600) {
                 errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
                 flashingReady = false;
+                console.log(response);
                 let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
                 sdstat("error","server-error-downloading-firmware");
                 setStatusAlert(consiseError, "danger");
