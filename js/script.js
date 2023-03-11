@@ -667,12 +667,11 @@ async function getFirmwareReleases(){
 async function buildReleaseSelectors(dr=["stable","beta"]){
 	let releases = await getFirmwareReleases();
 	// forget about 1.5
-	if("legacy-v1.5" in releases){
-		delete(releases["legacy-v1.5"]);
-	}
-	// forget about alpha
-	if("alpha" in releases){
-		delete(releases["alpha"]);
+	let skipped_releases = ["legacy-v1.5", "alpha", "legacy-v2.0"]
+	for (let skipped_release of skipped_releases) {
+		if(skipped_release in releases){
+			delete(releases[skipped_release]);
+		}
 	}
 	// reset our list
 	butBranch.innerHTML="";
@@ -977,8 +976,19 @@ async function clickProgram() {
     let bins = []
     logMsg("User requested flash of device using release branch  '" + branch + "'.")
     if(!diagnosticFirmware){
-    	logMsg("Loading Firmware from Remote Source (GitHub)");
-	    bins = await getFirmwareFiles(branch);
+    	console.log(branch);
+    	if(branch.includes("beta") || branch.includes("3.0")){
+    		let message = "Warning, you are about to use beta software that may contain bugs! Press OK to proceed, press cancel to select Stable";
+    		if(confirm(message)){
+    			logMsg("Loading Firmware from Remote Source (GitHub)");
+	    		bins = await getFirmwareFiles(branch);
+    		} else {
+    			return 0;
+    		}
+    	} else {
+    		logMsg("Loading Firmware from Remote Source (GitHub)");
+	    	bins = await getFirmwareFiles(branch);
+    	}
 	} else {
 		logMsg("Loading Firmware from Local User Source (Diagnostics Firmware Load)");
 		bins = await getDiagnosticFirmwareFiles();
