@@ -977,6 +977,7 @@ async function clickProgram() {
     logMsg("User requested flash of device using release branch  '" + branch + "'.")
     if(!diagnosticFirmware){
     	console.log(branch);
+    	// remove this conditional and replace it with just lines 991 and 992
     	if(branch.includes("beta") || branch.includes("3.0")){
     		let message = "Warning, you are about to use beta software that may contain bugs! Press OK to proceed, press cancel to select Stable";
     		if(confirm(message)){
@@ -986,9 +987,10 @@ async function clickProgram() {
     			return 0;
     		}
     	} else {
+    		// to remove, take this 
     		logMsg("Loading Firmware from Remote Source (GitHub)");
 	    	bins = await getFirmwareFiles(branch);
-    	}
+    	} // and remove this closing 
 	} else {
 		logMsg("Loading Firmware from Local User Source (Diagnostics Firmware Load)");
 		bins = await getDiagnosticFirmwareFiles();
