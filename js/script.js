@@ -717,17 +717,22 @@ async function buildReleaseSelectors(dr=["stable","beta"]){
 	// this should keep the logic the same 
 	// remove legacy versions to not confuse users
 	// add in stuff for dev when in dev mode
-	let skipped_releases = ["legacy-v1.5", "alpha", "legacy-v2.0"]
-	for (let skipped_release of skipped_releases) {
-		if(skipped_release in releases){
-			delete(releases[skipped_release]);
-		}
-	}
+	let skipped_releases = ["legacy-v1.5", "legacy-v2.0"]
 	if(debugState){
 		// throw everything together
 		let branches = await getFirmwareBranches();
 		let merged_resources = Object.assign({},releases,branches) 
 		releases = merged_resources;
+	} else {
+		skipped_releases.push("alpha")
+	}
+	console.log(releases);
+	for(let available_release in releases){
+		for (let skipped_release of skipped_releases) {
+			if(available_release.includes(skipped_release)){
+				delete(releases[available_release]);
+			}
+		}
 	}
     // reset our list
     butBranch.innerHTML="";
@@ -1041,7 +1046,7 @@ async function clickProgram() {
     if(!diagnosticFirmware){
         console.log(branch);
         // remove this conditional and replace it with just lines 991 and 992
-        if(branch.includes("beta") || branch.includes("3.0")){
+        if(branch.includes("beta") || branch.includes("3.")){
             let message = "Warning, you are about to use beta software that may contain bugs! Press OK to proceed, press cancel to select Stable";
             if(confirm(message)){
                 logMsg("Loading Firmware from Remote Source (GitHub)");
