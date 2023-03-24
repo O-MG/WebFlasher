@@ -79,6 +79,7 @@ var settings = {
 
 const url_memmap = "assets/memmap.json";
 const url_releases = "https://api.github.com/repos/O-MG/O.MG-Firmware/releases";
+const url_branches = "https://api.github.com/repos/O-MG/O.MG-Firmware/branches";
 const url_base = "https://raw.githubusercontent.com/O-MG/O.MG-Firmware"; 
 
 
@@ -664,15 +665,67 @@ async function getFirmwareReleases(){
     return releases;
 }
 
+async function getFirmwareBranches(){
+    const getData = (url) => {
+        return fetch(url, {
+                method: "GET",
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                return data;
+            })
+    };
+    let branches = {};
+    let branch_list = []
+    let raw_branches = await getData(url_branches);
+    if("message" in raw_branches){
+    	if(debugState){
+    		console.log("Raw branch Data");
+    		console.log(raw_branches);
+    	}
+		errorMsg("Invalid data, cannot load current branches list");
+		sdstat("error","invalid-branch-list-from-server");
+		toggleUIProgram(false);
+    } else {
+		// we're good to continue probably 
+		for (let i = 0; i < raw_branches.length; i++) {
+			let element = raw_branches[i];
+			let commit_data = await getData(element["commit"]["url"]);
+			let bname = "branch-" + element["name"];
+			let date_version = (String(commit_data["commit"]["author"]["date"]).split("T"))[0];
+			let short_commit = String(element["commit"]["sha"]).substring(0,8);
+			let pretty_name = "Branch " + element["name"] + " (" + date_version + ")";
+			branches[bname]=commit_data; 
+			branches[bname]["name"]=pretty_name;
+			branches[bname]["tag_name"]=bname;
+			branches[bname]["version"]=date_version;
+			console.log(element["commit"]);
+			branches[bname]["short_commit"]=short_commit;
+			branches[bname]["author"]=commit_data["commit"]["author"]["name"];
+			// for now
+			branch_list.push(branches[bname]);
+		}
+    }
+    return branches;
+}
+
 async function buildReleaseSelectors(dr=["stable","beta"]){
 	let releases = await getFirmwareReleases();
-	// forget about 1.5
-	let skipped_releases = ["legacy-v1.5", "alpha", "legacy-v2.0"]
-	for (let skipped_release of skipped_releases) {
-		if(skipped_release in releases){
-			delete(releases[skipped_release]);
-		}
-	}
+
+	if(!debugState){
+    let skipped_releases = ["legacy-v1.5", "alpha", "legacy-v2.0"]
+    for (let skipped_release of skipped_releases) {
+      if(skipped_release in releases){
+        delete(releases[skipped_release]);
+      }
+    }
+  } else {
+		// throw everything together
+		let branches = await getFirmwareBranches();
+		let merged_resources = Object.assign({},releases,branches) 
+  }
 	// reset our list
 	butBranch.innerHTML="";
 	// get our defaults
@@ -733,8 +786,14 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
                 return data;
             })
     };
-
-    let url = url_base + "/" + branch + "/firmware/";
+	
+	let url = "";
+	if(branch.includes("branch-")){
+		let branch_parts = branch.split("-")
+    	url = url_base + "/" + branch_parts[1] + "/firmware/";
+    } else {
+    	url = url_base + "/" + branch_parts[1] + "/firmware/";
+    }
     let files_raw = await getResourceMap(url_memmap);
     let flash_list = []
     let chip_flash_size = await espTool.getFlashID();
@@ -776,11 +835,12 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         }).then((myblob) => myblob).catch((error) => {
             console.log(error)
         });
+        tmp = undefined;
         updateCoreProgress(40);
         if (tmp === undefined) {
             // missing file
             logMsg("Invalid file downloaded " + chip_files[i]["name"]);
-            let consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out Python Flasher instead.";
+            let consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out <a href='https://github.com/O-MG/O.MG-Firmware/releases/tag/v2.5-230226.1'>Python Flasher</a> instead.";
             sdstat("error","server-error-undefined-firmware");
             setStatusAlert(consiseError, "danger");
             throw new Error(consiseError);
