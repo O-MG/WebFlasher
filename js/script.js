@@ -218,12 +218,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
+async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 1000) {
+  return fetch(url, options)
+	.then(response => {
+	  if (response.ok) {
+		return response.blob().then(blob => {
+		  if (blob.size > 0) {
+			return blob;
+		  } else {
+			console.log('Response body size is 0 for ' + url);
+		  }
+		});
+	  } else {
+		let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
+		sdstat("error","server-error-downloading-firmware");
+		setStatusAlert(consiseError, "danger");
+		throw new Error(consiseError);
+	  }
+	})
+	.catch(error => {
+	  if (maxRetries > 0) {
+		return new Promise(resolve => setTimeout(resolve, retryDelay)).then(() =>
+		  fetchWithRetry(url, options, maxRetries - 1, retryDelay)
+		);
+	  } else {
+		let consiseError = "Unable to download  " + url + " after multiple retries";
+		sdstat("error","server-error-downloading-firmware");
+		setStatusAlert(consiseError, "danger");
+		throw new Error(consiseError);
+	  }
+	});
+}
 
-/**
- * @name connect
- * Opens a Web Serial connection to a micro:bit and sets up the input and
- * output stream.
- */
 async function connect() {
     logMsg("Connecting...")
     await espTool.connect()
@@ -826,25 +852,9 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         }
         let request_file = url + chip_files[i]["name"];
         logMsg("Attempting to download file " + request_file)
-        let tmp = await fetch(request_file).then((response) => {
-            if (response.status >= 400 && response.status < 600) {
-                errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
-                flashingReady = false;
-                console.log(response);
-                let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
-                sdstat("error","server-error-downloading-firmware");
-                setStatusAlert(consiseError, "danger");
-                throw new Error(consiseError);
-                return false;
-
-            }
-            logMsg("Loaded online version of " + request_file + ". ");
-            return response.blob();
-        }).then((myblob) => myblob).catch((error) => {
-            console.log(error)
-        });
-        tmp = undefined;
-        updateCoreProgress(40);
+        console.log(request_file)
+        let tmp = await fetchWithRetry(request_file);
+		updateCoreProgress(40);
         if (tmp === undefined) {
             // missing file
             logMsg("Invalid file downloaded " + chip_files[i]["name"]);
@@ -854,6 +864,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             throw new Error(consiseError);
             return false;
         } else {
+        	logMsg("Loaded online version of " + request_file + ". ");
             let contents = await readUploadedFileAsArrayBuffer(tmp);
             let content_length = contents.byteLength;
             // if we want to "erase", we set this to be true
