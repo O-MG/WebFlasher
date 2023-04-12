@@ -14,6 +14,8 @@ const maxLogLength = 100;
 const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
 const butWelcome = document.getElementById("btnWelcome");
+const butRejectFlash = document.getElementById("btnDeny");
+
 const butStart = document.getElementById("btnStart");
 const butConnect = document.getElementById("btnConnect");
 const butSkipWelcome = document.getElementById("welcomeScreenCheck");
@@ -181,7 +183,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // set the clear button and reset
     butWelcome.addEventListener("click", clickWelcome);
-    butStart.addEventListener("click",clickWelcomeStart)
+    butStart.addEventListener("click",clickWelcomeStart);
+    butRejectFlash.addEventListener("click",clickRejectFlash);
     //butSkipWelcome.addEventListener("click", clickSkipWelcome);
     butSave.addEventListener("click", clickSave);
     butDebug.addEventListener("click", clickDebug);
@@ -496,6 +499,10 @@ async function clickWelcomeStart() {
 
 async function clickWelcome() {
     switchStep("modular-stepper");
+}
+
+async function clickRejectFlash(){
+    window.close();
 }
 
 async function clickHardware() {
