@@ -833,6 +833,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         let branch_parts = branch.split("-")
         url = url_base + "/" + branch_parts[1] + "/firmware/";
     } else {
+	let branch_parts = branch.split("-")
         url = url_base + "/" + branch_parts[1] + "/firmware/";
     }
     let files_raw = await getResourceMap(url_memmap);
