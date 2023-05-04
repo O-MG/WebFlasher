@@ -905,6 +905,7 @@ class EspLoader {
       dataTerminalReady: false,
       requestToSend: true,
     });
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await port.setSignals({
       dataTerminalReady: r,
       requestToSend: false,
