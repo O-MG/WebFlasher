@@ -1216,6 +1216,8 @@ async function patchFlash(bin_list) {
                 ccfg+=`S:${setting}=${configuration[setting]};`;
             }
 
+            ccfg += String.fromCharCode(0x00);
+
             let cfglen = ccfg.length;
             let final_cfg = utf8Encoder.encode(`${ccfg}`);
             let re_pos = 0;
