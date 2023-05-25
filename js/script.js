@@ -1192,7 +1192,7 @@ async function patchFlash(bin_list) {
         let utf8Encoder = new TextEncoder();
         let mod_array = new Uint8Array(orig_data);
 
-        let perform_patch = true; // set this to true once we verify html elements
+        let perform_patch = false; // set this to true once we verify html elements
  
         let configuration = {} 
         // this is first 
@@ -1202,9 +1202,8 @@ async function patchFlash(bin_list) {
             configuration["wifimode"] = loadSetting("devWifiMode").replace("wifiMode","");
             configuration["wifissid"] = settings["devWiFiSSID"].value;
             configuration["wifikey"] = settings["devWiFiPass"].value;
-        } else {
-            perform_patch=true;
         }
+	    
         let pos = 0 ;
         // mod_array.indexOfString(utf8Encoder.encode("INIT;"));
         if (pos > -1 && perform_patch) {
