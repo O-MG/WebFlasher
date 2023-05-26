@@ -1192,7 +1192,7 @@ async function patchFlash(bin_list) {
         let utf8Encoder = new TextEncoder();
         let mod_array = new Uint8Array(orig_data);
 
-        let perform_patch = false; // set this to true once we verify html elements
+        let perform_patch = true; // set this to true once we verify html elements
  
         let configuration = {} 
         // this is first 
@@ -1211,7 +1211,7 @@ async function patchFlash(bin_list) {
                 console.log("found cfg match at " + pos + " for data ");
             }
             
-            let ccfg = "INIT;";
+            let ccfg = "INIT;e=3;";
             for (var setting in configuration) {
                 ccfg+=`S:${setting}=${configuration[setting]};`;
             }
