@@ -124,6 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
         skipWelcome=false; 
         toggleDevConf(true);
         butCustomize.disabled=false;
+	butCustomize.classList.remove("d-none");
         butSettings.classList.remove("d-none");
         let debug_im="Debug Mode Detected: URL is: " + window.location.href;
         logMsg(debug_im);
