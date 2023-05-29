@@ -15,6 +15,7 @@ const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
 const butWelcome = document.getElementById("btnWelcome");
 const butRejectFlash = document.getElementById("btnDeny");
+ 
 const butStart = document.getElementById("btnStart");
 const butConnect = document.getElementById("btnConnect");
 const butSkipWelcome = document.getElementById("welcomeScreenCheck");
@@ -80,6 +81,7 @@ var settings = {
 
 const url_memmap = "assets/memmap.json";
 const url_releases = "https://api.github.com/repos/O-MG/O.MG-Firmware/releases";
+const url_branches = "https://api.github.com/repos/O-MG/O.MG-Firmware/branches";
 const url_base = "https://raw.githubusercontent.com/O-MG/O.MG-Firmware"; 
 
 
@@ -106,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
         getParams[item.split("=")[0]] = item.split("=")[1]
     })
     if (getParams["debug"] !== undefined) {
-		let debugValue = parseInt(getParams["debug"].toLowerCase());
+        let debugValue = parseInt(getParams["debug"].toLowerCase());
         if(isNaN(debugValue)){
             debug = false;
         } else {
@@ -125,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let debug_im="Debug Mode Detected: URL is: " + window.location.href;
         logMsg(debug_im);
         console.log(debug_im);
-	debug=true;
+    debug=true;
     } else {
         // for 2.5 BETA RELEASE ONLY
         butCustomize.disabled=false;
@@ -138,7 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
         updateProgress: updateProgress,
         logMsg: logMsg,
         debugMsg: debugMsg,
-        debug: debug
+        debug: false
     })
     butConnect.addEventListener("click", () => {
         clickConnect().catch(async (e) => {
@@ -181,8 +183,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // set the clear button and reset
     butWelcome.addEventListener("click", clickWelcome);
-    butRejectFlash.addEventListener("click", clickRejectTOS);
-    butStart.addEventListener("click",clickWelcomeStart)
+    butStart.addEventListener("click",clickWelcomeStart);
+    butRejectFlash.addEventListener("click",clickRejectFlash);
     //butSkipWelcome.addEventListener("click", clickSkipWelcome);
     butSave.addEventListener("click", clickSave);
     butDebug.addEventListener("click", clickDebug);
@@ -219,12 +221,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
+async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 1000) {
+  return fetch(url, options)
+	.then(response => {
+	  if (response.ok) {
+		return response.blob().then(blob => {
+		  if (blob.size > 0) {
+			return blob;
+		  } else {
+			console.log('Response body size is 0 for ' + url);
+		  }
+		});
+	  } else {
+		let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
+		sdstat("error","server-error-downloading-firmware");
+		setStatusAlert(consiseError, "danger");
+		throw new Error(consiseError);
+	  }
+	})
+	.catch(error => {
+	  if (maxRetries > 0) {
+		return new Promise(resolve => setTimeout(resolve, retryDelay)).then(() =>
+		  fetchWithRetry(url, options, maxRetries - 1, retryDelay)
+		);
+	  } else {
+		let consiseError = "Unable to download  " + url + " after multiple retries";
+		sdstat("error","server-error-downloading-firmware");
+		setStatusAlert(consiseError, "danger");
+		throw new Error(consiseError);
+	  }
+	});
+}
 
-/**
- * @name connect
- * Opens a Web Serial connection to a micro:bit and sets up the input and
- * output stream.
- */
 async function connect() {
     logMsg("Connecting...")
     await espTool.connect()
@@ -248,13 +276,13 @@ function updateProgress(part, percentage) {
     console.log("part progress (" + part + "/" + percentage + ")= " + currProgress);
     for (let i = 0; i < progress.length; i++) {
         let progressBar = progress[i];
-		// fix a bug with the progress bar?
-		if(currHighestProgress>currProgress){
-			currProgress=currHighestProgress;
-		} else {
-			console.log("progress went down somehow");
-			currHighestProgress=currProgress;
-		}
+        // fix a bug with the progress bar?
+        if(currHighestProgress>currProgress){
+            currProgress=currHighestProgress;
+        } else {
+            console.log("progress went down somehow");
+            currHighestProgress=currProgress;
+        }
         progressBar.setAttribute("aria-valuenow", currProgress);
         progressBar.style.width = currProgress + "%";
         if (debugState) {
@@ -469,12 +497,12 @@ async function clickWelcomeStart() {
     accordionExpand(1);
 }
 
-async function clickRejectTOS(){
-    window.close();
-}
-
 async function clickWelcome() {
     switchStep("modular-stepper");
+}
+
+async function clickRejectFlash(){
+    window.close();
 }
 
 async function clickHardware() {
@@ -588,23 +616,23 @@ async function getDiagnosticFirmwareFiles(erase = false, bytes = 0x00) {
         });
     };
     let flash_list = [];
- 	let chip_files = document.getElementsByClassName("debugfirmware");
- 	console.log(chip_files);
+     let chip_files = document.getElementsByClassName("debugfirmware");
+     console.log(chip_files);
     setProgressMax(chip_files.length);
     updateCoreProgress(25);
     for (let i = 0; i < chip_files.length; i++) {
-    	let cf = chip_files[i];
-    	let co = document.getElementById(cf.id + "Offset");
-    	if(cf.files.length>0 && (co!==null)){
-			let contents = await readUploadedFileAsArrayBuffer(cf.files[0]);
+        let cf = chip_files[i];
+        let co = document.getElementById(cf.id + "Offset");
+        if(cf.files.length>0 && (co!==null)){
+            let contents = await readUploadedFileAsArrayBuffer(cf.files[0]);
             let content_length = cf.files[0].size;
             let file_name = cf.files[0].name;
             let content_offset = co.value;
             if (content_length < 10 || (parseInt(content_length) >= parseInt((448*1024)))) {
                 errorMsg("Empty file found for debug firmware upload '" + file_name + "' and offset " + content_offset + " with size " + content_length);
-                sdstat("error","invalid-debug-firmware-bad-file");            	
+                sdstat("error","invalid-debug-firmware-bad-file");                
             } else {
-            	logMsg("Uploading diagnostic file '" + file_name + "' and offset " + content_offset + " with size " + content_length);   
+                logMsg("Uploading diagnostic file '" + file_name + "' and offset " + content_offset + " with size " + content_length);   
             }
             flash_list.push({
                 "url": "file:///" + file_name,
@@ -612,14 +640,14 @@ async function getDiagnosticFirmwareFiles(erase = false, bytes = 0x00) {
                 "offset": content_offset,
                 "size": content_length,
                 "data": contents
-            });    		
-    	}
-	}
-	if(debugState){
-		console.log("debug files");
-		console.log(chip_files);
-		console.log("flash_list");
-	}
+            });            
+        }
+    }
+    if(debugState){
+        console.log("debug files");
+        console.log(chip_files);
+        console.log("flash_list");
+    }
     return flash_list;
 }
 
@@ -634,81 +662,140 @@ async function getFirmwareReleases(){
             .then(function(data) {
                 return data;
             })
-    };	
+    };    
     let releases = {};
     let release_list = []
     let raw_releases = await getReleases(url_releases);
     if("message" in raw_releases){
-    	if(debugState){
-    		console.log("Raw Release Data");
-    		console.log(raw_releases);
-    	}
-		errorMsg("Invalid data, cannot load current releases list");
-		sdstat("error","invalid-release-list-from-server");
-		toggleUIProgram(false);
+        if(debugState){
+            console.log("Raw Release Data");
+            console.log(raw_releases);
+        }
+        errorMsg("Invalid data, cannot load current releases list");
+        sdstat("error","invalid-release-list-from-server");
+        toggleUIProgram(false);
     } else {
-		// we're good to continue probably 
-		for (let i = 0; i < raw_releases.length; i++) {
-			let element = raw_releases[i];
-			console.log(element);	
-			if("target_commitish" in element && !(element["target_commitish"] in releases)){
-				// add 
-				if(element["draft"] == false){
-					// ideally we can use 
-					// https://api.github.com/repos/O-MG/O.MG-Firmware/releases/*/assets
-					// to populate this in the future, right now we have to build the list 
-					releases[element["target_commitish"]]=element;
-					releases[element["target_commitish"]]["version"]=element["tag_name"];
-					releases[element["target_commitish"]]["author"]=element["author"]["login"];
-					delete(element["target_commitish"]["author"]);
-					// for now
-					release_list.push(releases[element["target_commitish"]]);
-				}
-			}
-		}
+        // we're good to continue probably 
+        for (let i = 0; i < raw_releases.length; i++) {
+            let element = raw_releases[i];
+            console.log(element);    
+            if("target_commitish" in element && !(element["target_commitish"] in releases)){
+                // add 
+                if(element["draft"] == false){
+                    // ideally we can use 
+                    // https://api.github.com/repos/O-MG/O.MG-Firmware/releases/*/assets
+                    // to populate this in the future, right now we have to build the list 
+                    releases[element["target_commitish"]]=element;
+                    releases[element["target_commitish"]]["version"]=element["tag_name"];
+                    releases[element["target_commitish"]]["author"]=element["author"]["login"];
+                    delete(element["target_commitish"]["author"]);
+                    // for now
+                    release_list.push(releases[element["target_commitish"]]);
+                }
+            }
+        }
     }
     return releases;
 }
 
-async function buildReleaseSelectors(dr=["stable","beta"]){
-	let releases = await getFirmwareReleases();
-	// forget about 1.5
-	if("legacy-v1.5" in releases){
-		delete(releases["legacy-v1.5"]);
+async function getFirmwareBranches(){
+    const getData = (url) => {
+        return fetch(url, {
+                method: "GET",
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                return data;
+            })
+    };
+    let branches = {};
+    let branch_list = []
+    let raw_branches = await getData(url_branches);
+    if("message" in raw_branches){
+        if(debugState){
+            console.log("Raw branch Data");
+            console.log(raw_branches);
+        }
+        errorMsg("Invalid data, cannot load current branches list");
+        sdstat("error","invalid-branch-list-from-server");
+        toggleUIProgram(false);
+    } else {
+        // we're good to continue probably 
+        for (let i = 0; i < raw_branches.length; i++) {
+            let element = raw_branches[i];
+            let commit_data = await getData(element["commit"]["url"]);
+            let bname = "branch-" + element["name"];
+            let date_version = (String(commit_data["commit"]["author"]["date"]).split("T"))[0];
+            let short_commit = String(element["commit"]["sha"]).substring(0,8);
+            let pretty_name = "Branch " + element["name"] + " (" + date_version + ")";
+            branches[bname]=commit_data; 
+            branches[bname]["name"]=pretty_name;
+            branches[bname]["tag_name"]=bname;
+            branches[bname]["version"]=date_version;
+            console.log(element["commit"]);
+            branches[bname]["short_commit"]=short_commit;
+            branches[bname]["author"]=commit_data["commit"]["author"]["name"];
+            // for now
+            branch_list.push(branches[bname]);
+        }
+    }
+    return branches;
+}
+
+async function buildReleaseSelectors(dr=["beta","stable"]){
+    let releases = await getFirmwareReleases();
+
+	// this should keep the logic the same 
+	// remove legacy versions to not confuse users
+	// add in stuff for dev when in dev mode
+	let skipped_releases = ["legacy-v1.5", "legacy-v2.0"]
+	if(debugState){
+		// throw everything together
+		let branches = await getFirmwareBranches();
+		let merged_resources = Object.assign({},releases,branches) 
+		releases = merged_resources;
+	} else {
+		skipped_releases.push("alpha")
 	}
-	// forget about alpha
-	if("alpha" in releases){
-		delete(releases["alpha"]);
-	}
-	// reset our list
-	butBranch.innerHTML="";
-	// get our defaults
-	let no_default = true;
-	for(let i =0; i<dr.length; i++){
-		if(dr[i] in releases){
-			// make sure it goes first
-			let dr_str = releases[dr[i]]["name"];
-			let dr_tag = releases[dr[i]]["tag_name"]
-			// select only one that is selected and default
-			if(no_default){
-				no_default = false;
-				dr_str = dr_str + " (Default)"
+	console.log(releases);
+	for(let available_release in releases){
+		for (let skipped_release of skipped_releases) {
+			if(available_release.includes(skipped_release)){
+				delete(releases[available_release]);
 			}
-			// ADD DEBUG IF
-			console.log("Adding a new release " + dr_str + " with tag " + dr_tag);
-			console.log(dr);
-			butBranch.options.add(new Option(dr_str, dr_tag,no_default,no_default));
 		}
-		delete(releases[dr[i]]);
 	}
-	// now do the rest 
-	let release_map = new Map(Object.entries(releases));
-	for (const [branch, details] of release_map) {
-		if(debugState){
-			console.log(details);
-		}
-		butBranch.options.add(new Option(details["name"], details["tag_name"],no_default,no_default));
-	}
+    // reset our list
+    butBranch.innerHTML="";
+    // get our defaults
+    let no_default = true;
+    for(let i =0; i<dr.length; i++){
+        if(dr[i] in releases){
+            // make sure it goes first
+            let dr_str = releases[dr[i]]["name"];
+            let dr_tag = releases[dr[i]]["tag_name"]
+            // select only one that is selected and default
+            if(no_default){
+                no_default = false;
+                dr_str = dr_str + " (Default)"
+            }
+            // ADD DEBUG IF
+            console.log("Adding a new release " + dr_str + " with tag " + dr_tag);
+            console.log(dr);
+            butBranch.options.add(new Option(dr_str, dr_tag,no_default,no_default));
+        }
+        delete(releases[dr[i]]);
+    }
+    // now do the rest 
+    let release_map = new Map(Object.entries(releases));
+    for (const [branch, details] of release_map) {
+        if(debugState){
+            console.log(details);
+        }
+        butBranch.options.add(new Option(details["name"], details["tag_name"],no_default,no_default));
+    }
 }
 
 async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
@@ -740,8 +827,14 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
                 return data;
             })
     };
-
-    let url = url_base + "/" + branch + "/firmware/";
+    
+    let url = "";
+    if(branch.includes("branch-")){
+        let branch_parts = branch.split("-")
+        url = url_base + "/" + branch_parts[1] + "/firmware/";
+    } else { 
+        url = url_base + "/" + branch + "/firmware/";
+    }
     let files_raw = await getResourceMap(url_memmap);
     let flash_list = []
     let chip_flash_size = await espTool.getFlashID();
@@ -758,7 +851,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
     setProgressMax(chip_files.length);
     updateCoreProgress(25);
     for (let i = 0; i < chip_files.length; i++) {
-    	console.log(chip_files[i]);
+        console.log(chip_files[i]);
         if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
             errorMsg("Invalid data, cannot load online flash resources");
                 sdstat("error","invalid-firmware-from-server");
@@ -766,33 +859,19 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         }
         let request_file = url + chip_files[i]["name"];
         logMsg("Attempting to download file " + request_file)
-        let tmp = await fetch(request_file).then((response) => {
-            if (response.status >= 400 && response.status < 600) {
-                errorMsg("Error! Failed to fetch \"" + request_file + "\" due to error response " + response.status);
-                flashingReady = false;
-                console.log(response);
-                let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
-                sdstat("error","server-error-downloading-firmware");
-                setStatusAlert(consiseError, "danger");
-                throw new Error(consiseError);
-                return false;
-
-            }
-            logMsg("Loaded online version of " + request_file + ". ");
-            return response.blob();
-        }).then((myblob) => myblob).catch((error) => {
-            console.log(error)
-        });
-        updateCoreProgress(40);
+        console.log(request_file)
+        let tmp = await fetchWithRetry(request_file);
+		updateCoreProgress(40);
         if (tmp === undefined) {
             // missing file
             logMsg("Invalid file downloaded " + chip_files[i]["name"]);
-            let consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out Python Flasher instead.";
+            let consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out <a href='https://github.com/O-MG/O.MG-Firmware/releases/tag/v2.5-230226.1'>Python Flasher</a> instead.";
             sdstat("error","server-error-undefined-firmware");
             setStatusAlert(consiseError, "danger");
             throw new Error(consiseError);
             return false;
         } else {
+        	logMsg("Loaded online version of " + request_file + ". ");
             let contents = await readUploadedFileAsArrayBuffer(tmp);
             let content_length = contents.byteLength;
             // if we want to "erase", we set this to be true
@@ -878,14 +957,14 @@ async function doScrollAgreements(){
     let button = butWelcome;
     let scrollPercentage = res.scrollTop / (res.scrollHeight - res.offsetHeight);
     if(scrollPercentage>0.98){
-    	if(button.disabled){
-    		button.classList.remove("btn-secondary");
-    		button.classList.add("btn-success");
-    		button.disabled=false;
-    	}
+        if(button.disabled){
+            button.classList.remove("btn-secondary");
+            button.classList.add("btn-success");
+            button.disabled=false;
+        }
     }
     if(debugState){
-    	console.log("User has read " + (scrollPercentage*100.0) + " of the TOS agreement");
+        console.log("User has read " + (scrollPercentage*100.0) + " of the TOS agreement");
     }
     progressbar.style.width=(scrollPercentage*100)+"%";
 }
@@ -895,7 +974,7 @@ async function toggleDevConf(s = true) {
         s = false;
         elementsDevConf.classList.remove("d-none");
     } else {
-    	elementsDevConf.classList.add("d-none");
+        elementsDevConf.classList.add("d-none");
     }
     let elems = elementsDevConf.querySelectorAll("input");
     if (elems.length > 1) {
@@ -906,49 +985,49 @@ async function toggleDevConf(s = true) {
 }
 
 async function toggleDiagnostics(s = false){
-	if(!diagnosticFirmware){
-		let m = confirm("You are about to enable Diagnostics Firmware Uploading. Do not use this feature unless instructed by support, it can break your device!");
-		if(m){
-			logMsg("! User has enabled Diagnostic Firmware Mode !");
-			logMsg("Disabling any customizations and standard firmware uploads until reloaded or unchecked");
-			diagnosticFirmware = true;
-		} else {
-			diagnosticFirmware = false;
-		}
-	} else {
-		diagnosticFirmware = false;
-	}
-	// continue
-	if(diagnosticFirmware){
-		for (var i=0; i<butBranch.options.length; i++) {
-			if (butBranch.options[i].defaultSelected){
-				butBranch.options[i].defaultSelected=false;
-			}
-		}
-		butBranch.options.add(new Option('Diagnostics', 'diagnostic',true,true));
-		butBranch.disabled=true;
-		butCustomize.checked = false;
-		butDiagnosticFirmware.checked = true;
-		butCustomize.disabled = true;
-		toggleDevConf(true);
-		fileDebugFirmware.disabled=false;
-		
-	} else {
-		for (var i=0; i<butBranch.options.length; i++) {
-			if (butBranch.options[i].value == 'diagnostic'){
-				butBranch.options.remove(i);
-				break;
-			}
-		} 
-		butBranch.disabled=false;
-		butDiagnosticFirmware.checked = false;
-		butCustomize.disabled = false;
-		toggleDevConf(false);
-		fileDebugFirmware.disabled=true;
-	}
-	// reset if this was triggered just in case
-	logMsg("Persistent storage reset for diagnostic purposes.")
-	localStorage.clear();
+    if(!diagnosticFirmware){
+        let m = confirm("You are about to enable Diagnostics Firmware Uploading. Do not use this feature unless instructed by support, it can break your device!");
+        if(m){
+            logMsg("! User has enabled Diagnostic Firmware Mode !");
+            logMsg("Disabling any customizations and standard firmware uploads until reloaded or unchecked");
+            diagnosticFirmware = true;
+        } else {
+            diagnosticFirmware = false;
+        }
+    } else {
+        diagnosticFirmware = false;
+    }
+    // continue
+    if(diagnosticFirmware){
+        for (var i=0; i<butBranch.options.length; i++) {
+            if (butBranch.options[i].defaultSelected){
+                butBranch.options[i].defaultSelected=false;
+            }
+        }
+        butBranch.options.add(new Option('Diagnostics', 'diagnostic',true,true));
+        butBranch.disabled=true;
+        butCustomize.checked = false;
+        butDiagnosticFirmware.checked = true;
+        butCustomize.disabled = true;
+        toggleDevConf(true);
+        fileDebugFirmware.disabled=false;
+        
+    } else {
+        for (var i=0; i<butBranch.options.length; i++) {
+            if (butBranch.options[i].value == 'diagnostic'){
+                butBranch.options.remove(i);
+                break;
+            }
+        } 
+        butBranch.disabled=false;
+        butDiagnosticFirmware.checked = false;
+        butCustomize.disabled = false;
+        toggleDevConf(false);
+        fileDebugFirmware.disabled=true;
+    }
+    // reset if this was triggered just in case
+    logMsg("Persistent storage reset for diagnostic purposes.")
+    localStorage.clear();
 }
 
 async function clickProgramErase() {
@@ -983,12 +1062,25 @@ async function clickProgram() {
     let bins = []
     logMsg("User requested flash of device using release branch  '" + branch + "'.")
     if(!diagnosticFirmware){
-    	logMsg("Loading Firmware from Remote Source (GitHub)");
-	    bins = await getFirmwareFiles(branch);
-	} else {
-		logMsg("Loading Firmware from Local User Source (Diagnostics Firmware Load)");
-		bins = await getDiagnosticFirmwareFiles();
-	}
+        console.log(branch);
+        // remove this conditional and replace it with just lines 991 and 992
+        if(branch.includes("beta") || branch.includes("3.")){
+            let message = "Warning, you are about to use beta software that may contain bugs! Press OK to proceed, press cancel to select Stable";
+            if(confirm(message)){
+                logMsg("Loading Firmware from Remote Source (GitHub)");
+                bins = await getFirmwareFiles(branch);
+            } else {
+                return 0;
+            }
+        } else {
+            // to remove, take this 
+            logMsg("Loading Firmware from Remote Source (GitHub)");
+            bins = await getFirmwareFiles(branch);
+        } // and remove this closing 
+    } else {
+        logMsg("Loading Firmware from Local User Source (Diagnostics Firmware Load)");
+        bins = await getDiagnosticFirmwareFiles();
+    }
     if (debugState) {
         console.log("debug orig memory dump");
         console.log(bins);
@@ -997,7 +1089,7 @@ async function clickProgram() {
     if (!flashingReady) {
         logMsg("Flashing not ready, an error has occurred, please check log above for more information");
     } else {
-		sdstat("notice","flash-begin-" + branch);
+        sdstat("notice","flash-begin-" + branch);
         logMsg("Flashing firmware based on code branch " + branch + ". ");
         // erase 
         if (butEraseCable.checked) {
@@ -1006,7 +1098,7 @@ async function clickProgram() {
                 console.log("performing flash erase before writing");
             }
             await eraseFlash(await espTool.getFlashID());
-		sdstat("notice","erase-begin");
+        sdstat("notice","erase-begin");
             logMsg("Erasing complete, continuing with flash process");
             //toggleUIProgram(true);
         }
@@ -1014,11 +1106,11 @@ async function clickProgram() {
         updateCoreProgress(70);
         logMsg("Attempting to perform bit-patching on firmware");
         if(!diagnosticFirmware){
-        	bins = await patchFlash(bins);        
-			if (debugState) {
-				console.log("debug patched memory dump");
-				console.log(bins);
-			}
+            bins = await patchFlash(bins);        
+            if (debugState) {
+                console.log("debug patched memory dump");
+                console.log(bins);
+            }
         }
         updateCoreProgress(100);
         // continue
@@ -1029,8 +1121,8 @@ async function clickProgram() {
                 let name = bin["name"];
                 // write
                 if(debugState){
-               		logMsg("Attempting to write " + name + " to " + offset);
-               	}
+                       logMsg("Attempting to write " + name + " to " + offset);
+                   }
                 await espTool.flashData(contents, offset, name);
                 await sleep(1000);
             } catch (e) {
@@ -1046,7 +1138,7 @@ async function clickProgram() {
             setStatusAlert("Device Programmed, please follow support instructions and open Console  if needed.  ");
             logMsg("Device Programmed, please follow support instructions and follow this console for further information if directed..");
             logMsg(" ");
-    		sdstat("success","flash-success-" + branch);
+            sdstat("success","flash-success-" + branch);
             completeProgress();
             // disable components and prepare to move on
             endHelper();
@@ -1055,13 +1147,13 @@ async function clickProgram() {
             setStatusAlert("Device Programmed, please reload web page and remove programmer and device. ");
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
             logMsg(" ");
-    		sdstat("success","flash-success-" + branch);
+            sdstat("success","flash-success-" + branch);
             completeProgress();
             // disable components and prepare to move on
             endHelper();
             toggleUIProgram(true);
         } else {
-    		sdstat("error","flash-failure-" + branch);
+            sdstat("error","flash-failure-" + branch);
             setStatusAlert("Device flash failed and could not be completed. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
             printSettings(true);
             logMsg("Failed to flash device successfully");
@@ -1110,9 +1202,8 @@ async function patchFlash(bin_list) {
             configuration["wifimode"] = loadSetting("devWifiMode").replace("wifiMode","");
             configuration["wifissid"] = settings["devWiFiSSID"].value;
             configuration["wifikey"] = settings["devWiFiPass"].value;
-        } else {
-            perform_patch=true;
         }
+	    
         let pos = 0 ;
         // mod_array.indexOfString(utf8Encoder.encode("INIT;"));
         if (pos > -1 && perform_patch) {
@@ -1120,10 +1211,12 @@ async function patchFlash(bin_list) {
                 console.log("found cfg match at " + pos + " for data ");
             }
             
-            let ccfg = "INIT;";
+            let ccfg = "INIT;e=3;";
             for (var setting in configuration) {
                 ccfg+=`S:${setting}=${configuration[setting]};`;
             }
+
+            ccfg += String.fromCharCode(0x00);
 
             let cfglen = ccfg.length;
             let final_cfg = utf8Encoder.encode(`${ccfg}`);
@@ -1290,8 +1383,8 @@ function statusPageUpdate(status=true){
     let successWifiPass = document.getElementById("success-wifi-pass");
     let successStatusConfig = document.getElementById("success-config-type");                            
     if(status&&diagnosticFirmware){
-		successHeader.textContent = "Success! Diagnostic Mode Active";
-	} else if(status) {
+        successHeader.textContent = "Success! Diagnostic Mode Active";
+    } else if(status) {
         // update fields
         successWifiSSID.textContent=txtSSIDName.value;
         successWifiPass.textContent=txtSSIDPass.value;
@@ -1346,7 +1439,7 @@ function toggleUIHardware(ready) {
         accordionExpand(2);
     } else {
         // error
-    	sdstat("error","hardware-missing");
+        sdstat("error","hardware-missing");
         setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-x-circle");
@@ -1370,7 +1463,7 @@ function toggleUIConnected(connected) {
         statusStep2.classList.add("bi-x-circle");
         //butProgram.disabled = true;
         lbl = "Error";
-    	sdstat("error","hardware-missing");
+        sdstat("error","hardware-missing");
         let err = "Either you did not select the CP2102 device, or we cannot connect to the device you selected. Click the Help button below for common fixes. Then refresh this page to attempt flashing again.";
         setStatusAlert(err, "danger");
         accordionExpand(2);
