@@ -15,7 +15,7 @@ const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
 const butWelcome = document.getElementById("btnWelcome");
 const butRejectFlash = document.getElementById("btnDeny");
-
+ 
 const butStart = document.getElementById("btnStart");
 const butConnect = document.getElementById("btnConnect");
 const butSkipWelcome = document.getElementById("welcomeScreenCheck");
