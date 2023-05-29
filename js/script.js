@@ -67,6 +67,7 @@ var flashingReady = true;
 var logMsgs = [];
 
 var skipWelcome = false;
+var alertOnBeta = false;
 
 var settings = {
     "customizeConfig": butCustomize,
@@ -1064,7 +1065,7 @@ async function clickProgram() {
     if(!diagnosticFirmware){
         console.log(branch);
         // remove this conditional and replace it with just lines 991 and 992
-        if(branch.includes("beta") || branch.includes("3.")){
+        if( (branch.includes("beta") || branch.includes("3.1")) && alertOnBeta){
             let message = "Warning, you are about to use beta software that may contain bugs! Press OK to proceed, press cancel to select Stable";
             if(confirm(message)){
                 logMsg("Loading Firmware from Remote Source (GitHub)");
