@@ -7,10 +7,10 @@
     <meta content="O.MG" name="author">
     <title> O.MG Web Flasher </title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/style.css" rel="stylesheet">
+    <link href="core/style.css" rel="stylesheet">
     <link href="https://fonts.gstatic.com" rel="preconnect">
     <!-- icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.2.2/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <!--<link href="assets/icons/icon-57x57.png" rel="apple-touch-icon" sizes="57x57">
     <link href="assets/icons/icon-60x60.png" rel="apple-touch-icon" sizes="60x60">-->
     <link href="assets/icons/icon-72x72.png" rel="apple-touch-icon" sizes="72x72">
@@ -39,9 +39,9 @@
       }
     </script>
     <!-- import the webpage's javascript file -->
-    <script src="js/utilities.js" defer></script>
-    <script src="js/esptool.js" defer></script>
-    <script src="js/script.js" defer></script>
+    <script src="core/utilities.js" defer></script>
+    <script src="core/esptool.js" defer></script>
+    <script src="core/script.js" defer></script>
 </head>
 <body>
     <!-- CONTAINER -->
@@ -232,13 +232,15 @@
 											<div id="programmerStep3-collapse" class="accordion-collapse collapse show" aria-labelledby="programmerStep2">
 												<div class="accordion-body">
 													Press the <strong>Program</strong> button below, thats it! Just wait for the progress bar to complete. 
+													
 													<div class="pb-2 pt-3 justify-content-center text-center">
-														<label for="branch" class="form-label">Firmware Build</label>
-														<select id="branch" class="form-select">
-															<option value="stable" selected>v2.5 (Stable) [Default]</option>
-															<option value="beta">v3.0 (Beta)</option>
-															<option value="legacy-v2.0">v2.0 (Legacy)</option>
-														</select>
+														<div><label for="branch" class="form-label">Firmware Build</label></div>
+														<div class="d-inline-flex gap-2">
+															<select id="branch" class="form-select form-select-lg">
+																<option value="stable" selected>v2.5 (Stable) [Default]</option>
+															</select>
+															<button type="button" class="btn btn-dark btn-lg fancy" id="btnReleaseNotes" data-bs-toggle="modal" data-bs-target="#modalReleaseNotes">Release Notes</button>
+														</div>
 													</div>
 													<div class="pb-2 pt-3 justify-content-center text-center">
 														<div class="progress">
@@ -284,9 +286,9 @@
 									<div>
 										
 										<p class="lead text-center" id="success-msg">
-											To use the O.MG Cable: Plug the cable into a USB port. 
+											To use the O.MG Cable: Plug the cable into a USB port.
 											Then connect to the WiFi network and browse to http://192.168.4.1/.  
-											<br/>For additional instructions, please go <a href=" https://github.com/O-MG/O.MG_Cable-Firmware/wiki">here</a>.
+											<br/>For additional instructions, please go <a href="https://github.com/O-MG/O.MG_Cable-Firmware/wiki">here</a>.
 										</p>
 										<p class="d-none text-center" id="success-state-msg"> 
 											Further details can be seen in the console and corresponding log from the flasher log button in the top right of the interface
@@ -319,6 +321,25 @@
 					</div>
 					<button type="button" class="btn btn-dark" id="btnDownload">Download</button>
 					<button type="button" class="btn btn-dark" id="btnClear">Clear</button>
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+			</div>
+		</div>
+	</div>
+    <div class="modal fade" id="modalReleaseNotes" tabindex="-1" aria-labelledby="modalReleaseNotes" aria-hidden="true">
+		<div class="modal-dialog modal-xl modal-dialog-centered">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="release-notes-modal-title">Release Notes</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<div class="font-weight-light p-2">
+						<p id="release-notes-modal-intro">The following are the release notes for the selected version of O.MG Unified Firmware</p>
+					</div>
+					<div class="pt-2" id="release-notes">Not Found...</div>
+				</div>
+				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
 				</div>
 			</div>

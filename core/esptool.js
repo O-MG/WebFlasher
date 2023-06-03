@@ -377,7 +377,7 @@ class EspLoader {
    * Opens a Web Serial connection to a micro:bit and sets up the input and
    * output stream.
    */
-  async connect() {
+  async connect(tries=5) {
     // - Request a port and open a connection.
     const filter = { usbVendorId: 0x10c4 };
     var filters = []
@@ -395,11 +395,8 @@ class EspLoader {
 
     const signals = await port.getSignals();
 
-    this.logMsg("Connected successfully.")
+    this.logMsg("Serial connection opened...")
 
-    this.logMsg("Try to reset.")
-    await this.hardReset(true);
-    
     outputStream = port.writable;
     inputStream = port.readable;
   }
@@ -617,8 +614,8 @@ class EspLoader {
    * Put into ROM bootload mode & attempt to synchronize with the
    * ESP ROM bootloader, we will retry a few times
    */
-  async sync() {
-    for (let i = 0; i < 5; i++) {
+  async sync(syncCount=3) {
+    for (let i = 0; i < syncCount; i++) {
       inputBuffer = []
       let response = await this._sync();
       if (response) {
@@ -627,8 +624,8 @@ class EspLoader {
       }
       await this.sleep(100);
     }
-
-    throw("Couldn't sync to O.MG Device. Try unplugging & replugging the programmer and try again.");
+    return false;
+    //throw("Couldn't sync to O.MG Device. Try unplugging & replugging the programmer and try again.");
   };
 
   /**
@@ -899,18 +896,18 @@ class EspLoader {
     }
   }
   
-  async hardReset(r = false) {
+  async reset(r = false, baseTimeout=500, timeoutMultiplier=1) {
     logMsg("Trying Serial Reset....")
     await port.setSignals({
       dataTerminalReady: false,
       requestToSend: true,
     });
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, baseTimeout*timeoutMultiplier));
     await port.setSignals({
       dataTerminalReady: r,
       requestToSend: false,
     });
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, baseTimeout));
   }
 
   async getStubCode() {
@@ -976,6 +973,8 @@ class EspLoader {
       }
     }
     this.logMsg("Running stub...")
+    console.log("stub loaded")
+    console.log(stub)
     await this.memFinish(stub['entry']);
 
     let p = await this.readBuffer(500);

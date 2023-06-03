@@ -171,6 +171,25 @@ button.fancy:hover::after {
   color: #000;
 }
 
+#release-notes {
+  max-width: 100%;
+  text-align: left;
+  font-family: pt-mono, monospace;
+  font-style: normal;
+  font-weight: 400;
+  height: 256px;
+  font-size: 16px;
+  overflow-x: hidden;
+  overflow-x: auto;
+  transition : color 0.1s linear;
+  padding: 0 20px;
+  border: 20px solid #eee;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  background-color: #eee;
+  color: #000;
+}
+
 
 .accordion-details {
     padding: 8px 8px;
