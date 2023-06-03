@@ -1213,7 +1213,19 @@ async function patchFlash(bin_list) {
                 console.log("found cfg match at " + pos + " for data ");
             }
             
-            let ccfg = "INIT;e=3;";
+            // init and blank out file system
+            let ccfg = "INIT;F:keylog=0;"; // e=3;
+            for(let i = 1; i < 8; i++){
+            	ccfg+=`F:payload${i}=0;`
+            }
+            // prepare boot and hid file slots (for supported devices)
+            ccfg += "F:bootscript=4;F:hidxfile=16;";
+            // set the payload slots on supported devices
+            for(let i = 1; i < 51; i++){
+            	ccfg+=`F:payload${i}=4;`
+            }
+            // add keylog slot for supported devices, ignored on unsupported hw
+            ccfg+="F:keylog=100%F;"
             for (var setting in configuration) {
                 ccfg+=`S:${setting}=${configuration[setting]};`;
             }
