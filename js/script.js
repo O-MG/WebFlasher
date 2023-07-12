@@ -746,7 +746,7 @@ async function getFirmwareBranches(){
     return branches;
 }
 
-async function buildReleaseSelectors(dr=["beta","stable"]){
+async function buildReleaseSelectors(dr=["stable","beta"]){
     let releases = await getFirmwareReleases();
 
 	// this should keep the logic the same 
