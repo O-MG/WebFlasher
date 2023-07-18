@@ -81,7 +81,7 @@ var settings = {
 }
 
 const url_memmap = "assets/memmap.json";
-const url_releases = "https://api.github.com/repos/O-MG/O.MG-Firmware/releases";
+const url_releases = "https://api.github.com/repos/O-MG/O.MG-Firmware/releases?per_page=100"; // move to proper spot later.
 const url_branches = "https://api.github.com/repos/O-MG/O.MG-Firmware/branches";
 const url_base = "https://raw.githubusercontent.com/O-MG/O.MG-Firmware"; 
 
