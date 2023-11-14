@@ -6,6 +6,8 @@
 var espTool;
 
 const baudRates = [115200];
+const connectionBaseDelay = 500;
+const connectionAttempts = 4;
 const bufferSize = 512;
 const eraseFillByte = 0x00;
 
@@ -46,6 +48,7 @@ const statusStep1 = document.getElementById("programmerStep1-status");
 const statusStep2 = document.getElementById("programmerStep2-status");
 const statusStep3 = document.getElementById("programmerStep3-status");
 const butHardware = document.getElementById("btnConnectHw");
+const butReleaseNotes = document.getElementById("btnReleaseNotes");
 const butProgram = document.getElementById("btnProgram");
 
 const progress = document.querySelectorAll(".progress-bar");
@@ -79,6 +82,8 @@ var settings = {
     "firmwareRelease": butBranch,
     "skipWelcome": butSkipWelcome
 }
+
+var releaseDataCache = {}
 
 const url_memmap = "assets/memmap.json";
 const url_releases = "https://api.github.com/repos/O-MG/O.MG-Firmware/releases?per_page=100"; // move to proper spot later.
@@ -119,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     let urlloc = String(window.location.href);
-    if(urlloc.includes("localhost") || urlloc.includes("Test")){
+    if(urlloc.includes("localhost")|| urlloc.includes("127.0.0.1") || urlloc.includes("Test")){
         debugState=true;
         skipWelcome=false; 
         toggleDevConf(true);
@@ -194,6 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
     butDiagnosticFirmware.addEventListener("click",toggleDiagnostics)
     butHardware.addEventListener("click", clickHardware);
     butProgram.addEventListener("click", clickProgramErase);
+    butReleaseNotes.addEventListener("click",clickReleaseNotes)
     butDownload.addEventListener("click", clickDownload);
     butClear.addEventListener("click", clickClear);
     autoscroll.addEventListener("click", clickAutoscroll);
@@ -257,10 +263,12 @@ async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 10
 
 async function connect() {
     logMsg("Connecting...")
-    await espTool.connect()
+    let synced = await espTool.connect()
     readLoop().catch((error) => {
         toggleUIConnected(false);
+        return false
     });
+    return synced
 }
 
 function initBaudRate() {
@@ -521,14 +529,30 @@ async function clickConnect() {
     }
     butConnect.textContent = " Connecting";
     butConnect.insertAdjacentHTML('afterbegin', '<span class="spinner-border spinner-border-sm"></span> ');
+
+    let sync_status = false;
     await connect();
+    for(let i=0;i<connectionAttempts;i++){
+        let delay = (i+1)*connectionBaseDelay;
+        logMsg("Trying to initiate connection with O.MG Device...")
+        await espTool.reset(true,delay);
+        sync_status = await espTool.sync();
+        console.log(sync_status)
+        if(sync_status){
+            logMsg("Obtained synchronization with O.MG Device")
+            break;
+        } else {
+            logMsg("Failed to connect to O.MG Device, lost synchronization. Resetting connection after "+delay+" ms.")
+        }
+    }
     try {
-        if (await espTool.sync()) {
+        if (sync_status) {
             toggleUIConnected(true);
             let baud = parseInt(baudRate.value);
             // get our chip info 
-            logMsg("Connected to " + await espTool.chipName());
+            logMsg("Connected to O.MG Device")
             if (debugState) {
+                logMsg("Connected to " + await espTool.chipName());
                 console.log(espTool);
             }
             logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
@@ -547,11 +571,7 @@ async function clickConnect() {
             await espTool.chipName();
             // and proceed 
             if (baud != ESP_ROM_BAUD) {
-                if (await espTool.chipType() == ESP32) {
-                    logMsg("WARNING: ESP32 is having issues working at speeds faster than 115200. Continuing at 115200 for now...")
-                } else {
-                    await changeBaudRate(baud);
-                }
+                await changeBaudRate(baud);
             }
         }
         isConnected = true;
@@ -598,6 +618,46 @@ async function clickAutoscroll() {
 async function clickDarkMode() {
     //updateTheme();
     //saveSetting("darkmode", darkMode.checked);
+}
+
+async function clickReleaseNotes(){
+	let selected_version  = butBranch.value;
+	let display_text = selected_version;
+	try {
+		let display_text = butBranch.options[butBranch.selectedIndex].text;
+	} catch(error) {
+		console.log(error);
+	}
+	let intro_element = document.getElementById("release-notes-modal-intro");
+	let title_element = document.getElementById("release-notes-modal-title");
+	let notes_element = document.getElementById("release-notes");
+	
+	let title_value = "Release Notes for " + selected_version;
+	let intro_value = "Version release notes for the O.MG Unified Firmware version " + display_text + "."
+
+	intro_element.textContent = intro_value;
+	title_element.textContent = title_value;
+	
+	let release_notes = "<p>Unable to read release notes data...</p>"
+	let releases = Object.keys(releaseDataCache)
+	if(releases.length>=1){
+		for(let release_name in releaseDataCache){
+			if(release_name.includes(selected_version,0)){
+				let reldata = releaseDataCache[release_name]
+				if(debugState){
+					console.log("Found potential match for: " + release_name);
+					console.log(reldata);
+				}
+				if("body" in reldata){
+					release_notes = "<p>";
+					release_notes += reldata["body"].replace(/\\r|\r/g,"").replace(/\\n|\n/g, '<br>\n');
+					release_notes += "</p>\r\n";
+				}
+			}
+		}
+	}
+	notes_element.innerHTML = release_notes
+	console.log("I've been called.");
 }
 
 async function getDiagnosticFirmwareFiles(erase = false, bytes = 0x00) {
@@ -769,6 +829,12 @@ async function buildReleaseSelectors(dr=["beta","stable"]){
 			}
 		}
 	}
+    // set the cache
+    if(debugState){
+    	console.log("setting release cache for user");
+    	console.log(releases);
+    }
+    releaseDataCache = releases;
     // reset our list
     butBranch.innerHTML="";
     // get our defaults
@@ -786,6 +852,7 @@ async function buildReleaseSelectors(dr=["beta","stable"]){
             // ADD DEBUG IF
             console.log("Adding a new release " + dr_str + " with tag " + dr_tag);
             console.log(dr);
+            releaseDataCache[dr_tag]=releases[dr[i]];
             butBranch.options.add(new Option(dr_str, dr_tag,no_default,no_default));
         }
         delete(releases[dr[i]]);
@@ -796,8 +863,10 @@ async function buildReleaseSelectors(dr=["beta","stable"]){
         if(debugState){
             console.log(details);
         }
+        releaseDataCache[details["tag_name"]]=details;
         butBranch.options.add(new Option(details["name"], details["tag_name"],no_default,no_default));
     }
+
 }
 
 async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
@@ -1651,7 +1720,6 @@ function saveSettings() {
     }
 
 }
-
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
