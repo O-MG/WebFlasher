@@ -746,13 +746,13 @@ async function getFirmwareBranches(){
     return branches;
 }
 
-async function buildReleaseSelectors(dr=["stable", "legacy-2.5"]){
+async function buildReleaseSelectors(dr=["stable", "legacy-2.5", "beta"]){
     let releases = await getFirmwareReleases();
 
 	// this should keep the logic the same 
 	// remove legacy versions to not confuse users
 	// add in stuff for dev when in dev mode
-	let skipped_releases = ["legacy-v1.5", "legacy-v2.0","beta"]
+	let skipped_releases = ["legacy-v1.5", "legacy-v2.0"]
 	if(debugState){
 		// throw everything together
 		let branches = await getFirmwareBranches();
