@@ -148,7 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
         clickConnect().catch(async (e) => {
             errorMsg(e.message);
             disconnect();
-            toggleUIConnected(false,e.message.replace(/^[^:]*:/, '').trim());
+            toggleUIConnected(false,e);
         });
     });
 
@@ -561,7 +561,7 @@ async function clickConnect() {
     } catch (e) {
         errorMsg(e);
         await disconnect();
-        toggleUIConnected(false,e.message.replace(/^[^:]*:/, '').trim());
+        toggleUIConnected(false,e);
         return;
     }
     // give us access to the ESP session
@@ -1463,10 +1463,15 @@ function toggleUIHardware(ready) {
     butConnect.textContent = lbl;
 }
 
-function toggleUIConnected(connected, message = "") {
+function toggleUIConnected(connected, msg = "") {
     let lbl = "Connect";
-    if(!message){
-        message = "Cannot connect to device."
+    let message = "Cannot connect to O.MG Device";
+    if(msg!=""){
+        if(msg instanceof DOMException){
+            message = msg.message.replace(/^[^:]*:/, '').trim();
+        } else {
+            message = msg.replace(/^[^:]*:/, '').trim();
+        }
     }
     if (connected) {
         butProgram.disabled = false;
