@@ -148,7 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
         clickConnect().catch(async (e) => {
             errorMsg(e.message);
             disconnect();
-            toggleUIConnected(false);
+            toggleUIConnected(false,e.message.replace(/^[^:]*:/, '').trim());
         });
     });
 
@@ -259,7 +259,7 @@ async function connect() {
     logMsg("Connecting...")
     await espTool.connect()
     readLoop().catch((error) => {
-        toggleUIConnected(false);
+        toggleUIConnected(false, error);
     });
 }
 
@@ -561,7 +561,7 @@ async function clickConnect() {
     } catch (e) {
         errorMsg(e);
         await disconnect();
-        toggleUIConnected(false);
+        toggleUIConnected(false,e.message.replace(/^[^:]*:/, '').trim());
         return;
     }
     // give us access to the ESP session
@@ -1463,8 +1463,11 @@ function toggleUIHardware(ready) {
     butConnect.textContent = lbl;
 }
 
-function toggleUIConnected(connected) {
+function toggleUIConnected(connected, message = "") {
     let lbl = "Connect";
+    if(!message){
+        message = "Cannot connect to device."
+    }
     if (connected) {
         butProgram.disabled = false;
         statusStep2.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
@@ -1478,7 +1481,7 @@ function toggleUIConnected(connected) {
         //butProgram.disabled = true;
         lbl = "Error";
         sdstat("error","hardware-missing");
-        let err = "Either you did not select the CP2102 device, or we cannot connect to the device you selected. Click the Help button below for common fixes. Then refresh this page to attempt flashing again.";
+        let err = `${message} Click the Help button below for common fixes. Then refresh this page to attempt flashing again.`;
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
