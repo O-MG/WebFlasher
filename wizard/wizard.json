@@ -1,0 +1,94 @@
+[
+  {
+    "step": "fw_programmer",
+    "step_type": "menu",
+    "title": "Programmer Information",
+    "message": "Let's figure out which programmer you have. How many total LEDs are on your programmer?",
+    "help_message": "This is more advanced help. ",
+    "validator": "",
+    "image": "wizard/wizard.png",
+    "next_step": "fw_programmer_needed"
+  },
+  {
+    "step": "fw_programmer_needed",
+    "step_type": "menu",
+    "title": "Programmer Needed",
+    "message": "You need a programmer to flash. Please purchase one from https://shop.hak5.org/products/o-mg-cable-programmer-usb-a-c",
+    "help_message": "This is more advanced help. ",
+    "validator": "",
+    "image": "wizard/wizard.png",
+    "next_step": "fw_flashing"
+  },
+  {
+    "step": "fw_flashing",
+    "step_type": "menu",
+    "title": "Flashing - Device Detected Issue",
+    "message": "In the Web Flasher, are you receiving a \"No Compatible Devices Found\" error? ",
+    "help_message": "This is more advanced help. ",
+    "validator": "",
+    "next_step": "fw_swap_cable"
+  },
+  {
+    "step": "fw_swap_cable",
+    "step_type": "menu",
+    "title": "Programmer Cable Swap",
+    "message": "The most common cause for this is that a \"charge only\" USB cable is used between the programmer and computer. Please try swapping the cable. ",
+    "help_message": "This is more advanced help. ",
+    "validator": "",
+    "next_step": "fw_something_else"
+  },
+  {
+    "step": "fw_something_else",
+    "step_type": "input_text",
+    "title": "Firmware Assistance",
+    "message": "To get this ticket started, lets get some info. What model OMG device is this about? (ex: Elite O.MG A to C Cable) ",
+    "help_message": "This is more advanced help. ",
+    "validator": "",
+    "next_step": "fw_describe"
+  },
+  {
+    "step": "fw_describe",
+    "step_type": "input_text",
+    "title": "Firmware Assistance - Describe Your Issue",
+    "message": "Please provide a **description** of the problem you are experiencing. Please include details about how the issue can be reproduced, the last time it was working for you, and other relevant info that will help diagnose your problem.",
+    "help_message": "This is more advanced help. ",
+    "validator": "",
+    "next_step": "fw_os"
+  },
+  {
+    "step": "fw_os",
+    "step_type": "menu",
+    "title": "Firmware Assistance - What Operating Systems",
+    "message": "What Operating System (version) have you most recently used to attempt to flash?",
+    "help_message": "This is more advanced help. ",
+    "validator": "",
+    "next_step": "fw_os_windows"
+  },
+  {
+    "step": "fw_os_windows",
+    "step_type": "menu",
+    "title": "Firmware Assistance - Windows ",
+    "message": "Please open up `Device Manager` and look for the CP2102 Device. Is there a :warning: icon next to the CP2102 Device?",
+    "help_message": "This is more advanced help. ",
+    "validator": "",
+    "next_step": "fw_os_windows_find_dm"
+  },
+  {
+    "step": "fw_os_windows_find_dm",
+    "step_type": "menu",
+    "title": "Firmware Assistance - Windows find Device Manager",
+    "message": "Lets try to help you find Device Manager<br> <br>\nPlease follow these steps:<br>\n1. Open up the Start Menu \n2. Type `Device Manager`\n3. Open up Device Manager\n\nIf the above did not work:\n1. Hit the Windows Key and R at the same time\n2. In the Run Prompt type `devmgmt.msc` and hit enter\n\nFrom here expand the sections Ports and USB. Now, do you see a :warning: icon next to the CP2102 device?",
+    "help_message": "This is more advanced help. ",
+    "validator": "",
+    "next_step": "fw_os_windows_driver_install"
+  },
+  {
+    "step": "fw_os_windows_driver_install",
+    "step_type": "menu",
+    "title": "Firmware Assistance - Windows Driver Install",
+    "message": "Please follow this  [guide](https://github.com/O-MG/O.MG-Firmware/wiki#flash-the-omg-device) and reference video to setup the CP2102 Drivers. Once completed please try to flash again https://i.imgur.com/4CLUk5h.mp4",
+    "help_message": "This is more advanced help. ",
+    "validator": "",
+    "next_step": "#REF!"
+  }
+]

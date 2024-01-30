@@ -16,11 +16,14 @@ const maxLogLength = 100;
 const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
 const butWelcome = document.getElementById("btnWelcome");
+const butAdvanced = document.getElementById("btnAdvanced");
 const butRejectFlash = document.getElementById("btnDeny");
+const butWizardStart = document.getElementById("btnWizardStart"); 
  
 const butStart = document.getElementById("btnStart");
 const butConnect = document.getElementById("btnConnect");
 const butSkipWelcome = document.getElementById("welcomeScreenCheck");
+const butAdvancedMode = document.getElementById("advancedMode");
 const agreementModal = document.getElementById("agreement-modal");
 
 // Console Modal
@@ -80,7 +83,8 @@ var settings = {
     "devWiFiPass": txtSSIDPass,
     "devWifiMode": butWifiMode,
     "firmwareRelease": butBranch,
-    "skipWelcome": butSkipWelcome
+    "skipWelcome": butSkipWelcome,
+    "advancedMode": butAdvancedMode
 }
 
 var releaseDataCache = {}
@@ -129,12 +133,12 @@ document.addEventListener("DOMContentLoaded", () => {
         skipWelcome=false; 
         toggleDevConf(true);
         butCustomize.disabled=false;
-	butCustomize.classList.remove("d-none");
+        butCustomize.classList.remove("d-none");
         butSettings.classList.remove("d-none");
         let debug_im="Debug Mode Detected: URL is: " + window.location.href;
         logMsg(debug_im);
         console.log(debug_im);
-    debug=true;
+        debug=true;
     } else {
         // for 2.5 BETA RELEASE ONLY
         butCustomize.disabled=false;
@@ -153,7 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
         clickConnect().catch(async (e) => {
             errorMsg(e.message);
             disconnect();
-            toggleUIConnected(false);
+            toggleUIConnected(false,e);
         });
     });
 
@@ -190,6 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // set the clear button and reset
     butWelcome.addEventListener("click", clickWelcome);
+    butAdvanced.addEventListener("click", clickAdvanced);
     butStart.addEventListener("click",clickWelcomeStart);
     butRejectFlash.addEventListener("click",clickRejectFlash);
     //butSkipWelcome.addEventListener("click", clickSkipWelcome);
@@ -265,7 +270,7 @@ async function connect() {
     logMsg("Connecting...")
     let synced = await espTool.connect()
     readLoop().catch((error) => {
-        toggleUIConnected(false);
+        toggleUIConnected(false,error);
         return false
     });
     return synced
@@ -419,6 +424,7 @@ function sdstat(status="success",annotation="success"){
 function logMsg(text) {
     const rmsg = (new DOMParser().parseFromString(text, "text/html")).body.textContent;
     logMsgs.push(rmsg);
+    console.log(text);
     log.innerHTML += text + "<br>";
 
     // Remove old log content
@@ -507,8 +513,16 @@ async function clickWelcomeStart() {
     accordionExpand(1);
 }
 
-async function clickWelcome() {
+async function clickAdvanced(){
     switchStep("modular-stepper");
+}
+
+async function clickWelcome() {
+    if(!butWizardStart.classList.contains("d-none") || butAdvancedMode.checked == false){
+        switchStep("step-mode-selector");
+    } else {
+        await clickAdvanced();
+    }
 }
 
 async function clickRejectFlash(){
@@ -537,7 +551,6 @@ async function clickConnect() {
         logMsg("Trying to initiate connection with O.MG Device...")
         await espTool.reset(true,delay);
         sync_status = await espTool.sync();
-        console.log(sync_status)
         if(sync_status){
             logMsg("Obtained synchronization with O.MG Device")
             break;
@@ -551,9 +564,10 @@ async function clickConnect() {
             let baud = parseInt(baudRate.value);
             // get our chip info 
             logMsg("Connected to O.MG Device")
+            let dchp = await espTool.chipName();
             if (debugState) {
-                logMsg("Connected to " + await espTool.chipName());
                 console.log(espTool);
+                logMsg(`Connected to ${dchp}`);
             }
             logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
             if (debugState) {
@@ -1213,7 +1227,7 @@ async function clickProgram() {
             completeProgress();
             // disable components and prepare to move on
             endHelper();
-            toggleUIProgram(true);
+            toggleUIProgram(true); j
         } else if (flash_successful) {
             setStatusAlert("Device Programmed, please reload web page and remove programmer and device. ");
             logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
@@ -1532,8 +1546,16 @@ function toggleUIHardware(ready) {
     butConnect.textContent = lbl;
 }
 
-function toggleUIConnected(connected) {
+function toggleUIConnected(connected, msg = "") {
     let lbl = "Connect";
+    let message = "Cannot connect to O.MG Device";
+    if(msg!=""){
+        if(msg instanceof DOMException){
+            message = msg.message.replace(/^[^:]*:/, '').trim();
+        } else {
+            message = msg.replace(/^[^:]*:/, '').trim();
+        }
+    }
     if (connected) {
         butProgram.disabled = false;
         statusStep2.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
@@ -1547,13 +1569,14 @@ function toggleUIConnected(connected) {
         //butProgram.disabled = true;
         lbl = "Error";
         sdstat("error","hardware-missing");
-        let err = "Either you did not select the CP2102 device, or we cannot connect to the device you selected. Click the Help button below for common fixes. Then refresh this page to attempt flashing again.";
+        let err = `${message}. Click the Help button below for common fixes. Then refresh this page to attempt flashing again.`;
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
     }
     butConnect.textContent = lbl;
 }
+
 
 function saveSetting(setting, value) {
     if (debugState) {
@@ -1602,7 +1625,6 @@ function loadSettings() {
     if (welcomeScreen !== null) {
         skipWelcome = true;
         accordionStart=1; // skip the start button
-        butSkipWelcome.checked = true;
     }
     for (var key in settings) {
         if (settings[key] !== null) {

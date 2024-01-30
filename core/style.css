@@ -235,3 +235,8 @@ button.fancy:hover::after {
 	height: 20px!important;
 	width: 20px;
 }
+
+.btn-mode-select {
+  padding: 1.75rem 1.5rem;
+  font-size: 1.25rem;
+}

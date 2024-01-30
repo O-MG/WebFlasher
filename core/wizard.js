@@ -1,89 +1,148 @@
 // WIP 
 "use strict";
 
-const wizardFile = 'wizard.json'
+const wizardFile = 'wizard/wizard.json'
 const stepsContainer = document.getElementById('steps-container');
+const butWizard = document.getElementById("btnWizardStart"); 
 
-function loadWizardJSON() {
-	const jsonFilePath = 'data.json';
-	
-	fetch(jsonFilePath)
-	.then(response => response.json())
+let wizardStart = ""
+
+function isHTML(str) {
+    return /<[a-z][\s\S]*>/i.test(str);
+}
+
+function doesElementExist(elementId) {
+    return !!document.getElementById(elementId);
+}
+
+async function loadWizard() {
+	fetch(wizardFile)
+	.then(response => {
+        if (!response.ok) {
+            console.error('Error loading Wizard JSON file. Status:', response.status);
+            return null;
+        }
+        return response.json();
+    })
 	.then(data => {
+        if(data === null){
+            return null
+        }
         renderWizard(data);
+        butWizard.classList.remove("d-none");
 	})
 	.catch(error => console.error('Error reading Wizard JSON file:', error));
 }
 
+
 function generateStepHTML(step) {
     var stepContainer = document.createElement('div');
-    stepContainer.classList.add('step');
-    stepContainer.id = step.step;
+    stepContainer.classList.add('step', 'd-none');
+    stepContainer.id = `wizard_${step.step}`;
 
     var h2Element = document.createElement('h2');
-    h2Element.textContent = step.step_title;
+    h2Element.textContent = step.title;
+
+    stepContainer.appendChild(h2Element);
 
     if(step.image){
-        const imageDiv = document.createElement('div');
-        const imageRes = document.createElement('img');
-        imageRes.src = step.image
-        imageDiv.innerHTML = imageRes;
+        let imageDiv = document.createElement('div');
+        imageDiv.classList.add('wizard-image',"container");
+        let imageRes = document.createElement('img');
+        imageRes.classList.add("img-fluid","mw-80")
+        imageRes.src = step.image;
+        imageRes.alt = step.step;
+        imageDiv.appendChild(imageRes);
         stepContainer.appendChild(imageDiv);
     }
 
     var bodyElement = document.createElement('div');
-    bodyElement.classList.add('body');
-    bodyElement.innerHTML = step.step_content;
+    if(isHTML(step.message)){
+        bodyElement.innerHTML = step.message;
+    } else {
+        let innerMsg = document.createElement('p');
+        innerMsg.textContent = step.message;
+        bodyElement.append(innerMsg)
+    }
 
     var buttonContainer = document.createElement('div');
     buttonContainer.classList.add('m-2', 'text-center', 'justify-content-center');
 
     if (step.help_message) {
-      const buttonMoreHelp = document.createElement('button');
-      buttonMoreHelp.id = `stepWizard_${step.step}_moreHelp`;
-      buttonMoreHelp.classList.add('fancy', 'btn', 'btn-secondary', 'btn-lg');
-      buttonMoreHelp.type = 'button';
-      buttonMoreHelp.textContent = 'I Need More Help';
-      buttonMoreHelp.disabled = true;
-      buttonContainer.appendChild(buttonMoreHelp);
+        let buttonMoreHelp = document.createElement('button');
+        buttonMoreHelp.id = `btnWizard_${step.step}_help`;
+        buttonMoreHelp.classList.add('fancy', 'btn', 'btn-secondary', 'btn-lg');
+        buttonMoreHelp.type = 'button';
+        buttonMoreHelp.textContent = 'I Need More Help';
+        //buttonMoreHelp.disabled = true;
+        buttonContainer.appendChild(buttonMoreHelp);
+        buttonMoreHelp.addEventListener('click', () => {
+            console.log("user asking for help");
+            handleExtraHelp(step);
+        });
     }
 
-    buttonContainer.classList.add('m-2', 'text-center', 'justify-content-center');
-    buttonContainer.appendChild(buttonNextStep);
-
     var buttonNextStep = document.createElement('button');
-    buttonNextStep.id = `stepWizard_${step.next_step}`;
+    buttonNextStep.id = `btnWizard_${step.next_step}`;
     buttonNextStep.classList.add('fancy', 'btn', 'btn-success', 'btn-lg');
     buttonNextStep.type = 'button';
     buttonNextStep.textContent = 'Next';
 
-    stepContainer.appendChild(h2Element);
+    buttonContainer.appendChild(buttonNextStep);
+
     stepContainer.appendChild(bodyElement);
     stepContainer.appendChild(buttonContainer);
 
-    buttonNextStep.addEventListener('click', function() {
+    buttonNextStep.addEventListener('click', () => {
         handleNextWizardStep(step);
     });
-
+    //console.log(buttonNextStep);
+    //console.log(stepContainer)
     return stepContainer;
   }
 
 function renderWizard(steps){
+    if(steps.length>=1){
+        wizardStart = `wizard_${steps[0].step}`;
+    }
     steps.forEach(step => {
         stepsContainer.prepend(generateStepHTML(step));
     });
 }
 
-function handleNextWizardStep(step){
-    if(doesElementExist(step.name)){
-        switchStep(step.next_Step);
+function handleExtraHelp(step){
+    let curr_step = `wizard_${step.step}`
+    let next_step = `wizard_${step.next_step}`
+    if(doesElementExist(curr_step)){
+        // do nothing right now
+        logMsg(`User has requested extra help for step ${curr_step}`)
     }
 }
 
-function doesElementExist(elementId) {
-    return !!stepsContainer.getElementById(elementId);
+function handleNextWizardStep(step){
+    let curr_step = `wizard_${step.step}`
+    let next_step = `wizard_${step.next_step}`
+
+    logMsg(`User progressing from '${curr_step}' to ${next_step}.`)
+    if(doesElementExist(next_step)){
+        var ready = true;
+        if (step.validator && (typeof window[step.validator] === 'function')) {
+            ready = window[step.validator](step);
+        }
+        if(ready){
+            switchStep(next_step);
+        }
+    }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadWizardJSON();
+document.addEventListener('DOMContentLoaded', () => {
+    loadWizard();
+    console.log("HERE");
+    console.log(wizardStart);
+    butWizard.addEventListener('click', async function() {
+        if(wizardStart != ""){
+            logMsg(`User starting guided wizard for flashing. Initial Step: ${wizardStart}`)
+            await switchStep(wizardStart);
+        }
+    });
 });

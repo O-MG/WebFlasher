@@ -164,7 +164,6 @@ class EspLoader {
       } else {
         throw("Couldnt determine OUI");
       }
-
       macAddr[0] = oui[0];
       macAddr[1] = oui[1];
       macAddr[2] = oui[2];
@@ -652,40 +651,39 @@ class EspLoader {
 
   async getFlashID(){ 
       // try to read data if its unset
-      if(!this._flash_size){
-      	console.log(this)
-		  if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
-			//await this._readEfuses();
-			console.log("error unable to fetch chip id");
-		  }
-		  let lfuse=this._efuses[3];
-		  console.log(this._efuses);
-		  // try to read one more time before doing defaults
-		  var mem_size;
-		  if(lfuse===undefined){
-			mem_size=0x0;
-		  } else {
-			mem_size = (lfuse&0xFF000000)>>24;
-		  }
-		let calculated_mem = 1;
-		switch(mem_size){
-			case (0x4):
-				calculated_mem = 2;
-				break;
-			case (0x1):
-			case (0x0):
-				calculated_mem = 1;
-				break;
-		}
-		this._flash_size = (0x400*calculated_mem);
-		this._flashsize = (1024*1024*calculated_mem);
-		// initial set
-		//FLASH_WRITE_SIZE=this._flash_size;
-		//STUBLOADER_FLASH_WRITE_SIZE=this._flash_size;
-		//FLASH_SECTOR_SIZE=this._flash_size;
-	}
-	let m = this._flash_size;
-	console.log("detected memory is " + m);
+    if(!this._flash_size){
+      if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
+        //await this._readEfuses();
+        console.log("error unable to fetch chip id");
+      }
+      let lfuse=this._efuses[3];
+      console.log(this._efuses);
+      // try to read one more time before doing defaults
+      var mem_size;
+      if(lfuse===undefined){
+        mem_size=0x0;
+      } else {
+        mem_size = (lfuse&0xFF000000)>>24;
+      }
+      let calculated_mem = 1;
+      switch(mem_size){
+        case (0x4):
+          calculated_mem = 2;
+        break;
+        case (0x1):
+        case (0x0):
+          calculated_mem = 1;
+        break;
+      }
+      this._flash_size = (0x400*calculated_mem);
+      this._flashsize = (1024*1024*calculated_mem);
+      // initial set
+      //FLASH_WRITE_SIZE=this._flash_size;
+      //STUBLOADER_FLASH_WRITE_SIZE=this._flash_size;
+      //FLASH_SECTOR_SIZE=this._flash_size;
+    }
+    let m = this._flash_size;
+    console.log("detected memory is " + m);
     return m;
   }
   
