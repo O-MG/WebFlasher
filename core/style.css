@@ -240,3 +240,8 @@ button.fancy:hover::after {
   padding: 1.75rem 1.5rem;
   font-size: 1.25rem;
 }
+
+.wizard-button {
+  padding-left: 5px;
+  padding-right: 4px;
+}

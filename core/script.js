@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // to ensure people read things. 
     butWelcome.disabled=true;
     butProgram.disabled = true;
-    buildReleaseSelectors();
+    //buildReleaseSelectors(); // DISABLE IN DEBUG
     accordionDisable();
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
 

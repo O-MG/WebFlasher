@@ -7,7 +7,10 @@
     "help_message": "This is more advanced help. ",
     "validator": "",
     "image": "wizard/wizard.png",
-    "next_step": "fw_programmer_needed"
+    "next_step": [
+      {"step":"fw_programmer_needed","label":"Not Found?"},
+      {"step":"fw_swap_cable","label":"Next"}
+    ]
   },
   {
     "step": "fw_programmer_needed",

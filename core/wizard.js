@@ -70,8 +70,8 @@ function generateStepHTML(step) {
 
     if (step.help_message) {
         let buttonMoreHelp = document.createElement('button');
-        buttonMoreHelp.id = `btnWizard_${step.step}_help`;
-        buttonMoreHelp.classList.add('fancy', 'btn', 'btn-secondary', 'btn-lg');
+        buttonMoreHelp.id = `btn_wizard_${step.step}_help`;
+        buttonMoreHelp.classList.add('fancy', 'btn', 'btn-secondary', 'btn-lg', 'wizard-button');
         buttonMoreHelp.type = 'button';
         buttonMoreHelp.textContent = 'I Need More Help';
         //buttonMoreHelp.disabled = true;
@@ -81,20 +81,32 @@ function generateStepHTML(step) {
             handleExtraHelp(step);
         });
     }
+    
+    var nextStep;
 
-    var buttonNextStep = document.createElement('button');
-    buttonNextStep.id = `btnWizard_${step.next_step}`;
-    buttonNextStep.classList.add('fancy', 'btn', 'btn-success', 'btn-lg');
-    buttonNextStep.type = 'button';
-    buttonNextStep.textContent = 'Next';
-
-    buttonContainer.appendChild(buttonNextStep);
+	// compat 
+	if (typeof step.next_step === 'string') {
+		nextStep = [{'step':step.next_step,'label':"Next"}];
+	} else {
+        nextStep = step.next_step;
+    }
+	for (var i = 0; i < nextStep.length; i++) {
+		var step_path = nextStep[i].step;
+		var step_label = nextStep[i].label;
+		var buttonNextStep = document.createElement('button');
+		buttonNextStep.id = `btn_wizard_${step_path}`;
+		buttonNextStep.classList.add('fancy', 'btn', 'btn-success', 'btn-lg', 'wizard-button');
+		buttonNextStep.type = 'button';
+		buttonNextStep.textContent = `${step_label}`;
+		buttonContainer.appendChild(buttonNextStep);
+	}
 
     stepContainer.appendChild(bodyElement);
     stepContainer.appendChild(buttonContainer);
 
-    buttonNextStep.addEventListener('click', () => {
-        handleNextWizardStep(step);
+    buttonNextStep.addEventListener('click', (e) => {
+    	let next_step = e.target.id.replace("btn_wizard_","")
+        handleNextWizardStep(step,next_step);
     });
     //console.log(buttonNextStep);
     //console.log(stepContainer)
@@ -110,20 +122,20 @@ function renderWizard(steps){
     });
 }
 
-function handleExtraHelp(step){
+function handleExtraHelp(step,clicked_step){
     let curr_step = `wizard_${step.step}`
-    let next_step = `wizard_${step.next_step}`
+    let next_step = `wizard_${clicked_step}`
     if(doesElementExist(curr_step)){
         // do nothing right now
         logMsg(`User has requested extra help for step ${curr_step}`)
     }
 }
 
-function handleNextWizardStep(step){
+function handleNextWizardStep(step,clicked_step){
     let curr_step = `wizard_${step.step}`
-    let next_step = `wizard_${step.next_step}`
+    let next_step = `wizard_${clicked_step}`
 
-    logMsg(`User progressing from '${curr_step}' to ${next_step}.`)
+    logMsg(`User progressing from '${curr_step}' to ${clicked_step} (${next_step}).`)
     if(doesElementExist(next_step)){
         var ready = true;
         if (step.validator && (typeof window[step.validator] === 'function')) {
@@ -132,6 +144,8 @@ function handleNextWizardStep(step){
         if(ready){
             switchStep(next_step);
         }
+    } else {
+    	console.log(`Attempting to navigate to nonexistant wizard step ${clicked_step}`)
     }
 }
 
