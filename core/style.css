@@ -245,3 +245,67 @@ button.fancy:hover::after {
   padding-left: 5px;
   padding-right: 4px;
 }
+
+.wizard-container {
+  margin-top: 20px;
+}
+
+.wizard-steps {
+  margin-top: 10px;
+  padding-top: 2rem;
+}
+
+
+#wizard-slideout {
+  background: #fafafa;
+  color: #333;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5); /* Shadow */
+  position: fixed;
+  top: 0;
+  left: -600px; 
+  width: 600px;
+  height: 100%;
+  z-index: 9999;
+  -webkit-transition-duration: 0.3s;
+  -moz-transition-duration: 0.3s;
+  -o-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+}
+
+#wizard-slideout.on {
+  left: 0;
+}
+
+.wizard-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 8rem;
+  background-color: rgba(255, 255, 255, 0.5); /* Transparent white background */
+  box-shadow: 0 4px 2px -2px gray;
+}
+
+.text-shadow-1 { text-shadow: 0 .125rem .25rem rgba(0, 0, 0, .25); }
+.text-shadow-2 { text-shadow: 0 .25rem .5rem rgba(0, 0, 0, .25); }
+.text-shadow-3 { text-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .25); }
+
+.wizard-close-button {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  cursor: pointer;
+  font-size: 18px;
+  color: #b8b8b8;
+  text-shadow: 0 .125rem .25rem rgba(0, 0, 0, .25);
+}
+
+.start-support {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background-color: #f0f0f0;
+  padding: 10px;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}

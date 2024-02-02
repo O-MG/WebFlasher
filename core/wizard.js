@@ -2,8 +2,10 @@
 "use strict";
 
 const wizardFile = 'wizard/wizard.json'
-const stepsContainer = document.getElementById('steps-container');
+const helpPanel = document.getElementById('wizard-slideout')
+const stepsContainer = document.getElementById('wizard-steps');
 const butWizard = document.getElementById("btnWizardStart"); 
+const butCloseWizard = document.getElementById("wizard-close-button")
 
 let wizardStart = ""
 
@@ -14,6 +16,26 @@ function isHTML(str) {
 function doesElementExist(elementId) {
     return !!document.getElementById(elementId);
 }
+
+
+async function wizardStep(activeStep) {
+    // this may need to be more specific
+    let steps = stepsContainer.getElementsByClassName("wizard-step");
+    console.log("in here")
+    console.log(steps);
+    console.log(activeStep);
+    for (let i = 0; i < steps.length; i++) {
+        let step = steps[i];
+        console.log(activeStep);
+        console.log(step);
+        if (activeStep === step.id) {
+            step.classList.remove("d-none");
+        } else {
+            step.classList.add("d-none");
+        }
+    }
+}
+
 
 async function loadWizard() {
 	fetch(wizardFile)
@@ -37,11 +59,12 @@ async function loadWizard() {
 
 function generateStepHTML(step) {
     var stepContainer = document.createElement('div');
-    stepContainer.classList.add('step', 'd-none');
+    stepContainer.classList.add('wizard-step', 'd-none');
     stepContainer.id = `wizard_${step.step}`;
 
     var h2Element = document.createElement('h2');
     h2Element.textContent = step.title;
+    h2Element.classList.add('pb-2','border-bottom');
 
     stepContainer.appendChild(h2Element);
 
@@ -49,7 +72,7 @@ function generateStepHTML(step) {
         let imageDiv = document.createElement('div');
         imageDiv.classList.add('wizard-image',"container");
         let imageRes = document.createElement('img');
-        imageRes.classList.add("img-fluid","mw-80")
+        imageRes.classList.add("img-fluid","mw-80","rounded-4","shadow-lg");
         imageRes.src = step.image;
         imageRes.alt = step.step;
         imageDiv.appendChild(imageRes);
@@ -119,6 +142,8 @@ function renderWizard(steps){
     }
     steps.forEach(step => {
         stepsContainer.prepend(generateStepHTML(step));
+        console.log(stepsContainer)
+        console.log(generateStepHTML(step))
     });
 }
 
@@ -142,10 +167,19 @@ function handleNextWizardStep(step,clicked_step){
             ready = window[step.validator](step);
         }
         if(ready){
-            switchStep(next_step);
+            wizardStep(next_step);
         }
     } else {
     	console.log(`Attempting to navigate to nonexistant wizard step ${clicked_step}`)
+    }
+}
+
+function toggleHelpPanel(){
+    helpPanel.classList.toggle("on");
+    if(helpPanel.classList.contains("on")){
+        butWizard.textContent="Close Help"
+    } else {
+        butWizard.textContent = "Continue Help"
     }
 }
 
@@ -156,7 +190,12 @@ document.addEventListener('DOMContentLoaded', () => {
     butWizard.addEventListener('click', async function() {
         if(wizardStart != ""){
             logMsg(`User starting guided wizard for flashing. Initial Step: ${wizardStart}`)
-            await switchStep(wizardStart);
+            toggleHelpPanel();
+            await wizardStep(wizardStart);
+
         }
     });
+    butCloseWizard.addEventListener('click', () => {
+        toggleHelpPanel();
+    })
 });

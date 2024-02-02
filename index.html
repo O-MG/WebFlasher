@@ -149,7 +149,7 @@
 								</div>
 								<!--<div class="p-4"></div>-->
                             </div>
-                            <div class="step d-none" id="step-mode-selector">
+                            <!--<div class="step d-none" id="step-mode-selector">
 								<div class="d-flex justify-content-between bd-highlight mb-3">
 									<div class="p-2 bd-highlight"></div>
 									<div class="p-2 bd-highlight"><h2>O.MG Web Flasher</h2></div>
@@ -173,16 +173,14 @@
 										<div class="d-flex p-2 font-weight-normal">
 											<p>Welcome to the O.MG WebFlasher. This tool is designed to get you started with your O.MG Device. To begin, please select "Advanced" mode or the "Step by Step" Wizard</p><p></p>
 										</div>
-									<!--</div>
-									<div class="m-2 bg-white">-->
 										<div class="d-flex justify-content-center align-items-center p-2">
-											<button id="btnWizardStart" class="btn btn-danger btn-mode-select me-2 d-none">Step by Step</button>
+											
 											<button id="btnAdvanced" class="btn btn-danger btn-mode-select">Advanced</button>
 										</div>
 									</div>
 									<div class="p-4"></div>
 								</div>
-                            </div>
+                            </div>-->
                             <div class="step d-none" id="modular-stepper">
 								<div class="d-flex justify-content-between bd-highlight mb-3">
 									<div class="p-2 bd-highlight"></div>
@@ -555,6 +553,15 @@
 			</div>
 		</div>
 	</div>
+	<div id="wizard-slideout">
+		<div class="container px-4 py-5" id="wizard-container">
+			<div id="wizard-close-button" class="wizard-close-button btn btn-secondary btn-sm">X</div>
+			<div id="wizard-steps">
+				<!--content fill here-->
+			</div>
+			<div class="wizard-footer"></div>	
+		</div>		
+	</div>
 	<div class="modal fade" id="notSupported" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="notSupported" aria-hidden="true">
 		<div class="modal-dialog modal-fullscreen">
 			<div class="modal-content text-center align-middle p-5">
@@ -569,6 +576,9 @@
 				</div>
 			</div>
 		</div>
+	</div>
+	<div class="start-support">
+		<button id="btnWizardStart" class="btn btn-danger btn-mode-select me-2 d-none">Step by Step</button>
 	</div>
     <script src="js/bootstrap.min.js "></script>
 </body>

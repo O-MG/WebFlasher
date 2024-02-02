@@ -16,14 +16,12 @@ const maxLogLength = 100;
 const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
 const butWelcome = document.getElementById("btnWelcome");
-const butAdvanced = document.getElementById("btnAdvanced");
 const butRejectFlash = document.getElementById("btnDeny");
 const butWizardStart = document.getElementById("btnWizardStart"); 
  
 const butStart = document.getElementById("btnStart");
 const butConnect = document.getElementById("btnConnect");
 const butSkipWelcome = document.getElementById("welcomeScreenCheck");
-const butAdvancedMode = document.getElementById("advancedMode");
 const agreementModal = document.getElementById("agreement-modal");
 
 // Console Modal
@@ -83,8 +81,7 @@ var settings = {
     "devWiFiPass": txtSSIDPass,
     "devWifiMode": butWifiMode,
     "firmwareRelease": butBranch,
-    "skipWelcome": butSkipWelcome,
-    "advancedMode": butAdvancedMode
+    "skipWelcome": butSkipWelcome
 }
 
 var releaseDataCache = {}
@@ -194,7 +191,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // set the clear button and reset
     butWelcome.addEventListener("click", clickWelcome);
-    butAdvanced.addEventListener("click", clickAdvanced);
     butStart.addEventListener("click",clickWelcomeStart);
     butRejectFlash.addEventListener("click",clickRejectFlash);
     //butSkipWelcome.addEventListener("click", clickSkipWelcome);
@@ -228,7 +224,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // to ensure people read things. 
     butWelcome.disabled=true;
     butProgram.disabled = true;
-    buildReleaseSelectors(); // DISABLE IN DEBUG / RENABLE FOR RELEASE
+    //buildReleaseSelectors(); // DISABLE IN DEBUG / RENABLE FOR RELEASE
     accordionDisable();
     logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
 
@@ -518,11 +514,7 @@ async function clickAdvanced(){
 }
 
 async function clickWelcome() {
-    if(!butWizardStart.classList.contains("d-none") || butAdvancedMode.checked == false){
-        switchStep("step-mode-selector");
-    } else {
-        await clickAdvanced();
-    }
+    await clickAdvanced();
 }
 
 async function clickRejectFlash(){
