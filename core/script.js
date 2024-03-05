@@ -1280,6 +1280,7 @@ async function patchFlash(bin_list) {
             configuration["wifissid"] = settings["devWiFiSSID"].value;
             configuration["wifikey"] = settings["devWiFiPass"].value;
         }
+	configuration["devicename"] = "omg";
 	    
         let pos = 0 ;
         // mod_array.indexOfString(utf8Encoder.encode("INIT;"));
