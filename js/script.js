@@ -1466,7 +1466,7 @@ function toggleUIHardware(ready) {
 
 function toggleUIConnected(connected, msg = "") {
     let lbl = "Connect";
-    let message = "Cannot connect to O.MG Device";
+    let message = "Cannot connect to O.MG Device.";
     if(msg!=""){
         if(msg instanceof DOMException){
             message = msg.message.replace(/^[^:]*:/, '').trim();

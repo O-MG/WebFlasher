@@ -97,7 +97,8 @@
                 <div id="qbox-container" class="p-4">
                         <div id="steps-container" class="p-5">
                             <div class="step" id="step-welcome">
-                                <h2>Welcome to the O.MG Web Programmer </h2>
+                                <h2>O.MG Web Flasher</h2>
+								<p>This tool is used exclusively to flash firmware to O.MG Devices</p>
                                 <div class="m-2 bg-white agreement-modal" id="agreement-modal">
 									<h4>Agreement</h4>
 									<p>O.MG Cable, O.MG Adapter, and O.MG Plug are trademarks of Mischief Gadgets, LLC. Mischief Gadgets, LLC requires that all users read and accept the provisions of the Terms of Use Policy and the Privacy Policy prior to granting users any authorization to use pentesting hardware created by Mischief Gadgets, LLC and/or its affiliates. The Terms of Use Policy and the Privacy Policy can be found at https://o.mg.lol, and must be affirmatively consented to by users prior to using any pentesting hardware created by Mischief Gadgets, LLC and/or its affiliates (hereinafter referred to as “O.MG Devices”).
@@ -282,20 +283,24 @@
 									<div>
 										
 										<p class="lead text-center" id="success-msg">
-											To use the O.MG Device: Plug the active into a USB port. 
-											Then connect to the WiFi network and browse to http://192.168.4.1/.  
-											<br/><strong>PLEASE FULLY READ THE <a href=" https://github.com/O-MG/O.MG_Cable-Firmware/wiki">USAGE AND SAFETY INSTRUCTIONS</a> BEFORE USE</strong>
-											<br/>SPECS:
-											<ul>
-												<li>Power: 5v (+/- 0.5v), 500mA</li>
-												<li>Radio: 802.11b/g/n (2.4GHz)</li>
-												<li>For Devices with passthrough capability (O.MG Cable, O.MG Adapter, & O.MG UnBlocker):
-													<ul>
-														<li>Passthrough Charging: 5v (max)</li>
-														<li>Passthrough Data: 480mbps USB</li>
-													</ul>
-												</li>
-											</ul>
+											<p class=""lead">
+												To use the O.MG Device: Plug the active into a USB port. 
+												Then connect to the WiFi network and browse to http://192.168.4.1/. 
+												<br/>PLEASE FULLY READ THE <a href=" https://github.com/O-MG/O.MG_Cable-Firmware/wiki">USAGE AND SAFETY INSTRUCTIONS</a> BEFORE USE
+											</p>
+											<div style="text-align: left;">
+												SPECS:
+												<ul style="font-weight: normal;"></ulstyle>
+													<li>Power: 5v (+/- 0.5v), 500mA</li>
+													<li>Radio: 802.11b/g/n (2.4GHz)</li>
+													<li>For Devices with passthrough capability (O.MG Cable, O.MG Adapter, & O.MG UnBlocker):
+														<ul>
+															<li>Passthrough Charging: 5v (max)</li>
+															<li>Passthrough Data: 480mbps USB</li>
+														</ul>
+													</li>
+												</ul>
+											</div>
 										</p>
 										<p class="d-none text-center" id="success-state-msg"> 
 											Further details about the current flashing process can be seen in the flasher log (button in the top right of this screen).
