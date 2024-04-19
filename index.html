@@ -196,7 +196,7 @@
 											</h2>
 											<div id="programmerStep1-collapse" class="accordion-collapse collapse show" aria-labelledby="programmerStep1">
 												<div class="accordion-body">
-													First, connect the O.MG Programmer to your computer. Then plug the O.MG Cable/Adapter/Plug into the programmer. Need help? Click the Help button below.
+													First, connect the O.MG Programmer to your computer. Then plug the <b>active end</b> of the O.MG Device into the programmer. Need help or more details? Click the Help button below.
 												</div>
 												<div class="pb-2 pt-3 justify-content-center text-center">
 													<button type="button" class="btn btn-success btn-lg" id="btnConnectHw">Continue</button>
@@ -269,7 +269,7 @@
                             	</div>
                                 <div class="mt-2">
                                 	<div class="text-center" style="margin:0;padding:0;">
-										<h3 class="display-6" id="success-notification">Success!</h3>
+										<h3 class="display-6" id="success-notification">Firmware Flashed Successfully!</h3>
 										<br/>
 									</div>
 									<div class="text-center" id="success-info">
@@ -282,12 +282,23 @@
 									<div>
 										
 										<p class="lead text-center" id="success-msg">
-											To use the O.MG Cable: Plug the cable into a USB port. 
+											To use the O.MG Device: Plug the active into a USB port. 
 											Then connect to the WiFi network and browse to http://192.168.4.1/.  
-											<br/>For additional instructions, please go <a href=" https://github.com/O-MG/O.MG_Cable-Firmware/wiki">here</a>.
+											<br/><strong>PLEASE FULLY READ THE <a href=" https://github.com/O-MG/O.MG_Cable-Firmware/wiki">USAGE AND SAFETY INSTRUCTIONS</a> BEFORE USE</strong>
+											<br/>SPECS:
+											<ul>
+												<li>Power: 5v (+/- 0.5v), 500mA</li>
+												<li>Radio: 802.11b/g/n (2.4GHz)</li>
+												<li>For Devices with passthrough capability (O.MG Cable, O.MG Adapter, & O.MG UnBlocker):
+													<ul>
+														<li>Passthrough Charging: 5v (max)</li>
+														<li>Passthrough Data: 480mbps USB</li>
+													</ul>
+												</li>
+											</ul>
 										</p>
 										<p class="d-none text-center" id="success-state-msg"> 
-											Further details can be seen in the console and corresponding log from the flasher log button in the top right of the interface
+											Further details about the current flashing process can be seen in the flasher log (button in the top right of this screen).
 										</p> 
 									</div>
                                 </div>
@@ -477,9 +488,10 @@
 				</div>
 				<div class="modal-body">
 					<div class="container-fluid">
-						<p>Press the Program Button, and wait for the upgrade to complete. It may take a few minutes</p>
+						<p>Press the Program Button, and wait for the upgrade to complete. It may take a few minutes.</p>
+						<p>Not sure which firmware? Choose the default selected firmware.</p>
 						<p>If you see an error, please verify all components are plugged in properly and that no other devices are connected to your O.MG Device besides the programmer.</p>
-						<p>If using the A+C Programmer, you should see the PWR light turn on when the programmer is connected to your computer. Then the 2nd light (CABLE or O.MG) will turn on when your O.MG device is attached. The ACT light will briefly flash when the flasher is talking to the O.MG Device. Any other behavior indicates a possible issue and you should ask for help on #omg-support: https://hak5.org/discord </p>
+						<p>If using the A+C Programmer, you should see the PWR light turn on when the programmer is connected to your computer. The USB light turns on when there is a data link between your computer and the Programmer. The OMG light will turn on when your O.MG device is correctly attached. The ACT light will briefly flash when the flasher is talking to the O.MG Device. Any other behavior indicates a possible issue and you should ask for help on #omg-support: https://hak5.org/discord </p>
 						<p>Refresh the page to try flashing again.</p>
 					</div>
 				</div>
