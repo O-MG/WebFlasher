@@ -622,10 +622,10 @@ class EspLoader {
       inputBuffer = []
       let response = await this._sync();
       if (response) {
-        await this.sleep(100);
+        await this.sleep(200);
         return true;
       }
-      await this.sleep(100);
+      await this.sleep(200);
     }
 
     throw("Couldn't sync to O.MG Device. Try unplugging & replugging the programmer and try again.");
