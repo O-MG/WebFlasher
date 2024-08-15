@@ -894,18 +894,24 @@ class EspLoader {
     }
   }
   
-  async reset(r = false, baseTimeout=500, timeoutMultiplier=1) {
-    logMsg("Trying Serial Reset....")
+  async reset(r = false, baseTimeout=500) {
+  	var start = Date.now();
+  	var delta = 0.0;
+    logMsg("Preparing Serial Connection... (delay:" + (delta) +  "ms) ");
     await port.setSignals({
       dataTerminalReady: false,
       requestToSend: true,
     });
-    await new Promise((resolve) => setTimeout(resolve, baseTimeout*timeoutMultiplier));
+    await this.sleep(baseTimeout);
+    delta = Date.now() - start;
+    logMsg("Performing power off and waiting " + (baseTimeout/1000) + " seconds... (delay:" + (delta) +  "ms) ")
     await port.setSignals({
       dataTerminalReady: r,
       requestToSend: false,
     });
-    await new Promise((resolve) => setTimeout(resolve, baseTimeout));
+    await this.sleep(baseTimeout*2);
+    delta = Date.now() - start;
+    logMsg("Reboot action completed, handing off control... (delay:" + (delta) +  "ms) ");
   }
 
   async getStubCode() {

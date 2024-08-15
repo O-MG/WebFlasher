@@ -6,7 +6,7 @@
 var espTool;
 
 const baudRates = [115200];
-const connectionBaseDelay = 500;
+const connectionBaseDelay = 1000;
 const connectionAttempts = 4;
 const bufferSize = 512;
 const eraseFillByte = 0x00;
@@ -539,10 +539,15 @@ async function clickConnect() {
     let sync_status = false;
     await connect();
     for(let i=0;i<connectionAttempts;i++){
+    	// as our resets continue we wait longer
         let delay = (i+1)*connectionBaseDelay;
         logMsg("Trying to initiate connection with O.MG Device...")
-        await espTool.reset(true,delay);
-        sync_status = await espTool.sync();
+        try {
+	        await espTool.reset(true,delay);
+	        sync_status = await espTool.sync();
+	    } catch (error) {
+	    	logMsg("Exception took place in processing serial action: " + error)
+	    }
         if(sync_status){
             logMsg("Obtained synchronization with O.MG Device")
             break;
