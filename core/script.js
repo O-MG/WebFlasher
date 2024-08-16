@@ -590,7 +590,7 @@ async function clickConnect() {
             console.log(espTool);
         }
     } catch (e) {
-        errorMsg(e);
+        errorMsg(e + " See <a href='https://o.mg.lol/setup/breakfix.html'>our Troubleshooting Guide</a> for more information.");
         await disconnect();
         toggleUIConnected(false);
         return;
