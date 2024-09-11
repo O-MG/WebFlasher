@@ -529,8 +529,9 @@ async function clickConnect() {
     }
     butConnect.textContent = " Connecting";
     butConnect.insertAdjacentHTML('afterbegin', '<span class="spinner-border spinner-border-sm"></span> ');
-    await connect();
     for (let tries = 1; tries < 5; tries++){
+        await connect();
+        sleep(500);
         try {
             if (await espTool.sync()) {
                 toggleUIConnected(true);
