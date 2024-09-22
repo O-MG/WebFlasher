@@ -398,7 +398,7 @@ class EspLoader {
 
     if(!bypassRequest){
       this.logMsg("Try to reset.")
-      await this.hardReset(true);
+      await this.preferredReset(true);
     }
     
     outputStream = port.writable;
@@ -914,6 +914,22 @@ class EspLoader {
     });
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
+
+  async preferredReset(r = false) {
+    logMsg("Power Off...")
+    await port.setSignals({
+      dataTerminalReady: false,
+      requestToSend: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await port.setSignals({
+      dataTerminalReady: r,
+      requestToSend: false,
+      //break: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+
 
   async getStubCode() {
     let response = await fetch('stubs/' + this.getStubFile() + '.json');
