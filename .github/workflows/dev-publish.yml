@@ -22,9 +22,18 @@ jobs:
         id: prep
         run: |
           COMMIT="${GITHUB_SHA::8}"
-          echo ::set-output name=commit::${COMMIT}    
-          echo "::set-output name=branch::${GITHUB_REF#refs/heads/}"
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')  
+          echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
+          echo "short_commit=${SHORT_COMMIT}" >> $GITHUB_OUTPUT
+          echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+          echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          #echo ::set-output name=commit::${COMMIT}    
+          #echo "::set-output name=branch::${GITHUB_REF#refs/heads/}"
+          #echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')  
+      - name: Update script.js
+        run: |
+          COMMIT="${GITHUB_SHA::8}"
+          sed -i "s/^const wf_ver = .*/const wf_ver = '${COMMIT}';/" core/script.js || true
+          sed -i "s/^const wf_ver = .*/const wf_ver = '${COMMIT}';/" js/script.js || true
       - name: Push to Dev Repo 
         run: |
            MAINNAME="main"

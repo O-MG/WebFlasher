@@ -378,35 +378,48 @@ class EspLoader {
    * output stream.
    */
   async connect(bypassRequest = false) {
+    const filter = { usbVendorId: 0x10c4 };
+    var filters = []
+    if (!this.debug) {
+      filters.push(filter);
+    }
     if (!bypassRequest) {
-      const filter = { usbVendorId: 0x10c4 };
-      var filters = []
-      if (!this.debug) {
-        filters.push(filter);
-      }
       port = await navigator.serial.requestPort({ filters: filters });
-      if (this.getChromeVersion() < 86) {
-        await port.open({ baudrate: ESP_ROM_BAUD });
-      } else {
-        await port.open({ baudRate: ESP_ROM_BAUD });
+    }
+
+    /*if (port) {
+      try {
+        await disconnect();
+      } catch(e) {
+        console.log("caught error in disconnect:" + e)
       }
+    }*/
+
+    if (this.getChromeVersion() < 86) {
+      await port.open({ baudrate: ESP_ROM_BAUD });
+    } else {
+      await port.open({ baudRate: ESP_ROM_BAUD });
     }
 
     const signals = await port.getSignals();
 
     this.logMsg("Serial connection opened successfully.")
 
-    if(!bypassRequest){
-      this.logMsg("Try to reset.")
-      await this.preferredReset(true);
+    let ms = 2000;
+    if(bypassRequest){
+      ms = 3000;
     }
-    
+
+    this.logMsg("Trying to reset...")
+    //await this.hardReset(true);
+    await this.preferredReset(true,ms);
+  
     outputStream = port.writable;
     inputStream = port.readable;
   }
 
   connected() {
-    if (port) {
+    if (port&&port.connected) {
       return true;
     }
     return false;
@@ -427,8 +440,26 @@ class EspLoader {
       outputStream = null;
     }
 
-    await port.close();
-    port = null;
+    console.log(port)
+    try {
+      // note: port.connected will show open even if the port isn't open in another tab
+      if(port.connected&&port.writable){
+        this.logMsg("Port is opened by this current session and will be closed.");
+        await port.close();
+      } else if(port.connected&&!port.writable){
+        this.logMsg("Warning: Port may be active on another tab or was previously activated.");
+        try {
+          await port.close();
+        } catch(e) {
+          console.log(e);
+        }
+      } else {
+        this.logMsg("Serial port is ready to be opened.");
+      }
+    } catch(e) {
+      console.log(e)
+    }
+    //port = null;
   }
 
   /**
@@ -906,29 +937,30 @@ class EspLoader {
       dataTerminalReady: false,
       requestToSend: true,
     });
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     await port.setSignals({
       dataTerminalReady: r,
       requestToSend: false,
       break: false,
     });
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 
-  async preferredReset(r = false) {
+  async preferredReset(r = false,ms=2000) {
     logMsg("Power Off...")
     await port.setSignals({
       dataTerminalReady: false,
       requestToSend: true,
     });
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, ms));
     await port.setSignals({
       dataTerminalReady: r,
       requestToSend: false,
       //break: false,
     });
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, (ms/2 < 1000 ? 1000 : ms/ 2)))
   }
+
 
 
   async getStubCode() {
