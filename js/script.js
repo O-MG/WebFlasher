@@ -10,6 +10,7 @@ const bufferSize = 512;
 const eraseFillByte = 0x00;
 
 const maxLogLength = 100;
+const maxBreakRetries = 4;
 
 const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
@@ -257,10 +258,49 @@ async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 10
 
 async function connect() {
     logMsg("Connecting...")
-    await espTool.connect()
+    let attempt = 1
+    while (true) {
+        await espTool.connect(attempt != 1)
+        reader = port.readable.getReader();
+        try {
+            await readOrTimeout(50); // 50ms defined spec
+            logMsg('Initial read done...')
+            break
+        } catch (err) {
+            if ((err.name === 'BreakError'||err.name === "BufferOverrunError") && attempt < maxBreakRetries) {
+                reader.releaseLock()
+                logMsg(`Caught break error, sleeping for ${attempt*500} second and then retrying. (${attempt}/${maxBreakRetries}) `)
+                await sleep(attempt*500)
+                attempt++
+                console.log(`Retrying read; attempt ${attempt}/${maxBreakRetries}`)
+                continue
+            }
+
+            throw err // boil anything else up
+        }
+    }
+
     readLoop().catch((error) => {
         toggleUIConnected(false, error);
     });
+}
+
+function readOrTimeout(ms=500) {
+    return new Promise((resolve, reject) => {
+        let timeoutId = setTimeout(() => {
+            resolve()
+        }, ms)
+
+        readOnce()
+            .then(() => {
+                clearTimeout(timeoutId)
+                if(debugState){
+                    logMsg("Message Read Successful")
+                }
+                resolve()
+            })
+            .catch(reject)
+    })
 }
 
 function initBaudRate() {
@@ -367,23 +407,25 @@ async function endHelper() {
 
 }
 
+async function readOnce() {
+        const {
+            value,
+            done
+        } = await reader.read();
+    inputBuffer = inputBuffer.concat(Array.from(value));
+
+        if (done) {
+            reader.releaseLock();
+        return done;
+        }
+}
+
 /**
  * @name readLoop
  * Reads data from the input stream and places it in the inputBuffer
  */
 async function readLoop() {
-    reader = port.readable.getReader();
-    while (true) {
-        const {
-            value,
-            done
-        } = await reader.read();
-        if (done) {
-            reader.releaseLock();
-            break;
-        }
-        inputBuffer = inputBuffer.concat(Array.from(value));
-    }
+    while (!await readOnce());
 }
 
 // https://stackoverflow.com/questions/3665115/how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server
@@ -551,11 +593,7 @@ async function clickConnect() {
             await espTool.chipName();
             // and proceed 
             if (baud != ESP_ROM_BAUD) {
-                if (await espTool.chipType() == ESP32) {
-                    logMsg("WARNING: ESP32 is having issues working at speeds faster than 115200. Continuing at 115200 for now...")
-                } else {
                     await changeBaudRate(baud);
-                }
             }
         }
         isConnected = true;
@@ -1201,7 +1239,9 @@ async function patchFlash(bin_list) {
         let perform_patch = true; // set this to true once we verify html elements
  
         let configuration = {} 
-        // this is first 
+        configuration["flasher"] = "webflasherv2";
+        // this is disabled in v4 firmware, use new wifi controller instead
+        /*
         if(settings['customizeConfig'].checked){
             perform_patch=true;
             // edge case here, need error trapping
@@ -1209,8 +1249,8 @@ async function patchFlash(bin_list) {
             configuration["wifissid"] = settings["devWiFiSSID"].value;
             configuration["wifikey"] = settings["devWiFiPass"].value;
         }
-	configuration["devicename"] = "omg";
-	    
+	    configuration["devicename"] = "omg";
+	    */
         let pos = 0 ;
         // mod_array.indexOfString(utf8Encoder.encode("INIT;"));
         if (pos > -1 && perform_patch) {

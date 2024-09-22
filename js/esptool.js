@@ -377,28 +377,29 @@ class EspLoader {
    * Opens a Web Serial connection to a micro:bit and sets up the input and
    * output stream.
    */
-  async connect() {
-    // - Request a port and open a connection.
-    const filter = { usbVendorId: 0x10c4 };
-    var filters = []
-    if (!this.debug) {
-	    filters.push(filter);
-    }
-    port = await navigator.serial.requestPort({ filters: filters });
-
-    // - Wait for the port to open.toggleUIConnected
-    if (this.getChromeVersion() < 86) {
-      await port.open({ baudrate: ESP_ROM_BAUD });
-    } else {
-      await port.open({ baudRate: ESP_ROM_BAUD });
+  async connect(bypassRequest = false) {
+    if (!bypassRequest) {
+      const filter = { usbVendorId: 0x10c4 };
+      var filters = []
+      if (!this.debug) {
+        filters.push(filter);
+      }
+      port = await navigator.serial.requestPort({ filters: filters });
+      if (this.getChromeVersion() < 86) {
+        await port.open({ baudrate: ESP_ROM_BAUD });
+      } else {
+        await port.open({ baudRate: ESP_ROM_BAUD });
+      }
     }
 
     const signals = await port.getSignals();
 
-    this.logMsg("Connected successfully.")
+    this.logMsg("Serial connection opened successfully.")
 
-    this.logMsg("Try to reset.")
-    await this.hardReset(true);
+    if(!bypassRequest){
+      this.logMsg("Try to reset.")
+      await this.hardReset(true);
+    }
     
     outputStream = port.writable;
     inputStream = port.readable;
@@ -905,12 +906,13 @@ class EspLoader {
       dataTerminalReady: false,
       requestToSend: true,
     });
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await port.setSignals({
       dataTerminalReady: r,
       requestToSend: false,
+      break: false,
     });
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   async getStubCode() {
