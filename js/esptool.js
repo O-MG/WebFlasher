@@ -377,8 +377,7 @@ class EspLoader {
    * Opens a Web Serial connection to a micro:bit and sets up the input and
    * output stream.
    */
-  async connect(bypassRequest = false) {
-    if (!bypassRequest) {
+  async connect() {
     // - Request a port and open a connection.
     const filter = { usbVendorId: 0x10c4 };
     var filters = []
@@ -392,7 +391,6 @@ class EspLoader {
       await port.open({ baudrate: ESP_ROM_BAUD });
     } else {
       await port.open({ baudRate: ESP_ROM_BAUD });
-      }
     }
 
     const signals = await port.getSignals();
