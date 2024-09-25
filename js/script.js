@@ -1532,9 +1532,6 @@ function toggleUIConnected(connected, msg = "") {
         lbl = "Error";
         sdstat("error","hardware-missing");
         let err = `${message} Click the Help button below for common fixes. Then refresh this page to attempt flashing again.`;
-        if(message.toLowerCase().includes("break")){
-        	err = `${message}. To fix this issue please go to <a href="https://o.mg.lol/setup/breakfix.html">https://o.mg.lol/setup/breakfix.html</a>.`
-        }
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
