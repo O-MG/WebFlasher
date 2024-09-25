@@ -5,16 +5,12 @@
 
 var espTool;
 
-const wf_ver = "1.5"
-
 const baudRates = [115200];
 const bufferSize = 512;
 const eraseFillByte = 0x00;
 
 const maxLogLength = 100;
-
-var maxRetriesReached = false;
-var maxBreakRetries = 1;
+const maxBreakRetries = 4;
 
 const log = document.getElementById("log");
 const stepBox = document.getElementById("steps-container");
@@ -86,10 +82,8 @@ var settings = {
 }
 
 const url_memmap = "assets/memmap.json";
-//const url_releases = "https://api.github.com/repos/O-MG/O.MG-Firmware/releases?per_page=100"; // move to proper spot later.
-//const url_branches = "https://api.github.com/repos/O-MG/O.MG-Firmware/branches";
-const url_releases = "./releases.json"
-const url_branches = "./branches.json"
+const url_releases = "https://api.github.com/repos/O-MG/O.MG-Firmware/releases?per_page=100"; // move to proper spot later.
+const url_branches = "https://api.github.com/repos/O-MG/O.MG-Firmware/branches";
 const url_base = "https://raw.githubusercontent.com/O-MG/O.MG-Firmware"; 
 
 
@@ -131,16 +125,12 @@ document.addEventListener("DOMContentLoaded", () => {
         skipWelcome=false; 
         toggleDevConf(true);
         butCustomize.disabled=false;
-        butCustomize.classList.remove("d-none");
+	butCustomize.classList.remove("d-none");
         butSettings.classList.remove("d-none");
         let debug_im="Debug Mode Detected: URL is: " + window.location.href;
         logMsg(debug_im);
         console.log(debug_im);
-        const elements = document.getElementsByClassName("flasher-title");
-        for (let i = 0; i < elements.length; i++) {
-            elements[i].textContent += ` ${wf_ver}`;
-        }
-        debug=true;
+    debug=true;
     } else {
         // for 2.5 BETA RELEASE ONLY
         butCustomize.disabled=false;
@@ -156,23 +146,10 @@ document.addEventListener("DOMContentLoaded", () => {
         debug: false
     })
     butConnect.addEventListener("click", () => {
-        clickConnect()
-        .catch(async (e) => {
-            if(e.name === "NotFoundError"){
-                logMsg("User did not select a serial device!")
-                toggleUIHardware(false,"No device selected by user.");
-            } else if (e.name === "NetworkError"){ // e.name === "InvalidStateError"){
-                console.log(e);
-                logMsg("Serial port is unavailable to be opened.")
-                toggleUIHardware(false,"Serial device unavailable and likely being used by another process.");     
-            } else {
-                console.log(e);
-                disconnect();
-            }
-            throw e;
-            logMsg(e.message);
-            // TODO: REST
-
+        clickConnect().catch(async (e) => {
+            errorMsg(e.message);
+            disconnect();
+            toggleUIConnected(false,e);
         });
     });
 
@@ -243,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
     butProgram.disabled = true;
     buildReleaseSelectors();
     accordionDisable();
-    logMsg(`Welcome to O.MG Web Serial Flasher version ${wf_ver}`);
+    logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
 
 });
 
@@ -274,16 +251,16 @@ async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 10
 		let consiseError = "Unable to download  " + url + " after multiple retries";
 		sdstat("error","server-error-downloading-firmware");
 		setStatusAlert(consiseError, "danger");
-		throw new Error(consiseError + " full error: " + error);
+		throw new Error(consiseError);
 	  }
 	});
 }
 
-async function connect(bypassRequest=false) {
+async function connect() {
     logMsg("Connecting...")
     let attempt = 1
     while (true) {
-        await espTool.connect((bypassRequest||attempt != 1))
+        await espTool.connect(attempt != 1)
         reader = port.readable.getReader();
         try {
             await readOrTimeout(50); // 50ms defined spec
@@ -292,27 +269,19 @@ async function connect(bypassRequest=false) {
         } catch (err) {
             if ((err.name === 'BreakError'||err.name === "BufferOverrunError") && attempt < maxBreakRetries) {
                 reader.releaseLock()
-                logMsg(`Caught break error, sleeping for ${attempt*1000} ms and then retrying. (${attempt}/${maxBreakRetries}) `)
-                await sleep(attempt*1000)
+                logMsg(`Caught break error, sleeping for ${attempt*500} second and then retrying. (${attempt}/${maxBreakRetries}) `)
+                await sleep(attempt*500)
                 attempt++
                 console.log(`Retrying read; attempt ${attempt}/${maxBreakRetries}`)
                 continue
             }
-            if(attempts>=maxBreakRetries){
-                maxRetriesReached=true;
-                break;
-            }
+
             throw err // boil anything else up
         }
     }
-    if(maxRetriesReached){
-        console.log("ABRT");
-    }
+
     readLoop().catch((error) => {
-        console.log(error);
-        if(maxRetriesReached){
-            toggleUIConnected(false, error);
-        }
+        toggleUIConnected(false, error);
     });
 }
 
@@ -598,78 +567,44 @@ async function clickConnect() {
     }
     butConnect.textContent = " Connecting";
     butConnect.insertAdjacentHTML('afterbegin', '<span class="spinner-border spinner-border-sm"></span> ');
-    
-    let tries = 1;
-    while(tries <= maxBreakRetries){
-        await connect(tries != 1);
-        console.log(`Connection attempt ${tries}.`);
-        logMsg(`Connection attempt ${tries}.`);
-        try {
-            console.log("try");
-            if (await espTool.sync()) {
-                toggleUIConnected(true);
-                let baud = parseInt(baudRate.value);
-                // get our chip info 
-                logMsg("Connected to " + await espTool.chipName());
-                if (debugState) {
-                    console.log(espTool);
-                }
-                logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
-                if (debugState) {
-                    console.log(espTool);
-                }
-                var flashSize = await espTool.getFlashMB();
-                logMsg("Flash Size: " + flashSize);
-                if (debugState) {
-                    console.log(espTool);
-                }
-                //espTool.setBaudrate(115200);
-                espTool = await espTool.runStub();
-                console.log(espTool)
-                // annoyingly we have to run this again after initial setting
-                await espTool.chipType();
-                await espTool.chipName();
-                // and proceed 
-                if (baud != ESP_ROM_BAUD) {
-                        await changeBaudRate(baud);
-                }
-                console.log("connected")
-                isConnected = true;
-                break;
-                
-            }
-            if(isConnected){
-                break
-            }
+    await connect();
+    try {
+        if (await espTool.sync()) {
+            toggleUIConnected(true);
+            let baud = parseInt(baudRate.value);
+            // get our chip info 
+            logMsg("Connected to " + await espTool.chipName());
             if (debugState) {
                 console.log(espTool);
             }
-            
-        } catch (e) {
-            //errorMsg(e);
-            if(debugState){
-                console.log(e);
+            logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
+            if (debugState) {
+                console.log(espTool);
             }
-            await disconnect();
-            //toggleUIConnected(false,e);
-            //return;
+            var flashSize = await espTool.getFlashMB();
+            logMsg("Flash Size: " + flashSize);
+            if (debugState) {
+                console.log(espTool);
+            }
+            //espTool.setBaudrate(115200);
+            espTool = await espTool.runStub();
+            // annoyingly we have to run this again after initial setting
+            await espTool.chipType();
+            await espTool.chipName();
+            // and proceed 
+            if (baud != ESP_ROM_BAUD) {
+                    await changeBaudRate(baud);
+            }
         }
-        tries++;
-    }
-    if(!isConnected){
-        console.log("Exhausted connection attemptss")
-        maxRetriesReached=true;
-        butConnect.textContent = "Error"
-        butConnect.disabled=true;
-        errorMsg(`Programmer was detected but could not communicate to O.MG Device during ${maxBreakRetries} sync attempts.`)
-        let message = "Failed to communicate to O.MG Device."
-        let err = `${message} Click the Help button below for common fixes. Then refresh this page to attempt flashing again.`;
-        if(message.toLowerCase().includes("break")){
-        	err = `${message}. To fix this issue please go to <a href="https://o.mg.lol/setup/breakfix.html">https://o.mg.lol/setup/breakfix.html</a>.`
+        isConnected = true;
+        if (debugState) {
+            console.log(espTool);
         }
-        setStatusAlert(err, "danger");
-        accordionExpand(2);
-        accordionDisable();
+    } catch (e) {
+        errorMsg(e);
+        await disconnect();
+        toggleUIConnected(false,e);
+        return;
     }
     // give us access to the ESP session
     if (debugState) {
@@ -771,18 +706,6 @@ async function getFirmwareReleases(){
             .then(function(data) {
                 return data;
             })
-            .catch(error => {
-                if (maxRetries > 0) {
-                  return new Promise(resolve => setTimeout(resolve, retryDelay)).then(() =>
-                    fetchWithRetry(url, options, maxRetries - 1, retryDelay)
-                  );
-                } else {
-                  let consiseError = "Unable to download  " + url + " after multiple retries";
-                  sdstat("error","server-error-downloading-firmware");
-                  setStatusAlert(consiseError, "danger");
-                  throw new Error(consiseError + " full error: " + error);
-                }
-              });
     };    
     let releases = {};
     let release_list = []
@@ -830,18 +753,6 @@ async function getFirmwareBranches(){
             .then(function(data) {
                 return data;
             })
-            .catch(error => {
-                if (maxRetries > 0) {
-                  return new Promise(resolve => setTimeout(resolve, retryDelay)).then(() =>
-                    fetchWithRetry(url, options, maxRetries - 1, retryDelay)
-                  );
-                } else {
-                  let consiseError = "Unable to download  " + url + " after multiple retries";
-                  sdstat("error","server-error-downloading-firmware");
-                  setStatusAlert(consiseError, "danger");
-                  throw new Error(consiseError + " full error: " + error);
-                }
-              });
     };
     let branches = {};
     let branch_list = []
@@ -959,18 +870,6 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             .then(function(data) {
                 return data;
             })
-            .catch(error => {
-                if (maxRetries > 0) {
-                  return new Promise(resolve => setTimeout(resolve, retryDelay)).then(() =>
-                    fetchWithRetry(url, options, maxRetries - 1, retryDelay)
-                  );
-                } else {
-                  let consiseError = "Unable to download  " + url + " after multiple retries";
-                  sdstat("error","server-error-downloading-firmware");
-                  setStatusAlert(consiseError, "danger");
-                  throw new Error(consiseError + " full error: " + error);
-                }
-              });
     };
     
     let url = "";
@@ -1198,7 +1097,6 @@ async function clickProgramErase() {
 }
 
 async function clickProgram() {
-    console.log("reached")
     baudRate.disabled = true;
     butProgram.disabled = false;
     btnProgram.getElementsByClassName("spinner-border")[0].classList.remove("d-none");
@@ -1496,7 +1394,7 @@ async function clickErase() {
                 await espTool.flashData(contents, offset, name);
                 await sleep(100);
             } catch (e) {
-                errorMsg(e.message);
+                errorMsg(e);
             }
         }
         setStatusAlert("Device Erased, please reload web page and remove programmer and device");
@@ -1591,7 +1489,7 @@ function toggleUIProgram(state) {
     }
 }
 
-function toggleUIHardware(ready,message="Hardware is unavailable.") {
+function toggleUIHardware(ready) {
     let lbl = "Connect";
     if (ready) {
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
@@ -1601,7 +1499,7 @@ function toggleUIHardware(ready,message="Hardware is unavailable.") {
     } else {
         // error
         sdstat("error","hardware-missing");
-        setStatusAlert(`${message} Click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.`, "danger");
+        setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
         statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep1.classList.add("bi-x-circle");
         accordionExpand(1);
@@ -1612,23 +1510,36 @@ function toggleUIHardware(ready,message="Hardware is unavailable.") {
 
 function toggleUIConnected(connected, msg = "") {
     let lbl = "Connect";
+    let message = "Cannot connect to O.MG Device.";
+    if(msg!=""){
+        if(msg instanceof DOMException){
+            message = msg.message.replace(/^[^:]*:/, '').trim();
+        } else {
+            message = msg.replace(/^[^:]*:/, '').trim();
+        }
+    }
     if (connected) {
         butProgram.disabled = false;
         statusStep2.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep2.classList.add("bi-check-circle");
         lbl = "Disconnect";
-        butConnect.textContent = lbl;
         accordionExpand(3);
     } else {
         // error
-        lbl = "Connecting";
         statusStep2.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
         statusStep2.classList.add("bi-x-circle");
-        butProgram.disabled = true;
-        butConnect.textContent = "Connecting";
-        butConnect.insertAdjacentHTML('afterbegin', '<span class="spinner-border spinner-border-sm"></span> ');
+        //butProgram.disabled = true;
+        lbl = "Error";
+        sdstat("error","hardware-missing");
+        let err = `${message} Click the Help button below for common fixes. Then refresh this page to attempt flashing again.`;
+        if(message.toLowerCase().includes("break")){
+        	err = `${message}. To fix this issue please go to <a href="https://o.mg.lol/setup/breakfix.html">https://o.mg.lol/setup/breakfix.html</a>.`
+        }
+        setStatusAlert(err, "danger");
+        accordionExpand(2);
+        accordionDisable();
     }
-    
+    butConnect.textContent = lbl;
 }
 
 function saveSetting(setting, value) {

@@ -13,6 +13,6 @@
 if [ ! -f "./localhost.pem" ]; then
 	mkcert localhost
 fi
-http-server -S -C localhost.pem -K localhost-key.pem -g -c0 -t60
+http-server -S -C localhost.pem -K localhost-key.pem -g -c -t10
 echo done
 
