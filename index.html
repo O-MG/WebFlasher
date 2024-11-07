@@ -449,10 +449,12 @@
 						</div>
 					</div>
 					<p>The "A+C Programmer" requires a standard USB cable to connect to your computer. So use a standard C to A or C to C USB cable. The programmer port labeled "PC" should go to your computer. Then connect the active end of your O.MG Device into one of the programmer ports labeled "O.MG" </p>
-					<p>The "A Programmer" connects directly to your computer via a USB Type A Port. </p>
-					<p>The "A+C Programmer" requires a standard USB cable (USB-A to USB-C, or USB-C to USB-C) to connect to your computer using the port labeled "PC" on your programmer. Then connect the active end of your O.MG Device into one of the programmer ports labeled "O.MG" </p>
-					<p>Debug LEDS: If using the A+C Programmer, you should see the PWR light turn on when the programmer is connected to your computer. Then the 2nd light (CABLE or O.MG) will turn on when your O.MG Device is properly attached. If the 2nd LED does not turn on when you connect the O.MG device, the O.MG may be inserted backwards or on the wrong port of the programmer. If the PWR light turns off or dims when you connect your O.MG Device, you should immediately unplug the programmer and ask for help from support. </p>
-					<p>If the above does not solve the issue, ask for help on #omg-support: https://hak5.org/discord</p>
+					<p>The PWR, USB, and OMG lights need to be ON to sucessfully flash firmware</p>
+					<p>The PWR light indicates that you have supplied power to the "PC" connection. If it does not turn on, try using a different USB cable. </p>
+					<p>The USB light indicates that the data lines on PC side are connected to your computer. If it does not turn on, you probably have a "data only" USB cable. Try using a different USB cable.</p>
+					<p>The OMG light indicates that the active end of your OMG device has been properly connected to the programmer. If it does not turn on, you may have accidentally connected the passive end.</p>
+					<p>The ACT light will only turn on when actively flashing the OMG device.</p>
+					<p>If the above does not solve the issue, open a ticket in the #omg-support channel: https://hak5.org/discord</p>
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
