@@ -268,7 +268,7 @@ class EspLoader {
         return value["chipId"]
       }
     }
-    throw("Unable to detect Chip");
+    throw("Unable to detect Chip. If you are using a v1 Programmer please use the Python Flasher for now!");
   }
 
   /**
