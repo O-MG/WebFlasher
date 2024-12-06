@@ -660,8 +660,8 @@ class EspLoader {
       if(!this._flash_size){
       	console.log(this)
 		  if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
-			//await this._readEfuses();
-			console.log("error unable to fetch chip id");
+			  //await this._readEfuses();
+        this.logMsg("Unable to fetch Chip ID");
 		  }
 		  let lfuse=this._efuses[3];
 		  console.log(this._efuses);
@@ -680,6 +680,7 @@ class EspLoader {
 			case (0x1):
 			case (0x0):
 				calculated_mem = 1;
+        throw("Your O.MG Device needs to use the Advanced Flasher. Please follow the <a href='github.com/O-MG/O.MG-Firmware/wiki#setup---advanced-method'>Advanced Flasher Guide</>a>");
 				break;
 		}
 		this._flash_size = (0x400*calculated_mem);
