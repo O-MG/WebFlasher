@@ -268,7 +268,8 @@ class EspLoader {
         return value["chipId"]
       }
     }
-    throw("Unable to detect Chip. If you are using a v1 Programmer please use the Python Flasher for now!");
+    this.logMsg("Detection failed and WebFlasher cannot continue.");
+    throw("Unable to detect OMG Device. If you are using a v1 Programmer from 2020 (lacks USB-C) please use the <a href='github.com/O-MG/O.MG-Firmware/wiki#setup---advanced-method'>Python Flasher</a> for now! <br> Otherwise, click the Help button below for common fixes & refresh this page to attempt flashing again.");
   }
 
   /**

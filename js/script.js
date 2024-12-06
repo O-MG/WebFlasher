@@ -386,7 +386,7 @@ async function disconnect() {
 async function setStatusAlert(message, status = "success") {
     let constructedStatus = "alert-" + status;
     statusAlertBox.classList.add(constructedStatus);
-    if(message.includes("</a>")){
+    if(message.includes("</a>")||message.includes("<br>")){
 	    statusAlertBox.innerHTML = message;
 	} else {
 		statusAlertBox.innerText = message;
@@ -1511,12 +1511,10 @@ function toggleUIHardware(ready) {
 function toggleUIConnected(connected, msg = "") {
     let lbl = "Connect";
     let message = "Cannot connect to O.MG Device.";
-    if(msg!=""){
-        if(msg instanceof DOMException){
-            message = msg.message.replace(/^[^:]*:/, '').trim();
-        } else {
-            message = msg.replace(/^[^:]*:/, '').trim();
-        }
+    if (msg instanceof DOMException) {
+        message = msg.message.replace(/^[^:]*:/, '').trim();
+    } else if (typeof msg === "string") {
+        message = msg.replace(/^[^:]*:/, '').trim();
     }
     if (connected) {
         butProgram.disabled = false;
@@ -1531,7 +1529,8 @@ function toggleUIConnected(connected, msg = "") {
         //butProgram.disabled = true;
         lbl = "Error";
         sdstat("error","hardware-missing");
-        let err = `${message} Click the Help button below for common fixes. Then refresh this page to attempt flashing again.`;
+        let err = `${message}`
+        // Click the Help button below for common fixes. Then refresh this page to attempt flashing again.`;
         setStatusAlert(err, "danger");
         accordionExpand(2);
         accordionDisable();
