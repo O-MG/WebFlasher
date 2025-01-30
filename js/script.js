@@ -843,109 +843,94 @@ async function buildReleaseSelectors(dr=["stable", "legacy-2.5", "beta"]){
 }
 
 async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
-
-    const readUploadedFileAsArrayBuffer = (inputFile) => {
-        const reader = new FileReader();
-
+    // Helper function to read file as array buffer
+    const readAsArrayBuffer = (file) => {
         return new Promise((resolve, reject) => {
-            reader.onerror = () => {
-                reader.abort();
-                reject(new DOMException("Problem parsing input file."));
-            };
-
-            reader.onload = () => {
-                resolve(reader.result);
-            };
-            reader.readAsArrayBuffer(inputFile);
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("Failed to parse file"));
+            reader.readAsArrayBuffer(file);
         });
     };
 
-    const getResourceMap = (url) => {
-        return fetch(url, {
-                method: "GET",
-            })
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(data) {
-                return data;
-            })
-    };
-    
-    let url = "";
-    if(branch.includes("branch-")){
-        let branch_parts = branch.split("-")
-        url = url_base + "/" + branch_parts[1] + "/firmware/";
-    } else { 
-        url = url_base + "/" + branch + "/firmware/";
-    }
-    let files_raw = await getResourceMap(url_memmap);
-    let flash_list = []
-    let chip_flash_size = await espTool.getFlashID();
-    let chip_files = files_raw[chip_flash_size];
-    if (chip_flash_size in files_raw) {
-        if (debugState) {
-            console.log("flash size: " + chip_flash_size);
-        }
-        chip_files = files_raw[chip_flash_size];
-    } else {
-        logMsg("Error, invalid flash size found " + chip_flash_size);
-        sdstat("error","invalid-flash-size");
-    }
-    setProgressMax(chip_files.length);
-    updateCoreProgress(25);
-    for (let i = 0; i < chip_files.length; i++) {
-        console.log(chip_files[i]);
-        if (!("name" in chip_files[i]) || !("offset" in chip_files[i])) {
-            errorMsg("Invalid data, cannot load online flash resources");
-                sdstat("error","invalid-firmware-from-server");
-            toggleUIProgram(false);
-        }
-        let request_file = url + chip_files[i]["name"];
-        logMsg("Attempting to download file " + request_file)
-        console.log(request_file)
-        let tmp = await fetchWithRetry(request_file);
-		updateCoreProgress(40);
-        if (tmp === undefined) {
-            // missing file
-            logMsg("Invalid file downloaded " + chip_files[i]["name"]);
-            let consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out <a href='https://github.com/O-MG/O.MG-Firmware/releases/tag/v2.5-230226.1'>Python Flasher</a> instead.";
-            sdstat("error","server-error-undefined-firmware");
-            setStatusAlert(consiseError, "danger");
-            throw new Error(consiseError);
-            return false;
-        } else {
-        	logMsg("Loaded online version of " + request_file + ". ");
-            let contents = await readUploadedFileAsArrayBuffer(tmp);
-            let content_length = contents.byteLength;
-            // if we want to "erase", we set this to be true
+    // Get resource data from URL
+    const getResource = (url) => fetch(url).then(res => res.json());
 
-            if (erase) {
-                contents = ((new Uint8Array(content_length)).fill(bytes)).buffer;
-            }
-            flash_list.push({
-                "url": request_file,
-                "name": chip_files[i]["name"],
-                "offset": chip_files[i]["offset"],
-                "size": content_length,
-                "data": contents
-            });
-            if (content_length < 1 || flash_list[i].data.byteLength < 1) {
-                flashingReady = false;
-                errorMsg("Empty file found for file " + chip_files[i]["name"] + " and url " + request_file + " with size " + content_length);
-                sdstat("error","invalid-firmware-bad-file");
-                let consiseError = "Bad response from server, invalid downloaded file size. Cannot continue. Refresh WebFlasher page when ready to attempt flashing again.";
+    // Construct base URL
+    const branchName = branch.includes("branch-") ? branch.split("-")[1] : branch;
+    const baseUrl = `${url_base}/${branchName}/firmware/`;
+
+    // Get firmware files map
+    const filesMap = await getResource(url_memmap);
+    const chipFlashSize = await espTool.getFlashID();
+    
+    // Validate flash size
+    if (!filesMap[chipFlashSize]) {
+        const consiseError = `Error, invalid flash size found ${chipFlashSize}`;
+        logMsg(consiseError);
+        sdstat("error", "invalid-flash-size");
+        setStatusAlert(consiseError, "danger");
+        throw new Error(consiseError);
+    }
+
+    const chipFiles = filesMap[chipFlashSize];
+    setProgressMax(chipFiles.length);
+    updateCoreProgress(25);
+
+    // Process each firmware file
+    const flashList = [];
+    for (const file of chipFiles) {
+        let contents, contentLength;
+        const isBlankFile = file.type === "blank";
+
+        if (isBlankFile) {
+            logMsg(`Attempting to empty generate file ${file.name}`);
+            contentLength = file.size ? parseInt(file.size) : 4096;
+            contents = new Uint8Array(contentLength).fill(bytes).buffer;
+        } else {
+            const requestFile = `${baseUrl}${file.name}`;
+            logMsg(`Attempting to download file ${requestFile}`);
+            const response = await fetchWithRetry(requestFile);
+            
+            if (!response) {
+                const consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out <a href='https://github.com/O-MG/O.MG-Firmware/releases/tag/v2.5-230226.1'>Python Flasher</a> instead.";
+                logMsg(`Invalid file downloaded ${file.name}`);
+                sdstat("error", "server-error-undefined-firmware");
                 setStatusAlert(consiseError, "danger");
                 throw new Error(consiseError);
-                return false;
             }
-            if (debugState) {
-                console.log("data queried for flash size " + chip_flash_size);
-                console.log(flash_list);
-            }
+
+            contents = await readAsArrayBuffer(response);
+            contentLength = contents.byteLength;
+            logMsg(`Loaded online version of ${requestFile}`);
         }
+
+        if (erase) {
+            contents = new Uint8Array(contentLength).fill(bytes).buffer;
+        }
+
+        if (contentLength < 1) {
+            const consiseError = "Bad response from server, invalid downloaded file size. Cannot continue. Refresh WebFlasher page when ready to attempt flashing again.";
+            logMsg(`Empty file found for file ${file.name} with size ${contentLength}`);
+            sdstat("error", "invalid-firmware-bad-file");
+            setStatusAlert(consiseError, "danger");
+            throw new Error(consiseError);
+        }
+        logMsg(`File Added: ${file.name} with size ${contentLength} being written to ${file.offset}.`)
+        flashList.push({
+            url: `${baseUrl}${file.name}`,
+            name: file.name,
+            offset: file.offset,
+            size: contentLength,
+            data: contents
+        });
     }
-    return flash_list;
+
+    if (debugState) {
+        console.log(`Data queried for flash size ${chipFlashSize}`, flashList);
+    }
+
+    return flashList;
 }
 
 async function accordionExpand(item) {
@@ -1142,7 +1127,7 @@ async function clickProgram() {
                 console.log("performing flash erase before writing");
             }
             await eraseFlash(await espTool.getFlashID());
-        sdstat("notice","erase-begin");
+            sdstat("notice","erase-begin");
             logMsg("Erasing complete, continuing with flash process");
             //toggleUIProgram(true);
         }
@@ -1295,6 +1280,36 @@ async function patchFlash(bin_list) {
         return mod_array.buffer;
     }
 
+    const wifiPatch = (orig_data) => {
+        let mod_array = new Uint8Array(orig_data);
+        const utf8Encoder = new TextEncoder();
+
+        var config = {
+            "ap_timeout": 300,
+            "soft_ap": {"ssid": "O.MG", "key": "12345678", "channel": 1}
+        };
+        let wcfg = JSON.stringify(config);
+        wcfg += String.fromCharCode(0x00);
+        let cfglen = wcfg.length;
+
+        let final_cfg = utf8Encoder.encode(`${wcfg}`);
+
+        let pos = 0;
+        let re_pos = 0;
+
+        for (let i = pos; i < pos + final_cfg.length; i++) {
+            mod_array[i] = final_cfg[re_pos];
+            re_pos += 1;
+        }
+ 
+        if (debugState) {
+            console.log("Writing Wifi Configuration: '" + wcfg + "'");
+            console.log(mod_array);
+        }
+        re_pos = 0;
+        return mod_array.buffer;
+    }
+
     // not the most elegant way of doing things 
     if (debugState) {
         console.log("original data");
@@ -1314,6 +1329,9 @@ async function patchFlash(bin_list) {
             bin_list[i].data = configPatcher(orig_bin.data, [73, 78, 73, 84, 59]);
             console.log(orig_bin);
             console.log(bin_list[i]);
+        } else if(orig_bin.offset == "0x7e000"){
+            console.log("found match at " + i + " for file " + orig_bin.name + "with offset=" + (orig_bin.offset));
+            bin_list[i].data = wifiPatch(orig_bin.data);
         }
     }
     return bin_list

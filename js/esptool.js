@@ -805,7 +805,7 @@ class EspLoader {
       ));
     }
     this.logMsg(
-        "Erase size " + eraseSize + ", blocks " + numBlocks + ", block size " + flashWriteSize + ", offset " + this.toHex(offset, 4) + ", encrypted " + (encrypted ? "yes" : "no")
+        "Operation size " + eraseSize + ", blocks " + numBlocks + ", block size " + flashWriteSize + ", offset " + this.toHex(offset, 4) + ", encrypted " + (encrypted ? "yes" : "no")
     );
     await this.checkCommand(ESP_FLASH_BEGIN, buffer, 0, timeout);
     if (size != 0 && !this.IS_STUB) {
