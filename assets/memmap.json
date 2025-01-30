@@ -1,56 +1,20 @@
 {
-	"1024": 
-	[
-		{
-			"name": "esp_init_data_default_v08.bin",
-			"offset": "0xfc000"
-		},
-		{
-			"name": "image.elf-0x00000.bin",
-			"offset": "0x00000"
-		},
-		{
-			"name": "image.elf-0x10000.bin",
-			"offset": "0x10000"
-		},
-		{
-			"name": "page.mpfs",
-			"offset": "0x80000"
-		},
-		{
-			"name": "blank.bin",
-			"offset": "0x7f000"
-		},
-		{
-			"name": "blank-settings.bin",
-			"offset": "0x7c000"
-		}
-	],
-	"2048": 
-	[
-		{
-			"name": "esp_init_data_default_v08.bin",
-			"offset": "0x1fc000"
-		},
-		{
-			"name": "image.elf-0x00000.bin",
-			"offset": "0x00000"
-		},
-		{
-			"name": "image.elf-0x10000.bin",
-			"offset": "0x10000"
-		},
-		{
-			"name": "page.mpfs",
-			"offset": "0x80000"
-		},
-		{
-			"name": "blank.bin",
-			"offset": "0x7f000"
-		},
-		{
-			"name": "blank-settings.bin",
-			"offset": "0x7c000"
-		}
-	]
+        "1024": [
+            {"name": "esp_init_data_default_v08.bin", "offset": "0xfc000", "type": "file"},
+            {"name": "image.elf-0x00000.bin", "offset": "0x00000", "type": "file"},
+            {"name": "image.elf-0x10000.bin", "offset": "0x10000", "type": "file"},
+            {"name": "page.mpfs", "offset": "0x80000", "type": "file"},
+            {"name": "blank.bin", "offset": "0x7f000", "type": "empty"},
+            {"name": "blank-settings.bin", "offset": "0x7c000", "type": "empty"},
+            {"name": "blank-wifi.bin", "offset": "0x7e000", "type": "empty"}
+        ],
+        "2048": [
+            {"name": "esp_init_data_default_v08.bin", "offset": "0x1fc000", "type": "file"},
+            {"name": "image.elf-0x00000.bin", "offset": "0x00000", "type": "file"},
+            {"name": "image.elf-0x10000.bin", "offset": "0x10000", "type": "file"},
+            {"name": "page.mpfs", "offset": "0x80000", "type": "file"},
+            {"name": "blank.bin", "offset": "0x7f000", "type": "blank"},
+            {"name": "blank-settings.bin", "offset": "0x7c000", "type": "blank"},
+            {"name": "blank-wifi.bin", "offset": "0x7e000", "type": "empty"}
+        ]
 }
