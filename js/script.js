@@ -248,7 +248,7 @@ async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 10
 		  fetchWithRetry(url, options, maxRetries - 1, retryDelay)
 		);
 	  } else {
-		let consiseError = "Unable to download  " + url + " after multiple retries";
+		let consiseError = "Unable to download  " + url + " after multiple retries. This usually happens due to your IP hitting GitHub's API rate limit, a regional cache issue, or a network/browser filter. In most cases, you can wait 60min for the issue to resolve.";
 		sdstat("error","server-error-downloading-firmware");
 		setStatusAlert(consiseError, "danger");
 		throw new Error(consiseError);
