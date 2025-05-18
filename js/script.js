@@ -909,7 +909,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
         if (tmp === undefined) {
             // missing file
             logMsg("Invalid file downloaded " + chip_files[i]["name"]);
-            let consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out <a href='https://github.com/O-MG/O.MG-Firmware/releases/tag/v2.5-230226.1'>Python Flasher</a> instead.";
+            let consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out <a href='https://github.com/O-MG/O.MG-Firmware/wiki/Advanced-Flasher'>Python Flasher</a> instead.";
             sdstat("error","server-error-undefined-firmware");
             setStatusAlert(consiseError, "danger");
             throw new Error(consiseError);
