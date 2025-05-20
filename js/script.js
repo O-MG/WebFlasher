@@ -248,7 +248,7 @@ async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 10
 		  fetchWithRetry(url, options, maxRetries - 1, retryDelay)
 		);
 	  } else {
-		let consiseError = "Unable to download  " + url + " after multiple retries. This usually happens due to your IP hitting GitHub's API rate limit, a regional cache issue, or a network/browser filter. In most cases, you can wait 60min for the issue to resolve. If this error continues please attempt to use the <a href='https://github.com/O-MG/O.MG-Firmware/wiki/Advanced-Flasher'>Python Flasher</a> instead.";
+		let consiseError = "Unable to download  " + url + " after multiple retries";
 		sdstat("error","server-error-downloading-firmware");
 		setStatusAlert(consiseError, "danger");
 		throw new Error(consiseError);
@@ -893,7 +893,7 @@ async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
             const response = await fetchWithRetry(requestFile);
             
             if (!response) {
-                const consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out <a href='https://github.com/O-MG/O.MG-Firmware/wiki/Advanced-Flasher'>Python Flasher</a> instead.";
+                const consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out <a href='https://github.com/O-MG/O.MG-Firmware/releases/tag/v2.5-230226.1'>Python Flasher</a> instead.";
                 logMsg(`Invalid file downloaded ${file.name}`);
                 sdstat("error", "server-error-undefined-firmware");
                 setStatusAlert(consiseError, "danger");
