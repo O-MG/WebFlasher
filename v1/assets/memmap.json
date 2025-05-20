@@ -1,0 +1,56 @@
+{
+	"1024": 
+	[
+		{
+			"name": "esp_init_data_default_v08.bin",
+			"offset": "0xfc000"
+		},
+		{
+			"name": "image.elf-0x00000.bin",
+			"offset": "0x00000"
+		},
+		{
+			"name": "image.elf-0x10000.bin",
+			"offset": "0x10000"
+		},
+		{
+			"name": "page.mpfs",
+			"offset": "0x80000"
+		},
+		{
+			"name": "blank.bin",
+			"offset": "0x7f000"
+		},
+		{
+			"name": "blank-settings.bin",
+			"offset": "0x7c000"
+		}
+	],
+	"2048": 
+	[
+		{
+			"name": "esp_init_data_default_v08.bin",
+			"offset": "0x1fc000"
+		},
+		{
+			"name": "image.elf-0x00000.bin",
+			"offset": "0x00000"
+		},
+		{
+			"name": "image.elf-0x10000.bin",
+			"offset": "0x10000"
+		},
+		{
+			"name": "page.mpfs",
+			"offset": "0x80000"
+		},
+		{
+			"name": "blank.bin",
+			"offset": "0x7f000"
+		},
+		{
+			"name": "blank-settings.bin",
+			"offset": "0x7c000"
+		}
+	]
+}
