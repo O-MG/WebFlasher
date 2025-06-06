@@ -269,7 +269,7 @@ class EspLoader {
       }
     }
     this.logMsg("Detection failed and WebFlasher cannot continue.");
-    throw("Unable to detect OMG Device. If you are using a v1 Programmer from 2020 (lacks USB-C) please use the <a href='./v1/'>v1 Web Flasher</a> for now! <br> Otherwise, click the Help button below for common fixes & refresh this page to attempt flashing again.");
+    throw("Unable to detect OMG Device. If you are using a v1 Programmer from 2020 (lacks USB-C) please use the <a href='github.com/O-MG/O.MG-Firmware/wiki#setup---advanced-method'>Python Flasher</a> for now! <br> Otherwise, click the Help button below for common fixes & refresh this page to attempt flashing again.");
   }
 
   /**
@@ -289,7 +289,7 @@ class EspLoader {
     }
     if (chipType == ESP8266) {
       if (this._efuses[0] & (1 << 4) || this._efuses[2] & (1 << 16)) {
-        return "ESP8285";
+        return "O.MG Device";
       }
       return "ESP8266EX";
     }
@@ -805,7 +805,7 @@ class EspLoader {
       ));
     }
     this.logMsg(
-        "Operation size " + eraseSize + ", blocks " + numBlocks + ", block size " + flashWriteSize + ", offset " + this.toHex(offset, 4) + ", encrypted " + (encrypted ? "yes" : "no")
+        "Erase size " + eraseSize + ", blocks " + numBlocks + ", block size " + flashWriteSize + ", offset " + this.toHex(offset, 4) + ", encrypted " + (encrypted ? "yes" : "no")
     );
     await this.checkCommand(ESP_FLASH_BEGIN, buffer, 0, timeout);
     if (size != 0 && !this.IS_STUB) {
