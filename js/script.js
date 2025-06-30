@@ -29,6 +29,7 @@ const butSettings = document.getElementById("settingsButton");
 const autoscroll = document.getElementById("btnAutoscroll");
 
 // Settings Modal
+const devConfigurationEnable = document.getElementById("devConfigurationEnable");
 const elementsDevConf = document.getElementById("deviceConfigOptions");
 const butCustomize = document.getElementById("customizeDevice");
 const butDiagnosticFirmware = document.getElementById("uploadDebugFirmware");
@@ -120,13 +121,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     let urlloc = String(window.location.href);
-    if(urlloc.includes("localhost") || urlloc.includes("Test")){
+    if(urlloc.includes("localhost") || urlloc.includes("127.0.0.1")  || urlloc.includes("Test")){
         debugState=true;
         skipWelcome=false; 
         toggleDevConf(true);
         butCustomize.disabled=false;
-	butCustomize.classList.remove("d-none");
+	    butCustomize.classList.remove("d-none");
         butSettings.classList.remove("d-none");
+        devConfigurationEnable.classList.remove("d-none");
         let debug_im="Debug Mode Detected: URL is: " + window.location.href;
         logMsg(debug_im);
         console.log(debug_im);
@@ -1285,18 +1287,29 @@ async function patchFlash(bin_list) {
         const utf8Encoder = new TextEncoder();
 
         var config = {
-            "ap_timeout": 300,
-            "soft_ap": {"ssid": "O.MG", "key": "12345678", "channel": 1}
+            "hostname": "OMG"
         };
+        if(parseInt(loadSetting("devWifiMode").replace("wifiMode",""))==2){
+            config["soft_ap"]={"ssid": loadSetting("devWiFiSSID"), "key": loadSetting("devWiFiPass"), "channel": 1}
+        } else {
+            config["station"] = {
+                "ap_list": [{
+                        "ssid": loadSetting("devWiFiSSID"),
+                        "key": loadSetting("devWiFiPass"),
+                        "primary": 1
+                    }]
+            }
+        }
+
         let wcfg = JSON.stringify(config);
         wcfg += String.fromCharCode(0x00);
         let cfglen = wcfg.length;
 
-        let final_cfg = utf8Encoder.encode(`${wcfg}`);
+        let final_cfg = utf8Encoder.encode(`WIFI${wcfg}`);
 
         let pos = 0;
         let re_pos = 0;
-
+        console.log(`pos:${pos}, repos:${re_pos}`)
         for (let i = pos; i < pos + final_cfg.length; i++) {
             mod_array[i] = final_cfg[re_pos];
             re_pos += 1;
@@ -1325,13 +1338,14 @@ async function patchFlash(bin_list) {
             bin_list[i].data = findBase330(orig_bin.data, [0, 32], [3, 48]);
         } else if(orig_bin.offset == "0x7f000"){
             // search for INIT;
-            console.log("found match at " + i + " for file " + orig_bin.name + "with offset=" + (orig_bin.offset));
+            console.log("found match at " + i + " for file " + orig_bin.name + " with offset=" + (orig_bin.offset));
             bin_list[i].data = configPatcher(orig_bin.data, [73, 78, 73, 84, 59]);
             console.log(orig_bin);
             console.log(bin_list[i]);
         } else if(orig_bin.offset == "0x7e000"){
-            console.log("found match at " + i + " for file " + orig_bin.name + "with offset=" + (orig_bin.offset));
+            console.log("found match at " + i + " for file " + orig_bin.name + " with offset=" + (orig_bin.offset));
             bin_list[i].data = wifiPatch(orig_bin.data);
+            console.log(bin_list[i]);
         }
     }
     return bin_list
