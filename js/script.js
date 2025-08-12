@@ -1227,8 +1227,7 @@ async function patchFlash(bin_list) {
  
         let configuration = {} 
         configuration["flasher"] = "webflasherv2";
-        // this is disabled in v4 firmware, use new wifi controller instead
-        /*
+        // this is deprecated/unused in v4 firmware, use new wifi controller instead
         if(settings['customizeConfig'].checked){
             perform_patch=true;
             // edge case here, need error trapping
@@ -1236,8 +1235,7 @@ async function patchFlash(bin_list) {
             configuration["wifissid"] = settings["devWiFiSSID"].value;
             configuration["wifikey"] = settings["devWiFiPass"].value;
         }
-	    configuration["devicename"] = "omg";
-	    */
+	    configuration["devicename"] = "O.MG";
         let pos = 0 ;
         // mod_array.indexOfString(utf8Encoder.encode("INIT;"));
         if (pos > -1 && perform_patch) {
@@ -1289,6 +1287,11 @@ async function patchFlash(bin_list) {
         var config = {
             "hostname": "OMG"
         };
+        // this is now blank sometimes
+        if(!settings['customizeConfig'].checked || (!loadSetting("devWifiMode")||!loadSetting("devWiFiPass"))){
+            return mod_array.buffer
+        }
+        // continue
         if(parseInt(loadSetting("devWifiMode").replace("wifiMode",""))==2){
             config["soft_ap"]={"ssid": loadSetting("devWiFiSSID"), "key": loadSetting("devWiFiPass"), "channel": 1}
         } else {
