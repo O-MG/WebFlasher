@@ -388,7 +388,7 @@ async function disconnect() {
 async function setStatusAlert(message, status = "success") {
     let constructedStatus = "alert-" + status;
     statusAlertBox.classList.add(constructedStatus);
-    if(message.includes("</a>")||message.includes("<br>")){
+    if (["</a>", "<br>", "<ul>", "<li>"].some(tag => message.includes(tag))) {
 	    statusAlertBox.innerHTML = message;
 	} else {
 		statusAlertBox.innerText = message;
@@ -1563,7 +1563,19 @@ function toggleUIConnected(connected, msg = "") {
         sdstat("error","hardware-missing");
         let err = `${message}`
         // Click the Help button below for common fixes. Then refresh this page to attempt flashing again.`;
-        setStatusAlert(err, "danger");
+        if (err.includes("Failed to set control signals")) {
+            const ua = navigator.userAgent;
+            const isWindows = ua.includes("Windows");
+            const chromeMatch = ua.match(/Chrome\/(\d+)/);
+            const chromeVersion = chromeMatch ? parseInt(chromeMatch[1], 10) : null;
+
+            if (!isWindows && chromeVersion != null && chromeVersion < 160) {
+                setStatusAlert("Mac & Linux users: Chrome currently has a bug in webserial, breaking this tool. Until fixed, you have 3 options:<br><ul><li>Switch to a windows machine</li><li>Use our <a href='https://github.com/O-MG/O.MG-Firmware/wiki/Advanced-Flasher'>Advanced Python Flasher</a></li><li>(Advanced) Modify chrome flags using <a href='https://issues.chromium.org/issues/420689824#comment10'>these instructions</a></li></ul>");
+            }
+        } else {
+            setStatusAlert(err, "danger");
+        }
+        
         accordionExpand(2);
         accordionDisable();
     }
