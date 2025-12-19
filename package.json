@@ -1,0 +1,24 @@
+{
+  "name": "esp-flasher",
+  "version": "1.0.0",
+  "description": "Web-based ESP32/ESP8266 flasher using esptool-js",
+  "homepage": ".",
+  "main": "app.js",
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite",
+    "start": "vite",
+    "typecheck": "tsc --noEmit",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  },
+  "dependencies": {
+    "esptool-js": "^0.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^18.0.0",
+    "vite": "^4.5.0",
+    "gh-pages": "^6.3.0"
+  }
+}

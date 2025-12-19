@@ -17,14 +17,23 @@ jobs:
       - name: Checkout code repository 
         run: sudo apt-get update && sudo apt-get -y install rsync
       - name: Checkout code repository 
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
       - name: Set Variables
         id: prep
         run: |
           COMMIT="${GITHUB_SHA::8}"
-          echo ::set-output name=commit::${COMMIT}    
-          echo "::set-output name=branch::${GITHUB_REF#refs/heads/}"
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')  
+          echo "commit=${COMMIT}" >> "${GITHUB_OUTPUT}"
+          echo "branch=${GITHUB_REF_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "${GITHUB_OUTPUT}"
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
       - name: Push to Dev Repo 
         run: |
            MAINNAME="main"
@@ -35,6 +44,7 @@ jobs:
            TMPBRANCH="publish-$(date '+%Y-%m-%d')"
            WORKER_USER="omg-builds"
            CURRPATH="$(pwd)"
+           BUILDPATH="${CURRPATH}/dist"
            ls 
            pwd
            git config --global user.email nullworker@mg.lol
@@ -45,7 +55,8 @@ jobs:
            cd "${TEMPREPO}"
            git checkout --orphan "${TMPBRANCH}"
            rm -rfv ./*
-           cp -vrf ${CURRPATH}/* "${TEMPREPO}/"
+           rsync -av "${BUILDPATH}/" "${TEMPREPO}/"
+           touch "${TEMPREPO}/.nojekyll"
            git add -fA ./
            git commit -m "automated publish of release '${{ steps.prep.outputs.commit }}' by ${{ github.actor }} for branch ${{ steps.prep.outputs.branch }}"
            git branch -D ${PUBBRANCH}

@@ -1,0 +1,672 @@
+/* O.MG Web Flasher Custom Styles */
+
+/* Base Layout */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    min-height: 100vh;
+    background: #f0f0f0;
+    padding: 0;
+    margin: 0;
+}
+
+.app-wrapper {
+    background: white;
+    overflow: hidden;
+    max-width: 1200px;
+    height: calc(100vh - 80px);
+    margin: 40px auto;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    display: flex;
+}
+
+/* Left Panel Styles */
+.left-panel {
+    width: 35%;
+    min-width: 300px;
+    background: linear-gradient(135deg, #c41e3a 0%, #a01729 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.left-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><text x="50%" y="50%" font-size="200" fill="rgba(0,0,0,0.05)" text-anchor="middle" dominant-baseline="middle" font-family="Arial">OMG</text></svg>') center/contain no-repeat;
+    opacity: 0.3;
+}
+
+.wifi-icon {
+    width: 120px;
+    height: 120px;
+    margin-bottom: 30px;
+    position: relative;
+    z-index: 1;
+}
+
+.wifi-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: white;
+}
+
+.device-illustration {
+    width: 200px;
+    margin-bottom: 30px;
+    position: relative;
+    z-index: 1;
+}
+
+.device-illustration img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.left-panel h1 {
+    color: white;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.left-panel p {
+    color: #000;
+    font-size: 16px;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+}
+
+/* Right Panel Styles */
+.right-panel {
+    flex: 1;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+}
+
+.right-panel > .screen-content:not(#wizardContainer):not(#advancedContainer) {
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.screen-content {
+    width: 100%;
+    height: 100%;
+}
+
+.screen-content.d-none {
+    display: none !important;
+}
+
+#wizardContainer {
+    display: flex;
+    flex-direction: column;
+}
+
+#advancedContainer {
+    padding: 40px;
+    overflow-y: auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.header > div:first-child {
+    flex: 1;
+}
+
+.header h2 {
+    font-size: 28px;
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.header-icons {
+    display: flex;
+    gap: 10px;
+}
+
+.icon-btn {
+    width: 40px;
+    height: 40px;
+    background: #666;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+    transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+    background: #555;
+}
+
+.icon-btn i {
+    font-size: 18px;
+}
+
+/* Steps Container */
+.steps-container {
+    flex: 1;
+}
+
+.step {
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    cursor: pointer;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.step.active .step-header {
+    background: #c41e3a;
+    color: white;
+    border-bottom-color: #a01729;
+}
+
+.step.active .step-title {
+    color: white;
+}
+
+.step.active .step-toggle {
+    color: white;
+}
+
+.step-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #666;
+    background: white;
+    margin-right: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.step.active .step-icon {
+    border-color: white;
+    background: white;
+}
+
+.step.active .step-icon::after {
+    content: '';
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #c41e3a;
+}
+
+.step-title {
+    flex: 1;
+    font-size: 18px;
+    color: #333;
+}
+
+.step-toggle {
+    font-size: 14px;
+    color: #666;
+    transition: transform 0.2s;
+}
+
+.step.active .step-toggle {
+    transform: rotate(180deg);
+}
+
+.step-content {
+    display: none;
+}
+
+.step.active .step-content {
+    display: block;
+}
+
+.step-body {
+    padding: 20px;
+}
+
+.step-description {
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.step-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.step-actions button {
+    min-width: 120px;
+}
+
+/* Flash Size Selector */
+.flash-size {
+    margin: 20px 0;
+}
+
+.flash-size label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 600;
+}
+
+/* Console Styles */
+.console-container {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 20px;
+    height: 400px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.console-terminal {
+    color: #00ff00;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.console-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+/* Error Modal Styles */
+.error-modal .modal-body {
+    padding: 2rem;
+}
+
+.error-icon {
+    font-size: 3rem;
+    color: #dc3545;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+/* Agreement Modal Styles */
+#agreementContent::-webkit-scrollbar {
+    width: 12px;
+}
+
+#agreementContent::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+#agreementContent::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+#agreementContent::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+#agreementContent {
+    scrollbar-width: thin;
+    scrollbar-color: #888 #f1f1f1;
+    line-height: 1.6;
+    color: #333;
+}
+
+#agreementContent h1,
+#agreementContent h2,
+#agreementContent h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    color: #000;
+}
+
+#agreementContent p {
+    margin-bottom: 1rem;
+    text-align: justify;
+}
+
+#agreementContent a {
+    color: #c41e3a;
+    text-decoration: none;
+}
+
+#agreementContent a:hover {
+    text-decoration: underline;
+}
+
+#agreementContent pre {
+    margin: 1rem 0;
+}
+
+#agreementContent code {
+    font-size: 0.9em;
+}
+
+/* Start Screen Styles - No longer needed as separate class */
+
+.hover-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+/* Wizard Styles */
+.wizard-header {
+    background: linear-gradient(135deg, #c41e3a 0%, #a01729 100%);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 1.5rem 2rem;
+    flex-shrink: 0;
+}
+
+.wizard-progress {
+    background: #f8f9fa;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+#wizardSteps {
+    padding: 1.5rem 2rem;
+    flex: 1;
+    min-height: 0;
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+}
+
+.step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.progress-step.active .step-number {
+    background: #c41e3a;
+    color: white;
+}
+
+.progress-step.completed .step-number {
+    background: #198754;
+    color: white;
+}
+
+.step-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.progress-step.active .step-label {
+    color: #c41e3a;
+    font-weight: 600;
+}
+
+.wizard-step {
+    width: 100%;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.step-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1.25rem;
+    font-size: 1.75rem;
+    flex-shrink: 0;
+}
+
+/* Step type colors */
+.step-detection .step-icon { 
+    background: #fff0f0; 
+    color: #c41e3a; 
+}
+
+.step-info .step-icon { 
+    background: #e8f4fd; 
+    color: #0d6efd; 
+}
+
+.step-success .step-icon { 
+    background: #d1f4e0; 
+    color: #198754; 
+}
+
+.step-warning .step-icon { 
+    background: #fff3cd; 
+    color: #ffc107; 
+}
+
+.step-error .step-icon { 
+    background: #f8d7da; 
+    color: #dc3545; 
+}
+
+.step-action .step-icon { 
+    background: #f0e6f6; 
+    color: #6f42c1; 
+}
+
+.step-menu .step-icon { 
+    background: #e7f3ff; 
+    color: #0969da; 
+}
+
+.step-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.wizard-message-content {
+    margin-bottom: 1.25rem;
+}
+
+.step-message {
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #495057;
+    margin: 0;
+}
+
+.step-help-section {
+    border-top: 1px solid #dee2e6;
+    padding-top: 1rem;
+}
+
+.step-help-section .btn-link {
+    color: #6c757d;
+    text-decoration: none;
+}
+
+.step-help-section .btn-link:hover {
+    color: #c41e3a;
+}
+
+.step-actions {
+    text-align: center;
+}
+
+.step-actions .btn-lg.w-100 {
+    padding: 1rem;
+    font-size: 1.125rem;
+}
+
+/* Wizard Option List Styles */
+.wizard-option-list {
+    width: 100%;
+    background: #f8f9fa;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+}
+
+.wizard-option-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: white;
+    border-bottom: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    gap: 1rem;
+}
+
+.wizard-option-item:last-child {
+    border-bottom: none;
+}
+
+.wizard-option-item:hover {
+    background: #f8f9fa;
+    transform: translateX(4px);
+}
+
+.wizard-option-item:active {
+    background: #e9ecef;
+}
+
+.option-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #c41e3a 0%, #a01729 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.option-label {
+    flex: 1;
+    font-size: 1rem;
+    color: #212529;
+    font-weight: 500;
+}
+
+.option-arrow {
+    color: #6c757d;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.wizard-option-item:hover .option-arrow {
+    transform: translateX(4px);
+    color: #c41e3a;
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column;
+        min-height: auto;
+    }
+    
+    .left-panel {
+        width: 100%;
+        min-width: auto;
+        min-height: 200px;
+        padding: 30px;
+    }
+    
+    .wifi-icon {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 20px;
+    }
+    
+    .device-illustration {
+        width: 150px;
+        margin-bottom: 20px;
+    }
+    
+    .left-panel h1 {
+        font-size: 20px;
+    }
+    
+    .left-panel p {
+        font-size: 14px;
+    }
+    
+    .right-panel {
+        padding: 20px;
+    }
+    
+    .wizard-step {
+        margin: 1rem;
+        padding: 1.5rem;
+    }
+}

@@ -1,0 +1,195 @@
+[
+  {
+    "step": "hardware_check",
+    "step_type": "detection",
+    "title": "Hardware Detection",
+    "message": "Let's detect your hardware setup automatically.",
+    "help_message": "We'll check if you have a programmer connected and what type it is.",
+    "validator": "checkHardwareConnection",
+    "auto_advance": true,
+    "next_step": [
+      {"step": "select_programmer", "condition": "programmer_found", "label": "Continue"},
+      {"step": "no_programmer", "condition": "no_programmer", "label": "Get Help"}
+    ]
+  },
+  {
+    "step": "select_programmer",
+    "step_type": "action",
+    "title": "Connect to Programmer",
+    "message": "Click the button below to select your O.MG programmer from the list of available serial ports.",
+    "help_message": "Your browser will show a popup with available serial ports. Select the one that corresponds to your programmer (usually CP2102 or similar).",
+    "action": "select_port",
+    "next_step": "detect_programmer_type"
+  },
+  {
+    "step": "detect_programmer_type",
+    "step_type": "detection",
+    "title": "Detecting Programmer Type",
+    "message": "Checking your programmer capabilities...",
+    "help_message": "We're testing the programmer to determine if it's a modern or legacy version.",
+    "validator": "detectProgrammerType",
+    "auto_advance": true,
+    "next_step": [
+      {"step": "modern_programmer", "condition": "modern_programmer", "label": "Continue"},
+      {"step": "legacy_programmer", "condition": "legacy_programmer", "label": "Continue"}
+    ]
+  },
+  {
+    "step": "modern_programmer",
+    "step_type": "info",
+    "title": "Modern Programmer Detected",
+    "message": "You have a modern O.MG programmer! This supports all current features and should work seamlessly.",
+    "help_message": "Modern programmers have enhanced capabilities and better compatibility.",
+    "next_step": "device_connection"
+  },
+  {
+    "step": "legacy_programmer",
+    "step_type": "warning",
+    "title": "Legacy Programmer Detected", 
+    "message": "You have a legacy O.MG programmer. This should work, but you may need to use specific drivers or settings.",
+    "help_message": "Legacy programmers may require additional setup steps or have limited functionality.",
+    "next_step": "device_connection"
+  },
+  {
+    "step": "no_programmer",
+    "step_type": "error",
+    "title": "No Programmer Detected",
+    "message": "We couldn't detect an O.MG programmer. Please check your connections and try again.",
+    "help_message": "Make sure your programmer is connected via USB and drivers are installed.",
+    "next_step": [
+      {"step": "troubleshoot_connection", "label": "Troubleshoot"},
+      {"step": "buy_programmer", "label": "Get Programmer"}
+    ]
+  },
+  {
+    "step": "troubleshoot_connection",
+    "step_type": "menu",
+    "title": "Connection Troubleshooting",
+    "message": "Let's troubleshoot your connection. What's your current situation?",
+    "help_message": "We'll help you identify and fix common connection issues.",
+    "options": [
+      {"label": "Programmer is connected but not detected", "next": "cable_check"},
+      {"label": "Getting driver errors", "next": "driver_help"},
+      {"label": "Device Manager shows warnings", "next": "device_manager_help"},
+      {"label": "Try detection again", "next": "hardware_check"}
+    ]
+  },
+  {
+    "step": "cable_check",
+    "step_type": "info",
+    "title": "Cable Check",
+    "message": "The most common issue is using a 'charge-only' USB cable. Please try a different USB cable that supports data transfer.",
+    "help_message": "Many USB cables only carry power, not data. You need a data cable for programming.",
+    "next_step": "hardware_check"
+  },
+  {
+    "step": "driver_help",
+    "step_type": "info",
+    "title": "Driver Installation",
+    "message": "You may need to install CP2102 drivers. Please visit the Silicon Labs website to download the appropriate drivers for your operating system.",
+    "help_message": "The CP2102 is the USB-to-serial chip used in O.MG programmers.",
+    "next_step": "hardware_check"
+  },
+  {
+    "step": "device_manager_help",
+    "step_type": "info",
+    "title": "Device Manager Issues",
+    "message": "If you see warning icons in Device Manager next to the CP2102 device, right-click and select 'Update Driver' or 'Uninstall Device' then reconnect.",
+    "help_message": "Windows Device Manager can help identify driver issues.",
+    "next_step": "hardware_check"
+  },
+  {
+    "step": "buy_programmer",
+    "step_type": "info",
+    "title": "Get an O.MG Programmer",
+    "message": "You need an O.MG programmer to flash devices. You can purchase one from the official Hak5 shop.",
+    "help_message": "The programmer is required to upload firmware to O.MG devices.",
+    "external_link": "https://shop.hak5.org/products/o-mg-cable-programmer-usb-a-c",
+    "next_step": "hardware_check"
+  },
+  {
+    "step": "device_connection",
+    "step_type": "action",
+    "title": "Connect Your Device",
+    "message": "Now connect your O.MG device to the programmer. Make sure it's firmly seated.",
+    "help_message": "The device should click into place on the programmer.",
+    "action": "connect_device",
+    "next_step": [
+      {"step": "device_detected", "condition": "device_connected", "label": "Continue"},
+      {"step": "device_connection_help", "condition": "device_not_connected", "label": "Get Help"}
+    ]
+  },
+  {
+    "step": "device_detected",
+    "step_type": "success",
+    "title": "Device Connected Successfully",
+    "message": "Perfect! Your O.MG device is connected and ready for flashing.",
+    "help_message": "You're all set to proceed with firmware installation.",
+    "next_step": "firmware_selection"
+  },
+  {
+    "step": "device_connection_help",
+    "step_type": "menu",
+    "title": "Device Connection Help",
+    "message": "Having trouble connecting your device? Let's troubleshoot:",
+    "help_message": "Common connection issues and solutions.",
+    "options": [
+      {"label": "Device won't fit in programmer", "next": "wrong_device_type"},
+      {"label": "Device fits but not detected", "next": "connection_retry"},
+      {"label": "Getting connection errors", "next": "connection_errors"},
+      {"label": "Try again", "next": "device_connection"}
+    ]
+  },
+  {
+    "step": "wrong_device_type",
+    "step_type": "warning",
+    "title": "Device Compatibility",
+    "message": "Make sure you have the right programmer for your device type. Different O.MG devices may require different programmers.",
+    "help_message": "Check that your programmer matches your device connector type.",
+    "next_step": "device_connection"
+  },
+  {
+    "step": "connection_retry",
+    "step_type": "info",
+    "title": "Connection Retry",
+    "message": "Try removing and reconnecting the device. Make sure it's fully seated and the connection is secure.",
+    "help_message": "Sometimes a loose connection can cause detection issues.",
+    "next_step": "device_connection"
+  },
+  {
+    "step": "connection_errors",
+    "step_type": "info",
+    "title": "Connection Error Help",
+    "message": "If you're getting specific error messages, please note them down. Try restarting the browser and reconnecting.",
+    "help_message": "Browser permissions or driver issues can cause connection errors.",
+    "next_step": "device_connection"
+  },
+  {
+    "step": "firmware_selection",
+    "step_type": "action",
+    "title": "Ready to Flash",
+    "message": "Your device is connected and ready. Click the button below to install the stable firmware.",
+    "help_message": "This will install the latest stable firmware, which is recommended for all users.",
+    "action": "flash_firmware",
+    "firmware": "stable",
+    "next_step": "flash_complete"
+  },
+  {
+    "step": "flash_complete",
+    "step_type": "success",
+    "title": "Flashing Complete!",
+    "message": "Your O.MG device has been successfully flashed with new firmware. You can now disconnect it and start using it.",
+    "help_message": "Your device is ready to use with the new firmware.",
+    "next_step": [
+      {"label": "Flash Another Device", "next": "hardware_check"},
+      {"label": "Finish", "next": "wizard_complete"}
+    ]
+  },
+  {
+    "step": "wizard_complete",
+    "step_type": "success",
+    "title": "Setup Complete",
+    "message": "Congratulations! You have successfully completed the guided setup.",
+    "help_message": "You can always run this wizard again if you need to flash more devices."
+  }
+]
