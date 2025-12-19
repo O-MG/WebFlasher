@@ -286,7 +286,37 @@ class WizardSystem {
         </div>
       `;
     }
-    
+
+    if (step.step === 'flash_complete') {
+      const wifiConfig = window.getWifiConfig ? window.getWifiConfig() : null;
+      if (wifiConfig) {
+        const modeText = wifiConfig.mode === 'ap' ? 'Access Point (AP)' : 'Station (Client)';
+        html += `
+          <div class="card mt-3 mb-3">
+            <div class="card-header bg-success text-white">
+              <i class="bi bi-wifi me-2"></i><strong>WiFi Configuration</strong>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm table-borderless mb-0">
+                <tr>
+                  <td class="fw-bold" style="width: 100px;">Mode:</td>
+                  <td>${modeText}</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold">SSID:</td>
+                  <td><code>${wifiConfig.ssid}</code></td>
+                </tr>
+                <tr>
+                  <td class="fw-bold">Password:</td>
+                  <td><code>${wifiConfig.password}</code></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+    }
+
     if (step.help_message) {
       html += `
         <div class="step-help-section">
@@ -566,25 +596,16 @@ class WizardSystem {
           }
         }
       };
-      
-      let wifiConfig;
-      const customizeWifi = document.getElementById('customizeWifi');
-      if (customizeWifi?.checked) {
-        const ssid = document.getElementById('ssidName')?.value || 'O.MG';
-        const password = document.getElementById('wifiPassword')?.value || '12345678';
-        const wifiModeEl = document.querySelector('input[name="wifiMode"]:checked');
-        const wifiModeValue = wifiModeEl?.value || 'ap';
-        wifiConfig = {
-          ssid,
-          password,
-          mode: wifiModeValue === 'station' ? 'station' : 'ap'
-        };
+
+      const wifiConfig = window.getWifiConfig ? window.getWifiConfig() : undefined;
+      if (wifiConfig) {
+        window.ErrorHandler.logInfo(`WiFi Config: SSID=${wifiConfig.ssid}, Mode=${wifiConfig.mode}`);
       }
-      
+
       const flashSize = window.getDetectedFlashSize();
       window.ErrorHandler.logInfo(`Starting flash process with ${flashSize}KB flash size (auto-detected)`);
       await flasher.flash(flashSize, wifiConfig, onProgress);
-      
+
       window.ErrorHandler.logInfo('Flash completed successfully!');
     } else {
       throw new Error('Flasher not available');
@@ -663,31 +684,41 @@ class WizardSystem {
       if (!port) {
         throw new Error('No port selected - please select a port first');
       }
-      
-      await port.open({ baudRate: 115200 });
-      
+
+      // Check if port is already open
+      const portWasOpen = port.readable !== null;
+
+      if (!portWasOpen) {
+        await port.open({ baudRate: 115200 });
+      }
+
       let programmerVersion = 1; // Default to legacy
-      
+
       try {
+        console.log('Starting programmer detection...');
         await port.setSignals({ dataTerminalReady: false });
         await new Promise(resolve => setTimeout(resolve, 50));
-        
+
         let signals = await port.getSignals();
+        console.log('Initial signals:', signals);
         let allChecksPassed = true;
         const checkValues = [true, false, true];
-        
+
         for (const dtrValue of checkValues) {
           await port.setSignals({ dataTerminalReady: dtrValue });
           await new Promise(resolve => setTimeout(resolve, 50));
-          
+
           signals = await port.getSignals();
           const dsrValue = signals.dataSetReady;
+          console.log(`DTR=${dtrValue}, DSR=${dsrValue}, Match=${dsrValue === dtrValue}`);
+
           if (dsrValue !== dtrValue) {
             allChecksPassed = false;
+            console.log('Signal mismatch detected, this is a legacy programmer');
             break;
           }
         }
-        
+
         if (allChecksPassed) {
           programmerVersion = 2;
           console.log('Found programmer version: 2 (modern)');
@@ -700,17 +731,20 @@ class WizardSystem {
         console.warn('Signal detection failed, defaulting to version 1:', signalError);
         window.ErrorHandler?.logWarning('Signal detection failed, assuming legacy programmer');
       }
-      
+
+      // Always close the port so the next step can open it fresh
       try {
         await port.close();
+        console.log('Closed port after programmer detection');
       } catch (e) {
+        console.warn('Error closing port:', e);
         // Ignore close errors
       }
-      
+
       // Store result in wizard state
       this.wizardState.programmer_version = programmerVersion;
       this.wizardState.programmer_type = programmerVersion === 2 ? 'modern' : 'legacy';
-      
+
       return this.wizardState.programmer_type;
     } catch (error) {
       console.error('Programmer detection failed:', error);

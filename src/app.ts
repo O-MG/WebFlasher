@@ -364,19 +364,10 @@ flashBtn?.addEventListener('click', async () => {
     
     const flashSize = detectedFlashSize;
     ErrorHandler.logInfo(`Starting flash process with ${flashSize}KB flash size (auto-detected)`);
-    
-    let wifiConfig: WifiConfig | undefined;
-    const customizeWifi = (document.getElementById('customizeWifi') as HTMLInputElement)?.checked;
-    if (customizeWifi) {
-      const ssid = (document.getElementById('ssidName') as HTMLInputElement)?.value || 'O.MG';
-      const password = (document.getElementById('wifiPassword') as HTMLInputElement)?.value || '12345678';
-      const wifiModeValue = (document.querySelector('input[name="wifiMode"]:checked') as HTMLInputElement)?.value || 'ap';
-      wifiConfig = {
-        ssid,
-        password,
-        mode: wifiModeValue === 'station' ? 'station' : 'ap'
-      };
-      ErrorHandler.logInfo(`WiFi Config: SSID=${ssid}, Mode=${wifiModeValue}`);
+
+    const wifiConfig = (window as any).getWifiConfig ? (window as any).getWifiConfig() : undefined;
+    if (wifiConfig) {
+      ErrorHandler.logInfo(`WiFi Config: SSID=${wifiConfig.ssid}, Mode=${wifiConfig.mode}`);
     }
     
     const progressContainer = document.getElementById('flashProgressContainer') as HTMLElement;
@@ -455,26 +446,24 @@ function showFlashResultCard(success: boolean, wifiConfig?: WifiConfig, errorMes
   if (!step3) return;
 
   step3.style.display = 'block';
+  step3.classList.add('active');
   if (success) {
     step3.classList.add('completed');
   }
-  
+
   if (success) {
     resultHeader.className = 'card-header d-flex align-items-center bg-success text-white';
     resultIcon.className = 'bi bi-check-circle-fill me-2';
     resultTitle.textContent = 'Flash Successful!';
     resultMessage.textContent = 'Your O.MG device has been successfully flashed with the new firmware.';
-    
-    if (wifiConfig && wifiInfo) {
+
+    const actualWifiConfig = (window as any).getWifiConfig ? (window as any).getWifiConfig() : null;
+
+    if (actualWifiConfig && wifiInfo) {
       wifiInfo.style.display = 'block';
-      if (wifiMode) wifiMode.textContent = wifiConfig.mode === 'ap' ? 'Access Point (AP)' : 'Station (Client)';
-      if (wifiSSID) wifiSSID.textContent = wifiConfig.ssid;
-      if (wifiPassword) wifiPassword.textContent = wifiConfig.password;
-    } else if (wifiInfo) {
-      wifiInfo.style.display = 'block';
-      if (wifiMode) wifiMode.textContent = 'Access Point (AP) - Default';
-      if (wifiSSID) wifiSSID.textContent = 'O.MG';
-      if (wifiPassword) wifiPassword.textContent = '12345678';
+      if (wifiMode) wifiMode.textContent = actualWifiConfig.mode === 'ap' ? 'Access Point (AP)' : 'Station (Client)';
+      if (wifiSSID) wifiSSID.textContent = actualWifiConfig.ssid;
+      if (wifiPassword) wifiPassword.textContent = actualWifiConfig.password;
     }
   } else {
     resultHeader.className = 'card-header d-flex align-items-center bg-danger text-white';

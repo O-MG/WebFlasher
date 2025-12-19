@@ -94,6 +94,31 @@ function loadSettings() {
 
 loadSettings();
 
+function getWifiConfig() {
+    const savedSettings = localStorage.getItem('omgFlasherSettings');
+    if (savedSettings) {
+        try {
+            const settings = JSON.parse(savedSettings);
+            if (settings.customizeWifi) {
+                return {
+                    ssid: settings.ssidName || 'O.MG',
+                    password: settings.wifiPassword || '12345678',
+                    mode: settings.wifiMode === 'existing' ? 'station' : 'ap'
+                };
+            }
+        } catch (e) {
+            console.error('Failed to load WiFi settings:', e);
+        }
+    }
+    return {
+        ssid: 'O.MG',
+        password: '12345678',
+        mode: 'ap'
+    };
+}
+
+window.getWifiConfig = getWifiConfig;
+
 document.getElementById('clearConsole')?.addEventListener('click', () => {
     document.getElementById('consoleTerminal').innerHTML = '';
 });
