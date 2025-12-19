@@ -33,47 +33,94 @@ async function loadMemoryMap() {
   }
 }
 
+async function getFirmwareReleases() {
+  try {
+    let rawReleases;
+
+    // Use cache manager if available
+    if ((window as any).cacheManager) {
+      rawReleases = await (window as any).cacheManager.fetchWithCache(RELEASES_URL, 'json');
+    } else {
+      const response = await fetch(RELEASES_URL);
+      if (!response.ok) {
+        throw new Error('Failed to load firmware releases');
+      }
+      rawReleases = await response.json();
+    }
+
+    // Check for error response
+    if (rawReleases.message) {
+      ErrorHandler.logError('Invalid data, cannot load current releases list');
+      return {};
+    }
+
+    const releases: any = {};
+
+    for (let i = 0; i < rawReleases.length; i++) {
+      const element = rawReleases[i];
+
+      if (element.target_commitish && !releases[element.target_commitish]) {
+        if (element.draft === false) {
+          releases[element.target_commitish] = {
+            name: element.name || element.tag_name,
+            tag_name: element.tag_name,
+            version: element.tag_name,
+            author: element.author?.login,
+            target_commitish: element.target_commitish
+          };
+        }
+      }
+    }
+
+    return releases;
+  } catch (error) {
+    ErrorHandler.logError('Failed to fetch firmware releases', error);
+    return {};
+  }
+}
+
 async function loadFirmwareReleases() {
   try {
-    const response = await fetch(RELEASES_URL);
-    if (!response.ok) {
-      throw new Error('Failed to load firmware releases');
+    let releases = await getFirmwareReleases();
+
+    const skippedReleases = ['legacy-v1.5', 'legacy-v2.0'];
+
+    for (const availableRelease in releases) {
+      for (const skippedRelease of skippedReleases) {
+        if (availableRelease.includes(skippedRelease)) {
+          delete releases[availableRelease];
+        }
+      }
     }
-    const releases = await response.json();
-    
+
     const firmwareBuildSelect = document.getElementById('firmwareBuild') as HTMLSelectElement;
     if (firmwareBuildSelect) {
       firmwareBuildSelect.innerHTML = '';
-      
+
       const defaultReleases = ['stable', 'legacy-2.5', 'beta'];
-      const releaseMap: any = {};
-      
-      releases.forEach((release: any) => {
-        if (!release.draft && release.target_commitish) {
-          releaseMap[release.target_commitish] = {
-            name: release.name || release.tag_name,
-            tag: release.tag_name,
-            commitish: release.target_commitish
-          };
-        }
-      });
-      
-      defaultReleases.forEach((key, index) => {
-        if (releaseMap[key]) {
-          const displayName = index === 0 ? `✓ ${releaseMap[key].name} (Default)` : releaseMap[key].name;
-          const option = new Option(displayName, key, index === 0, index === 0);
+      let noDefault = true;
+
+      for (let i = 0; i < defaultReleases.length; i++) {
+        const key = defaultReleases[i];
+        if (releases[key]) {
+          let displayName = releases[key].name;
+
+          if (noDefault) {
+            displayName = displayName + ' (Default)';
+            noDefault = false;
+          }
+
+          const option = new Option(displayName, key, !noDefault, !noDefault);
           firmwareBuildSelect.add(option);
-          delete releaseMap[key];
+          delete releases[key];
         }
-      });
-      
-      Object.keys(releaseMap).forEach(key => {
-        if (!key.includes('legacy-v1.5') && !key.includes('legacy-v2.0')) {
-          const option = new Option(releaseMap[key].name, key);
-          firmwareBuildSelect.add(option);
-        }
-      });
-      
+      }
+
+      for (const branch in releases) {
+        const details = releases[branch];
+        firmwareBuildSelect.add(new Option(details.name, branch, false, false));
+      }
+
       ErrorHandler.logInfo('Firmware releases loaded');
     }
   } catch (error) {
@@ -244,6 +291,7 @@ let detectedFlashSize: '1024' | '2048' = '1024';
 (window as any).terminal = terminal;
 (window as any).getFlashMap = () => flashMap;
 (window as any).loadMemoryMap = loadMemoryMap;
+(window as any).getFirmwareReleases = getFirmwareReleases;
 (window as any).baseUrl = baseUrl;
 (window as any).selectedBranch = selectedBranch;
 (window as any).ErrorHandler = ErrorHandler;
@@ -256,7 +304,6 @@ declare function setStepCompleted(stepId: string): void;
 declare function setStepActive(stepId: string): void;
 
 function showTerminal() {
-  // Terminal is now only shown in modal, so open the console modal
   const consoleModal = document.getElementById('consoleModal');
   if (consoleModal) {
     const bootstrapModal = new (window as any).bootstrap.Modal(consoleModal);
@@ -264,25 +311,21 @@ function showTerminal() {
   }
 }
 
-// Event listeners
 connectBtn?.addEventListener('click', async () => {
   try {
     ErrorHandler.logInfo('Connecting to device...');
     
-    // Load memory map if not already loaded
     if (!flashMap) {
       ErrorHandler.logInfo('Loading memory map...');
       await loadMemoryMap();
     }
     
-    // Construct the full base URL with the selected branch
     const branchName = selectedBranch.includes('branch-') ? selectedBranch.split('-')[1] : selectedBranch;
     const fullBaseUrl = `${baseUrl}/${branchName}/firmware`;
     
     flasher = new ESPFlasher(terminal, flashMap, fullBaseUrl);
     await flasher.connect();
     
-    // Try to auto-detect flash size
     try {
       const size = await flasher.getFlashSize();
       if (size === '1024' || size === '2048') {
@@ -296,14 +339,12 @@ connectBtn?.addEventListener('click', async () => {
       ErrorHandler.logWarning('Flash size detection failed, defaulting to 1MB');
     }
     
-    // Update UI
     connectBtn.disabled = true;
     flashBtn.disabled = false;
     if (disconnectBtn) disconnectBtn.disabled = false;
     
-    // Progress to step 3
     setStepCompleted('step2');
-    setStepActive('step3');
+    setStepActive('step2-flash');
     
     ErrorHandler.logInfo('Connected successfully! Ready to flash.');
   } catch (error) {
@@ -324,7 +365,6 @@ flashBtn?.addEventListener('click', async () => {
     const flashSize = detectedFlashSize;
     ErrorHandler.logInfo(`Starting flash process with ${flashSize}KB flash size (auto-detected)`);
     
-    // Get WiFi settings if customization is enabled
     let wifiConfig: WifiConfig | undefined;
     const customizeWifi = (document.getElementById('customizeWifi') as HTMLInputElement)?.checked;
     if (customizeWifi) {
@@ -373,8 +413,8 @@ flashBtn?.addEventListener('click', async () => {
     };
     
     await flasher.flash(flashSize, wifiConfig, onProgress);
-    
-    setStepCompleted('step2');
+
+    setStepCompleted('step2-flash');
     ErrorHandler.logInfo('Flash completed successfully!');
     
     showFlashResultCard(true, wifiConfig);
@@ -411,10 +451,9 @@ function showFlashResultCard(success: boolean, wifiConfig?: WifiConfig, errorMes
   const wifiMode = document.getElementById('flashResultWifiMode') as HTMLElement;
   const wifiSSID = document.getElementById('flashResultWifiSSID') as HTMLElement;
   const wifiPassword = document.getElementById('flashResultWifiPassword') as HTMLElement;
-  
+
   if (!step3) return;
-  
-  // Show Step 3
+
   step3.style.display = 'block';
   if (success) {
     step3.classList.add('completed');
@@ -432,14 +471,12 @@ function showFlashResultCard(success: boolean, wifiConfig?: WifiConfig, errorMes
       if (wifiSSID) wifiSSID.textContent = wifiConfig.ssid;
       if (wifiPassword) wifiPassword.textContent = wifiConfig.password;
     } else if (wifiInfo) {
-      // Show default WiFi info
       wifiInfo.style.display = 'block';
       if (wifiMode) wifiMode.textContent = 'Access Point (AP) - Default';
       if (wifiSSID) wifiSSID.textContent = 'O.MG';
       if (wifiPassword) wifiPassword.textContent = '12345678';
     }
   } else {
-    // Failure styling
     resultHeader.className = 'card-header d-flex align-items-center bg-danger text-white';
     resultIcon.className = 'bi bi-x-circle-fill me-2';
     resultTitle.textContent = 'Flash Failed';
@@ -462,14 +499,19 @@ disconnectBtn?.addEventListener('click', async () => {
       connectBtn.disabled = false;
       flashBtn.disabled = true;
       if (disconnectBtn) disconnectBtn.disabled = true;
-      
+
       const step2 = document.getElementById('step2');
+      const step2Flash = document.getElementById('step2-flash');
       const step3 = document.getElementById('step3');
       if (step2) {
         step2.classList.remove('completed');
         step2.classList.add('active');
       }
+      if (step2Flash) {
+        step2Flash.classList.remove('completed', 'active');
+      }
       if (step3) {
+        step3.style.display = 'none';
         step3.classList.remove('completed', 'active');
       }
     }
@@ -513,7 +555,8 @@ clearCacheBtn?.addEventListener('click', () => {
 if ((window as any).cacheManager) {
   (window as any).cacheManager.preloadJSON([
     './assets/memmap.json',
-    './assets/wizard.json'
+    './assets/wizard.json',
+    RELEASES_URL
   ]).catch((error: any) => {
     console.error('Error pre-loading JSON files:', error);
   });

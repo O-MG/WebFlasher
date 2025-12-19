@@ -74,14 +74,9 @@ export class ESPFlasher {
     this.baseUrl = baseUrl;
   }
 
-  /**
-   * Search for a byte sequence and replace it with another sequence
-   * Used for patching the base firmware at 0x00000
-   */
   private patchBytes(data: ArrayBuffer, search: number[], replacement: number[]): ArrayBuffer {
     const modArray = new Uint8Array(data);
     
-    // Find the search sequence
     for (let i = 0; i <= modArray.length - search.length; i++) {
       let found = true;
       for (let j = 0; j < search.length; j++) {
@@ -91,7 +86,6 @@ export class ESPFlasher {
         }
       }
       if (found) {
-        // Replace with replacement bytes
         for (let j = 0; j < replacement.length; j++) {
           modArray[i + j] = replacement[j];
         }
@@ -106,28 +100,21 @@ export class ESPFlasher {
     return modArray.buffer;
   }
 
-  /**
-   * Patch the configuration section at 0x7f000
-   * Writes initialization config for device setup
-   */
   private patchConfig(data: ArrayBuffer, wifiConfig?: WifiConfig): ArrayBuffer {
     const encoder = new TextEncoder();
     const modArray = new Uint8Array(data);
     
-    // Build configuration object
     const configuration: Record<string, string> = {
       flasher: 'webflasherv3',
       devicename: 'O.MG'
     };
     
-    // Add WiFi settings if provided
     if (wifiConfig) {
       configuration.wifimode = wifiConfig.mode === 'ap' ? '2' : '1';
       configuration.wifissid = wifiConfig.ssid;
       configuration.wifikey = wifiConfig.password;
     }
     
-    // Build the config string (same format as old code)
     let ccfg = 'INIT;F:keylog=0;';
     
     // Blank out file system slots
@@ -135,10 +122,8 @@ export class ESPFlasher {
       ccfg += `F:payload${i}=0;`;
     }
     
-    // Prepare boot and hid file slots
     ccfg += 'F:bootscript=4;F:hidxfile=16;';
     
-    // Set payload slots
     for (let i = 1; i < 51; i++) {
       ccfg += `F:payload${i}=4;`;
     }
@@ -170,10 +155,6 @@ export class ESPFlasher {
     return modArray.buffer;
   }
 
-  /**
-   * Patch the WiFi configuration section at 0x7e000
-   * Writes JSON WiFi config for the device
-   */
   private patchWifi(data: ArrayBuffer, wifiConfig?: WifiConfig): ArrayBuffer {
     const encoder = new TextEncoder();
     const modArray = new Uint8Array(data);
@@ -225,9 +206,6 @@ export class ESPFlasher {
     return modArray.buffer;
   }
 
-  /**
-   * Apply all firmware patches to the loaded binaries
-   */
   private patchFirmware(
     fileArray: { data: ArrayBuffer; address: number; name: string }[],
     wifiConfig?: WifiConfig
@@ -248,7 +226,6 @@ export class ESPFlasher {
       }
       
       if (offsetHex === '0x00000') {
-        // Patch base firmware: search for [0, 32] and replace with [3, 48]
         this.terminal.writeLine(`[INFO] Patching base firmware at ${offsetHex}`);
         fileArray[i].data = this.patchBytes(file.data, [0, 32], [3, 48]);
       } else if (offsetHex === '0x7f000') {
@@ -267,10 +244,7 @@ export class ESPFlasher {
   }
 
   private async loadFile(fileName: string, url?: string): Promise<ArrayBuffer> {
-    // Use provided URL, or construct from baseUrl + fileName, or just fileName
     const fileUrl = url || (this.baseUrl ? `${this.baseUrl}/${fileName}` : fileName);
-    
-    // Try to use cache manager for remote files (GitHub)
     if ((window as any).cacheManager && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
       try {
         const data = await (window as any).cacheManager.fetchWithCache(fileUrl, 'binary');
@@ -278,7 +252,6 @@ export class ESPFlasher {
         return data.buffer.slice(data.byteOffset, data.byteLength + data.byteOffset);
       } catch (error) {
         this.terminal.writeLine(`[WARNING] Cache fetch failed for ${fileName}, falling back to direct fetch`);
-        // Fall through to regular fetch with retry
       }
     }
     
@@ -308,7 +281,6 @@ export class ESPFlasher {
   }
 
   private arrayBufferToBinaryString(buffer: ArrayBuffer): string {
-    // esptool-js expects a binary string (each char = 1 byte), NOT base64
     const bytes = new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {
@@ -428,23 +400,19 @@ export class ESPFlasher {
     let attempt = 1;
     
     try {
-      // Use pre-selected port if provided, otherwise request a new one
       const port = preSelectedPort || await navigator.serial.requestPort();
       const transport = new Transport(port);
       this.espLoader = new ESPLoader(transport, 115200, this.terminal);
       
-      // Retry logic for connection with proper timing
       while (attempt <= maxRetries) {
         try {
           this.terminal.writeLine(`[INFO] Connecting... (attempt ${attempt}/${maxRetries})`);
           await this.espLoader.connect();
           
-          // Give it a moment to stabilize
           await new Promise(resolve => setTimeout(resolve, 50));
           
           this.terminal.writeLine('[OK] Connected to ESP device');
           
-          // Upload and start the stub flasher for full command support
           this.terminal.writeLine('[INFO] Uploading stub flasher...');
           await this.espLoader.run_stub();
           this.terminal.writeLine('[OK] Stub flasher running');
@@ -475,20 +443,14 @@ export class ESPFlasher {
     }
     
     try {
-      // Prefer calculating flash size from the SPI flash ID, like esptool flash-id
-      let flashSizeKB = 1024; // Default to 1MB
-
-      // Method 1: Use SPI flash ID and DETECTED_FLASH_SIZES from esptool-js
+      let flashSizeKB = 1024; 
       let flashIdSuccess = false;
       try {
         const flashId = await this.espLoader.read_flash_id();
-        // Flash ID format: [manufacturer (8 bits)] [device type (8 bits)] [capacity (8 bits)]
-        // Size code is in the third byte (bits 16-23), not the first byte
         const sizeCode = (flashId >> 16) & 0xff;
         const sizeString = (this.espLoader as any).DETECTED_FLASH_SIZES?.[sizeCode] as string | undefined;
 
         if (sizeString) {
-          // sizeString is like "1MB", "2MB", "4MB", etc.
           if (sizeString.toUpperCase().endsWith('MB')) {
             const mb = parseInt(sizeString, 10) || 1;
             flashSizeKB = mb * 1024;
@@ -509,24 +471,18 @@ export class ESPFlasher {
         this.terminal.writeLine('[WARNING] Could not read SPI flash ID, trying efuse fallback...');
       }
 
-      // Method 2 (fallback): try efuse on ESP8266-style chips if flash ID didn't work
       if (!flashIdSuccess) {
         try {
           if (typeof (this.espLoader.chip as any).read_efuse === 'function') {
             const efuse3 = await (this.espLoader.chip as any).read_efuse(this.espLoader, 2);
             const efuse0 = await (this.espLoader.chip as any).read_efuse(this.espLoader, 0);
             
-            // Check for ESP8285 variants with known flash sizes
-            // ESP8285H16 = 16Mbit = 2MB, ESP8285N08 = 8Mbit = 1MB
             const is_8285 = ((efuse0 & (1 << 4)) | (efuse3 & (1 << 16))) != 0;
             
             if (is_8285) {
-              // For ESP8285, check efuse for flash size info
-              // The flash size is often encoded in efuse or we can infer from chip variant
               const efuse2 = await (this.espLoader.chip as any).read_efuse(this.espLoader, 3);
               const flashSizeBits = (efuse2 >> 24) & 0xf;
               
-              // Known mappings: 0x0/0x1 = 1MB, 0x2 = 2MB, 0x4 = 4MB
               if (flashSizeBits >= 2) {
                 flashSizeKB = 2048;
               } else {
@@ -568,16 +524,12 @@ export class ESPFlasher {
       throw new Error(`Flash size ${flashSize}KB not found in flash map`);
     }
 
-    // Calculate max progress like old code: 110 base + (files * 100)
-    // 110 is for loading (10) and patching (100) phases
     const totalFiles = files.filter(f => f.type === 'file' || f.type === 'blank').length;
     const maxProgress = 110 + (totalFiles * 100);
     let currHighestProgress = 0;
     
-    // Helper to calculate and report unified progress
     const reportProgress = (rawProgress: number, phase: FlashProgress['phase'], message: string) => {
       let percent = Math.round((rawProgress / maxProgress) * 100);
-      // Prevent progress from going backwards
       if (percent < currHighestProgress) {
         percent = currHighestProgress;
       } else {
@@ -586,7 +538,6 @@ export class ESPFlasher {
       onProgress?.({ phase, percent, message });
     };
 
-    // Report initial progress
     reportProgress(0, 'loading', 'Starting flash process...');
 
     this.terminal.writeLine(`----------------------------------------`);
@@ -594,7 +545,6 @@ export class ESPFlasher {
     this.terminal.writeLine(`[INFO] Base URL: ${this.baseUrl}`);
     this.terminal.writeLine(`[INFO] Files to process: ${files.length}`);
 
-    // Prepare file array - keep as ArrayBuffer for patching
     const rawFileArray: { data: ArrayBuffer; address: number; name: string }[] = [];
     let loadedFiles = 0;
 
@@ -611,7 +561,6 @@ export class ESPFlasher {
             `[OK] Loaded ${file.name}: ${data.byteLength} bytes (${sizeKB}KB) -> flash offset 0x${address.toString(16).toUpperCase()}`
           );
         } else if (file.type === 'blank') {
-          // Create blank data for patching (blank regions need to be patched too)
           const blankSize = 4096; // Default blank region size
           const blankData = new Uint8Array(blankSize).fill(0xff);
           rawFileArray.push({ data: blankData.buffer, address, name: file.name });
@@ -621,7 +570,6 @@ export class ESPFlasher {
         }
         
         loadedFiles++;
-        // Loading phase uses first 10 units of progress (out of 110 base)
         const loadProgress = Math.round((loadedFiles / totalFiles) * 10);
         reportProgress(loadProgress, 'loading', `Loaded ${file.name}`);
       } catch (error) {
@@ -634,21 +582,17 @@ export class ESPFlasher {
       throw new Error('No files to flash');
     }
 
-    // Apply firmware patches (uses 10-110 of base progress)
     reportProgress(10, 'patching', 'Applying firmware patches...');
     const patchedFiles = this.patchFirmware(rawFileArray, wifiConfig);
     reportProgress(110, 'patching', 'Patches applied');
 
-    // Convert to binary string for esptool-js (NOT base64)
     const fileArray: { data: string; address: number }[] = patchedFiles.map(f => ({
       data: this.arrayBufferToBinaryString(f.data),
       address: f.address
     }));
 
-    // Flash all files with detailed logging
     this.terminal.writeLine(`[INFO] Writing ${fileArray.length} file(s) to flash...`);
     
-    // Log each file being flashed
     for (let i = 0; i < fileArray.length; i++) {
       const file = patchedFiles[i];
       const sizeKB = Math.round(file.data.byteLength / 1024 * 100) / 100;
@@ -671,10 +615,8 @@ export class ESPFlasher {
         const currentFile = patchedFiles[fileIndex];
         const fileName = currentFile ? currentFile.name : `file${fileIndex + 1}`;
         this.terminal.write(`\r[INFO] Writing ${fileName}: ${filePercent}% (${written}/${total} bytes)`);
-        
-        // Calculate progress like old code: ((fileIndex + 1) * 100) + filePercent
-        // Add 110 base for loading/patching phases
-        const rawProgress = 110 + ((fileIndex + 1) * 100) + filePercent;
+
+        const rawProgress = 110 + (fileIndex * 100) + filePercent;
         reportProgress(rawProgress, 'flashing', `Writing ${fileName}: ${filePercent}%`);
       }
     );
@@ -690,7 +632,6 @@ export class ESPFlasher {
       return null;
     }
 
-    // Return cached data if available
     if (this.cachedDeviceInfo !== null) {
       console.log('Using cached device info:', JSON.stringify(this.cachedDeviceInfo, null, 2));
       return this.cachedDeviceInfo;
@@ -711,7 +652,6 @@ export class ESPFlasher {
       const deviceInfo = this.parseDeviceInfo(data);
       
       if (deviceInfo) {
-        // Cache the device info
         this.cachedDeviceInfo = deviceInfo;
         
         if (deviceInfo.valid) {
@@ -743,19 +683,17 @@ export class ESPFlasher {
   public async disconnect(): Promise<void> {
     if (this.espLoader) {
       try {
-        // Try hard reset first
         if (this.espLoader.transport) {
           try {
             await this.espLoader.hard_reset();
           } catch (error) {
-            // Ignore errors during reset
+            // catch
           }
           
-          // Close the transport/port properly
           try {
             await this.espLoader.transport.disconnect();
           } catch (error) {
-            // Ignore errors during disconnect
+            // catch
           }
         }
       } catch (error) {
