@@ -386,7 +386,8 @@ class EspLoader {
         filters.push(filter);
       }
       port = await navigator.serial.requestPort({ filters: filters });
-      if (this.getChromeVersion() < 86) {
+      const chromeVersion = this.getChromeVersion();
+      if (chromeVersion && chromeVersion < 86) {
         await port.open({ baudrate: ESP_ROM_BAUD });
       } else {
         await port.open({ baudRate: ESP_ROM_BAUD });
@@ -580,7 +581,8 @@ class EspLoader {
   };
 
   setPortBaudRate(baud) {
-    if (this.getChromeVersion() < 86) {
+    const chromeVersion = this.getChromeVersion();
+    if (chromeVersion && chromeVersion < 86) {
       port.baudrate = baud;
     } else {
       port.baudRate = baud;
@@ -588,7 +590,8 @@ class EspLoader {
   }
 
   getPortBaudRate() {
-    if (this.getChromeVersion() < 86) {
+    const chromeVersion = this.getChromeVersion();
+    if (chromeVersion && chromeVersion < 86) {
       return port.baudrate;
     }
     return port.baudRate;
