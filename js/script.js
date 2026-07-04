@@ -1,1757 +1,1064 @@
-// Note: the code will still work without this line, but without it you
-// will see an error in the editor
-/* global EspLoader, ESP_ROM_BAUD, port, reader, inputBuffer */
-"use strict";
+'use strict';
 
-var espTool;
+let port;
+let reader;
+let inputStream;
+let outputStream;
+let inputBuffer = [];
 
-const baudRates = [115200];
-const bufferSize = 512;
-const eraseFillByte = 0x00;
+const ESP_ROM_BAUD = 115200;
+const FLASH_WRITE_SIZE = 0x400;
+const STUBLOADER_FLASH_WRITE_SIZE = 0x4000;
+const FLASH_SECTOR_SIZE = 0x1000;  // Flash sector size, minimum unit of erase.
 
-const maxLogLength = 100;
-const maxBreakRetries = 4;
+const SYNC_PACKET = toByteArray("\x07\x07\x12 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU");
+const CHIP_DETECT_MAGIC_REG_ADDR = 0x40001000;
+const ESP8266 = 0x8266;
+const ESP32 = 0x32;
+const ESP32S2 = 0x3252;
+const ESP32_DATAREGVALUE = 0x15122500;
+const ESP8266_DATAREGVALUE = 0x00062000;
+const ESP32S2_DATAREGVALUE = 0x500;
 
-const log = document.getElementById("log");
-const stepBox = document.getElementById("steps-container");
-const butWelcome = document.getElementById("btnWelcome");
-const butRejectFlash = document.getElementById("btnDeny");
- 
-const butStart = document.getElementById("btnStart");
-const butConnect = document.getElementById("btnConnect");
-const butSkipWelcome = document.getElementById("welcomeScreenCheck");
-const agreementModal = document.getElementById("agreement-modal");
+// Commands supported by ESP8266 ROM bootloader
+const ESP_FLASH_BEGIN = 0x02;
+const ESP_FLASH_DATA = 0x03;
+const ESP_FLASH_END = 0x04;
+const ESP_MEM_BEGIN = 0x05;
+const ESP_MEM_END = 0x06;
+const ESP_MEM_DATA = 0x07;
+const ESP_SYNC = 0x08;
+const ESP_WRITE_REG = 0x09;
+const ESP_READ_REG = 0x0A;
 
-// Console Modal
-const butClear = document.getElementById("btnClear");
-const butDownload = document.getElementById("btnDownload");
-const butSettings = document.getElementById("settingsButton");
-const autoscroll = document.getElementById("btnAutoscroll");
+// Some comands supported by ESP32 ROM bootloader (or -8266 w/ stub)
+const ESP_SPI_SET_PARAMS = 0x0B;
+const ESP_SPI_ATTACH = 0x0D;
+const ESP_READ_FLASH_SLOW  = 0x0E  // ROM only, much slower than the stub flash read
+const ESP_CHANGE_BAUDRATE = 0x0F;
+const ESP_FLASH_DEFL_BEGIN = 0x10
+const ESP_FLASH_DEFL_DATA  = 0x11
+const ESP_FLASH_DEFL_END   = 0x12
+const ESP_SPI_FLASH_MD5 = 0x13;
 
-// Settings Modal
-const devConfigurationEnable = document.getElementById("devConfigurationEnable");
-const elementsDevConf = document.getElementById("deviceConfigOptions");
-const butCustomize = document.getElementById("customizeDevice");
-const butDiagnosticFirmware = document.getElementById("uploadDebugFirmware");
-const fileDebugFirmware = document.getElementById("debugFirmwareFile");
-const butEraseCable = document.getElementById("eraseCable");
-const butBranch = document.querySelector("#branch");
-const butWifiMode = document.getElementsByName("wifiMode");
-const txtSSIDName = document.getElementById("ssidName");
-const txtSSIDPass = document.getElementById("ssidPass");
-const butSave = document.getElementById("btnSaveSettings");
-const butDebug = document.getElementById("btnDebug");
+// Commands supported by ESP32-S2/S3/C3/C6 ROM bootloader only
+const ESP_GET_SECURITY_INFO = 0x14;
 
-// Programming 
-const statusAlertBox = document.getElementById("statusAlert");
-const statusStep1 = document.getElementById("programmerStep1-status");
-const statusStep2 = document.getElementById("programmerStep2-status");
-const statusStep3 = document.getElementById("programmerStep3-status");
-const butHardware = document.getElementById("btnConnectHw");
-const butProgram = document.getElementById("btnProgram");
+// Some commands supported by stub only
+const ESP_ERASE_FLASH = 0xD0;
+const ESP_ERASE_REGION = 0xD1;
+const ESP_READ_FLASH = 0xD2;
+const ESP_RUN_USER_CODE = 0xD3;
 
-const progress = document.querySelectorAll(".progress-bar");
-var currProgress = 0;
-var currHighestProgress = 0;
-var maxProgress = 100;
+// Response code(s) sent by ROM
+const ROM_INVALID_RECV_MSG = 0x05;
 
-var isWriting = false;
-var isConnected = false;
-var keysPressed = {};
-var accordionStart = 1;
+// Initial state for the checksum routine
+const ESP_CHECKSUM_MAGIC = 0xEF;
 
-var base_offset = 0;
-var activePanels = [];
-var diagnosticFirmware = false;
-var debugState = false;
-var flashingReady = true;
 
-var logMsgs = [];
+const UART_DATE_REG_ADDR = 0x60000078;
 
-var skipWelcome = false;
-var alertOnBeta = false;
+const USB_RAM_BLOCK = 0x800;
+const ESP_RAM_BLOCK = 0x1800;
 
-var settings = {
-    "customizeConfig": butCustomize,
-    "preEraseCable": butEraseCable,
-    "setUIDarkMode": darkMode,
-    "devWiFiSSID": txtSSIDName,
-    "devWiFiPass": txtSSIDPass,
-    "devWifiMode": butWifiMode,
-    "firmwareRelease": butBranch,
-    "skipWelcome": butSkipWelcome
+// Timeouts
+const DEFAULT_TIMEOUT = 3000;
+const CHIP_ERASE_TIMEOUT = 120000;             // timeout for full chip erase in ms
+const MAX_TIMEOUT = CHIP_ERASE_TIMEOUT * 2;    // longest any command can run in ms
+const SYNC_TIMEOUT = 100;                      // timeout for syncing with bootloader in ms
+const ERASE_REGION_TIMEOUT_PER_MB = 30000;     // timeout (per megabyte) for erasing a region in ms
+const MEM_END_ROM_TIMEOUT = 500;
+
+
+const magicValues = {
+    "ESP8266": { "chipId": ESP8266, "magicVal": 0xfff0c101},
+    "ESP32":  { "chipId": ESP32, "magicVal": 0x00f01d83},
+    "ESP32S2": { "chipId": ESP32S2, "magicVal": 0x000007c6}
 }
 
-const url_memmap = "assets/memmap.json";
-const url_releases = "https://api.github.com/repos/O-MG/O.MG-Firmware/releases?per_page=100"; // move to proper spot later.
-const url_branches = "https://api.github.com/repos/O-MG/O.MG-Firmware/branches";
-const url_base = "https://raw.githubusercontent.com/O-MG/O.MG-Firmware"; 
 
-
-// sourced from
-// https://codereview.stackexchange.com/questions/20136/uint8array-indexof-method-that-allows-to-search-for-byte-sequences
-Uint8Array.prototype.indexOfString = function(searchElements, fromIndex) {
-    fromIndex = fromIndex || 0;
-    var index = Array.prototype.indexOf.call(this, searchElements[0], fromIndex);
-    if (searchElements.length === 1 || index === -1) {
-        return index;
-    }
-    for (var i = index, j = 0; j < searchElements.length && i < this.length; i++, j++) {
-        if (this[i] !== searchElements[j]) {
-            return this.indexOfString(searchElements, index + 1);
-        }
-    }
-    return (i === index + searchElements.length) ? index : -1;
-};
-
-document.addEventListener("DOMContentLoaded", () => {
-    let debug = false;
-    var getParams = {}
-    location.search.substr(1).split("&").forEach(function(item) {
-        getParams[item.split("=")[0]] = item.split("=")[1]
-    })
-    if (getParams["debug"] !== undefined) {
-        let debugValue = parseInt(getParams["debug"].toLowerCase());
-        if(isNaN(debugValue)){
-            debug = false;
-        } else {
-            debug = debugValue;
-        }
-        debugState = debug;
-    }
-
-    let urlloc = String(window.location.href);
-    if(urlloc.includes("localhost") || urlloc.includes("127.0.0.1")  || urlloc.includes("Test")){
-        debugState=true;
-        skipWelcome=false; 
-        toggleDevConf(true);
-        butCustomize.disabled=false;
-	    butCustomize.classList.remove("d-none");
-        butSettings.classList.remove("d-none");
-        devConfigurationEnable.classList.remove("d-none");
-        let debug_im="Debug Mode Detected: URL is: " + window.location.href;
-        logMsg(debug_im);
-        console.log(debug_im);
-    debug=true;
+class EspLoader {
+  constructor(params) {
+    this._chipfamily = null;
+    this.readTimeout = 3000;  // Arbitrary number for now. This should be set more dynamically in the sendCommand function
+    this._efuses = new Array(4).fill(0);
+    this._flashsize = 4 * 1024 * 1024;
+    this.currFile = 0;
+    if (this.isFunction(params.updateProgress)) {
+      this.updateProgress = params.updateProgress
     } else {
-        // for 2.5 BETA RELEASE ONLY
-        butCustomize.disabled=false;
-        //window.localStorage.clear();    
+      this.updateProgress = null
     }
 
-    loadSettings();
-
-    espTool = new EspLoader({
-        updateProgress: updateProgress,
-        logMsg: logMsg,
-        debugMsg: debugMsg,
-        debug: false
-    })
-    butConnect.addEventListener("click", () => {
-        clickConnect().catch(async (e) => {
-            errorMsg(e.message);
-            disconnect();
-            toggleUIConnected(false,e);
-        });
-    });
-
-    document.addEventListener('keydown', (event) => {
-        keysPressed[event.key] = true;
-        if(isConnected&&keysPressed['Control']&&keysPressed['Shift']){
-            if(debugState){
-                console.log("Ctrl+Shift Pressed! Erase Mode Activated")
-            }
-            butProgram.classList.replace("btn-danger", "btn-warning");
-            butProgram.getElementsByClassName("programMsg")[0].innerText = "Erase";
-        }
-    });
-    /*document.addEventListener('keyup', (event) => {
-        delete keysPressed[event.key];
-        if(event.key == 'Control' || event.key == 'Shift'){
-            if(debugState){
-                console.log("Ctrl+Shift Pressed! Erase Mode Activated")
-            }
-            butProgram.classList.replace("btn-warning", "btn-danger");
-            butProgram.innerText = "Program"
-        }
-    });*/
-
-    setInterval((function fn() {
-        if(keysPressed['Control']&&keysPressed['Shift']&&(!isWriting)){
-            butProgram.classList.replace("btn-warning", "btn-danger");
-            butProgram.getElementsByClassName("programMsg")[0].innerText = "Program";
-            keysPressed={};
-        }
-    }), 4000);
-
-    // disable device wifi config by default until user asks
-
-    // set the clear button and reset
-    butWelcome.addEventListener("click", clickWelcome);
-    butStart.addEventListener("click",clickWelcomeStart);
-    butRejectFlash.addEventListener("click",clickRejectFlash);
-    //butSkipWelcome.addEventListener("click", clickSkipWelcome);
-    butSave.addEventListener("click", clickSave);
-    butDebug.addEventListener("click", clickDebug);
-    butCustomize.addEventListener("click", toggleDevConf);
-    butDiagnosticFirmware.addEventListener("click",toggleDiagnostics)
-    butHardware.addEventListener("click", clickHardware);
-    butProgram.addEventListener("click", clickProgramErase);
-    butDownload.addEventListener("click", clickDownload);
-    butClear.addEventListener("click", clickClear);
-    autoscroll.addEventListener("click", clickAutoscroll);
-    baudRate.addEventListener("change", changeBaudRate);
-    agreementModal.addEventListener("scroll",doScrollAgreements);
-    darkMode.addEventListener("click", clickDarkMode);
-    window.addEventListener("error", function(event) {
-        console.log("Got an uncaught error: ", event.error)
-    });
-    if (!("serial" in navigator)) {
-        var unsupportedInfoModal = new bootstrap.Modal(document.getElementById("notSupported"), {
-            keyboard: false
-        })
-        unsupportedInfoModal.show();
-    }
-    if (skipWelcome) {
-        switchStep("modular-stepper");
-    }
-    accordionExpand(accordionStart); // 0 = start button, 1 = start
-    // disable the programming button until we are connected
-    // to ensure people read things. 
-    butWelcome.disabled=true;
-    butProgram.disabled = true;
-    buildReleaseSelectors();
-    accordionDisable();
-    logMsg("Welcome to O.MG Web Serial Flasher. Ready...");
-
-});
-
-async function fetchWithRetry(url, options = {}, maxRetries = 3, retryDelay = 1000) {
-  return fetch(url, options)
-	.then(response => {
-	  if (response.ok) {
-		return response.blob().then(blob => {
-		  if (blob.size > 0) {
-			return blob;
-		  } else {
-			console.log('Response body size is 0 for ' + url);
-		  }
-		});
-	  } else {
-		let consiseError = "Invalid file received from server. Refresh WebFlasher page when ready to attempt flashing again. ";
-		sdstat("error","server-error-downloading-firmware");
-		setStatusAlert(consiseError, "danger");
-		throw new Error(consiseError);
-	  }
-	})
-	.catch(error => {
-	  if (maxRetries > 0) {
-		return new Promise(resolve => setTimeout(resolve, retryDelay)).then(() =>
-		  fetchWithRetry(url, options, maxRetries - 1, retryDelay)
-		);
-	  } else {
-		let consiseError = "Unable to download  " + url + " after multiple retries. This usually happens due to your IP hitting GitHub's API rate limit, a regional cache issue, or a network/browser filter. In most cases, you can wait 60min for the issue to resolve.";
-		sdstat("error","server-error-downloading-firmware");
-		setStatusAlert(consiseError, "danger");
-		throw new Error(consiseError);
-	  }
-	});
-}
-
-async function connect() {
-    logMsg("Connecting...")
-    let attempt = 1
-    while (true) {
-        await espTool.connect(attempt != 1)
-        reader = port.readable.getReader();
-        try {
-            await readOrTimeout(50); // 50ms defined spec
-            logMsg('Initial read done...')
-            break
-        } catch (err) {
-            if ((err.name === 'BreakError'||err.name === "BufferOverrunError") && attempt < maxBreakRetries) {
-                reader.releaseLock()
-                logMsg(`Caught break error, sleeping for ${attempt*500} second and then retrying. (${attempt}/${maxBreakRetries}) `)
-                await sleep(attempt*500)
-                attempt++
-                console.log(`Retrying read; attempt ${attempt}/${maxBreakRetries}`)
-                continue
-            }
-
-            throw err // boil anything else up
-        }
-    }
-
-    readLoop().catch((error) => {
-        toggleUIConnected(false, error);
-    });
-}
-
-function readOrTimeout(ms=500) {
-    return new Promise((resolve, reject) => {
-        let timeoutId = setTimeout(() => {
-            resolve()
-        }, ms)
-
-        readOnce()
-            .then(() => {
-                clearTimeout(timeoutId)
-                if(debugState){
-                    logMsg("Message Read Successful")
-                }
-                resolve()
-            })
-            .catch(reject)
-    })
-}
-
-function initBaudRate() {
-    for (let rate of baudRates) {
-        var option = document.createElement("option");
-        option.text = rate + " Baud";
-        option.value = rate;
-        baudRate.add(option);
-    }
-}
-
-function updateProgress(part, percentage) {
-    let progress_raw = ((part + 1) * 100) + percentage;
-    currProgress = (progress_raw / maxProgress) * 100;
-    console.log("part progress (" + part + "/" + percentage + ")= " + currProgress);
-    for (let i = 0; i < progress.length; i++) {
-        let progressBar = progress[i];
-        // fix a bug with the progress bar?
-        if(currHighestProgress>currProgress){
-            currProgress=currHighestProgress;
-        } else {
-            console.log("progress went down somehow");
-            currHighestProgress=currProgress;
-        }
-        progressBar.setAttribute("aria-valuenow", currProgress);
-        progressBar.style.width = currProgress + "%";
-        if (debugState) {
-            console.log("current progress is " + currProgress + "% based on " + progress_raw + "/" + maxProgress);
-        }
-    }
-}
-
-function updateCoreProgress(percentage) {
-    currProgress = (percentage / maxProgress) * 100;
-    console.log("core progress = " + currProgress);
-    for (let i = 0; i < progress.length; i++) {
-        let progressBar = progress[i];
-        progressBar.setAttribute("aria-valuenow", currProgress);
-        progressBar.style.width = currProgress + "%";
-        if (debugState) {
-            console.log("current progress is " + currProgress + "% based on " + percentage + "/" + maxProgress);
-        }
-    }
-}
-
-function completeProgress() {
-    for (let i = 0; i < progress.length; i++) {
-        let progressBar = progress[i];
-        let maxValue = maxProgress + 10; // for good measure
-        progressBar.setAttribute("aria-valuenow", maxValue);
-        progressBar.style.width = maxValue + "%";
-        progressBar.classList.remove("progress-bar-animated");
-    }
-}
-
-async function setProgressMax(resources) {
-    if (butEraseCable.checked) {
-        // the current erase system is yikes, but seems to provide good results. 
-        let eraseres = await eraseFiles(0x00000, 1022976, 0xff);
-        resources = resources + eraseres;
-    }
-    maxProgress = 110 + (resources * 100);
-    for (let i = 0; i < progress.length; i++) {
-        let progressBar = progress[i];
-        progressBar.setAttribute("aria-valuemax", maxProgress);
-        if (debugState) {
-            console.log("max of progress bar is set to " + maxProgress + " based on " + resources + " resources.");
-        }
-    }
-}
-
-
-/**
- * @name disconnect
- * Closes the Web Serial connection.
- */
-async function disconnect() {
-    toggleUIConnected(false);
-    await espTool.disconnect()
-}
-
-
-async function setStatusAlert(message, status = "success") {
-    let constructedStatus = "alert-" + status;
-    statusAlertBox.classList.add(constructedStatus);
-    if (["</a>", "<br>", "<ul>", "<li>"].some(tag => message.includes(tag))) {
-	    statusAlertBox.innerHTML = message;
-	} else {
-		statusAlertBox.innerText = message;
-	}
-    statusAlertBox.classList.remove("d-none");
-}
-
-async function endHelper() {
-    //logMsg("Please reload this webpage and make sure to reconnect device and flasher if trying to flash another dev ice or recovering from error.");
-    butConnect.disabled = true;
-    baudRate.disabled = true;
-    butClear.disabled = true;
-    butBranch.disabled=true;
-    butProgram.disabled = true;
-    butProgram.getElementsByClassName("programMsg")[0].innerText = "Reload Web Page To Continue";
-    autoscroll.disabled = true;
-
-
-}
-
-async function readOnce() {
-        const {
-            value,
-            done
-        } = await reader.read();
-    inputBuffer = inputBuffer.concat(Array.from(value));
-
-        if (done) {
-            reader.releaseLock();
-        return done;
-        }
-}
-
-/**
- * @name readLoop
- * Reads data from the input stream and places it in the inputBuffer
- */
-async function readLoop() {
-    while (!await readOnce());
-}
-
-// https://stackoverflow.com/questions/3665115/how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server
-function saveFile(filename, data) {
-    const blob = new Blob([data], {
-        type: "text/csv"
-    });
-    if (window.navigator.msSaveOrOpenBlob) {
-        window.navigator.msSaveBlob(blob, filename);
+    if (this.isFunction(params.logMsg)) {
+      this.logMsg = params.logMsg
     } else {
-        const elem = window.document.createElement("a");
-        elem.href = window.URL.createObjectURL(blob);
-        elem.download = filename;
-        document.body.appendChild(elem);
-        elem.click();
-        document.body.removeChild(elem);
+      this.logMsg = console.log
     }
-}
-
-function sdstat(status="success",annotation="success"){
-    let l = new Image(1,1);
-    let a = encodeURIComponent(annotation);
-    l.classList.add("d-none");
-    l.src = "https://flash.mg.lol/status/" + status + "_" + a + ".gif?" + (new Date()).getTime();
-    document.body.appendChild(l);
-    return l;
-}
-
-function logMsg(text) {
-    const rmsg = (new DOMParser().parseFromString(text, "text/html")).body.textContent;
-    logMsgs.push(rmsg);
-    log.innerHTML += text + "<br>";
-
-    // Remove old log content
-    if (log.textContent.split("\n").length > maxLogLength + 1) {
-        let logLines = log.innerHTML.replace(/(\n)/gm, "").split("<br>");
-        log.innerHTML = logLines.splice(-maxLogLength).join("<br>\n");
-    }
-
-    if (autoscroll.checked) {
-        log.scrollTop = log.scrollHeight
-    }
-}
-
-function debugMsg(...args) {
-    function getStackTrace() {
-        let stack = new Error().stack;
-        stack = stack.split("\n").map(v => v.trim());
-        for (let i = 0; i < 3; i++) {
-            stack.shift();
-        }
-
-        let trace = [];
-        for (let line of stack) {
-            line = line.replace("at ", "");
-            trace.push({
-                "func": line.substr(0, line.indexOf("(") - 1),
-                "pos": line.substring(line.indexOf(".js:") + 4, line.lastIndexOf(":"))
-            });
-        }
-
-        return trace;
-    }
-
-    let stack = getStackTrace();
-    stack.shift();
-    let top = stack.shift();
-    let prefix = "<span class=\"text-primary\">[" + top.func + ":" + top.pos + "]</span> ";
-    for (let arg of args) {
-        if (typeof arg == "string") {
-            logMsg(prefix + arg);
-        } else if (typeof arg == "number") {
-            logMsg(prefix + arg);
-        } else if (typeof arg == "boolean") {
-            logMsg(prefix + arg ? "true" : "false");
-        } else if (Array.isArray(arg)) {
-            logMsg(prefix + "[" + arg.map(value => espTool.toHex(value)).join(", ") + "]");
-        } else if (typeof arg == "object" && (arg instanceof Uint8Array)) {
-            logMsg(prefix + "[" + Array.from(arg).map(value => espTool.toHex(value)).join(", ") + "]");
-        } else {
-            logMsg(prefix + "Unhandled type of argument:" + typeof arg);
-            console.log(arg);
-        }
-        prefix = ""; // Only show for first argument
-    }
-}
-
-function errorMsg(text) {
-    logMsg("<span class=\"text-danger fw-bold\">Error:</span> " + text);
-    logMsg("<span class=\"text-warning text-uppercase fw-bold\">Notice: </span> " + "You must reload this webpage to continue");
-    console.log(text);
-    endHelper();
-}
-
-function formatMacAddr(macAddr) {
-    return macAddr.map(value => value.toString(16).toUpperCase().padStart(2, "0")).join(":");
-}
-
-/**
- * @name reset
- * Reset the Panels, Log, and associated data
- */
-async function reset() {
-
-    // Clear the log
-    log.innerHTML = "";
-    // Clear the log buffer
-    logMsgs = [];
-}
-
-async function clickSkipWelcome() {
-    await saveSettings();
-}
-
-async function clickWelcomeStart() {
-    switchStep("modular-stepper");
-    accordionExpand(1);
-}
-
-async function clickWelcome() {
-    switchStep("modular-stepper");
-}
-
-async function clickRejectFlash(){
-    window.close();
-}
-
-async function clickHardware() {
-    butHardware.disabled = true;
-    butHardware.classList.replace("btn-success", "btn-secondary");
-    toggleUIHardware(true);
-}
-
-async function clickConnect() {
-    if (espTool.connected()) {
-        await disconnect();
-        toggleUIConnected(false);
-        return;
-    }
-    butConnect.textContent = " Connecting";
-    butConnect.insertAdjacentHTML('afterbegin', '<span class="spinner-border spinner-border-sm"></span> ');
-    await connect();
-    try {
-        if (await espTool.sync()) {
-            toggleUIConnected(true);
-            let baud = parseInt(baudRate.value);
-            // get our chip info 
-            logMsg("Connected to " + await espTool.chipName());
-            if (debugState) {
-                console.log(espTool);
-            }
-            logMsg("MAC Address: " + formatMacAddr(espTool.macAddr()));
-            if (debugState) {
-                console.log(espTool);
-            }
-            var flashSize = await espTool.getFlashMB();
-            logMsg("Flash Size: " + flashSize);
-            if (debugState) {
-                console.log(espTool);
-            }
-            //espTool.setBaudrate(115200);
-            espTool = await espTool.runStub();
-            // annoyingly we have to run this again after initial setting
-            await espTool.chipType();
-            await espTool.chipName();
-            // and proceed 
-            if (baud != ESP_ROM_BAUD) {
-                    await changeBaudRate(baud);
-            }
-        }
-        isConnected = true;
-        if (debugState) {
-            console.log(espTool);
-        }
-    } catch (e) {
-        errorMsg(e);
-        await disconnect();
-        toggleUIConnected(false,e);
-        return;
-    }
-    // give us access to the ESP session
-    if (debugState) {
-        console.log(espTool);
-    }
-}
-/**
- * @name changeBaudRate
- * Change handler for the Baud Rate selector.
- */
-async function changeBaudRate() {
-    saveSetting("baudrate", baudRate.value);
-    if (isConnected) {
-        let baud = parseInt(baudRate.value);
-        if (baudRates.includes(baud)) {
-            await espTool.setBaudrate(baud);
-        }
-    }
-}
-
-/**
- * @name clickAutoscroll
- * Change handler for the Autoscroll checkbox.
- */
-async function clickAutoscroll() {
-    saveSetting("autoscroll", autoscroll.checked);
-}
-
-/**
- * @name clickDarkMode
- * Change handler for the Dark Mode checkbox.
- */
-async function clickDarkMode() {
-    //updateTheme();
-    //saveSetting("darkmode", darkMode.checked);
-}
-
-async function getDiagnosticFirmwareFiles(erase = false, bytes = 0x00) {
-
-    const readUploadedFileAsArrayBuffer = (inputFile) => {
-        const reader = new FileReader();
-
-        return new Promise((resolve, reject) => {
-            reader.onerror = () => {
-                reader.abort();
-                reject(new DOMException("Problem parsing input file."));
-            };
-
-            reader.onload = () => {
-                resolve(reader.result);
-            };
-            reader.readAsArrayBuffer(inputFile);
-        });
-    };
-    let flash_list = [];
-     let chip_files = document.getElementsByClassName("debugfirmware");
-     console.log(chip_files);
-    setProgressMax(chip_files.length);
-    updateCoreProgress(25);
-    for (let i = 0; i < chip_files.length; i++) {
-        let cf = chip_files[i];
-        let co = document.getElementById(cf.id + "Offset");
-        if(cf.files.length>0 && (co!==null)){
-            let contents = await readUploadedFileAsArrayBuffer(cf.files[0]);
-            let content_length = cf.files[0].size;
-            let file_name = cf.files[0].name;
-            let content_offset = co.value;
-            if (content_length < 10 || (parseInt(content_length) >= parseInt((448*1024)))) {
-                errorMsg("Empty file found for debug firmware upload '" + file_name + "' and offset " + content_offset + " with size " + content_length);
-                sdstat("error","invalid-debug-firmware-bad-file");                
-            } else {
-                logMsg("Uploading diagnostic file '" + file_name + "' and offset " + content_offset + " with size " + content_length);   
-            }
-            flash_list.push({
-                "url": "file:///" + file_name,
-                "name": file_name,
-                "offset": content_offset,
-                "size": content_length,
-                "data": contents
-            });            
-        }
-    }
-    if(debugState){
-        console.log("debug files");
-        console.log(chip_files);
-        console.log("flash_list");
-    }
-    return flash_list;
-}
-
-async function getFirmwareReleases(){
-    const getReleases = (url) => {
-        return fetch(url, {
-                method: "GET",
-            })
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(data) {
-                return data;
-            })
-    };    
-    let releases = {};
-    let release_list = []
-    let raw_releases = await getReleases(url_releases);
-    if("message" in raw_releases){
-        if(debugState){
-            console.log("Raw Release Data");
-            console.log(raw_releases);
-        }
-        errorMsg("Invalid data, cannot load current releases list");
-        sdstat("error","invalid-release-list-from-server");
-        toggleUIProgram(false);
+    this.debug = false;
+    if (this.isFunction(params.debugMsg)) {
+      if (params.debug !== false) {
+        this.debug = true;
+      }
+      this._debugMsg = params.debugMsg
     } else {
-        // we're good to continue probably 
-        for (let i = 0; i < raw_releases.length; i++) {
-            let element = raw_releases[i];
-            console.log(element);    
-            if("target_commitish" in element && !(element["target_commitish"] in releases)){
-                // add 
-                if(element["draft"] == false){
-                    // ideally we can use 
-                    // https://api.github.com/repos/O-MG/O.MG-Firmware/releases/*/assets
-                    // to populate this in the future, right now we have to build the list 
-                    releases[element["target_commitish"]]=element;
-                    releases[element["target_commitish"]]["version"]=element["tag_name"];
-                    releases[element["target_commitish"]]["author"]=element["author"]["login"];
-                    delete(element["target_commitish"]["author"]);
-                    // for now
-                    release_list.push(releases[element["target_commitish"]]);
-                }
-            }
-        }
+      this._debugMsg = this.logMsg()
     }
-    return releases;
-}
+    this.IS_STUB = false;
+    this.syncStubDetected = false;
+  }
 
-async function getFirmwareBranches(){
-    const getData = (url) => {
-        return fetch(url, {
-                method: "GET",
-            })
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(data) {
-                return data;
-            })
-    };
-    let branches = {};
-    let branch_list = []
-    let raw_branches = await getData(url_branches);
-    if("message" in raw_branches){
-        if(debugState){
-            console.log("Raw branch Data");
-            console.log(raw_branches);
-        }
-        errorMsg("Invalid data, cannot load current branches list");
-        sdstat("error","invalid-branch-list-from-server");
-        toggleUIProgram(false);
+  isFunction(functionObj) {
+    return functionObj && {}.toString.call(functionObj) === '[object Function]';
+  }
+
+  toHex(value, size=2) {
+    return "0x" + value.toString(16).toUpperCase().padStart(size, "0");
+  }
+
+  getChromeVersion() {
+    let raw = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./);
+
+    return raw ? parseInt(raw[2], 10) : false;
+  }
+
+  /**
+   * @name slipEncode
+   * Take an array buffer and return back a new array where
+   * 0xdb is replaced with 0xdb 0xdd and 0xc0 is replaced with 0xdb 0xdc
+   */
+  slipEncode(buffer) {
+    let encoded = [0xC0];
+    for (let byte of buffer) {
+      if (byte == 0xDB) {
+        encoded = encoded.concat([0xDB, 0xDD]);
+      } else if (byte == 0xC0) {
+        encoded = encoded.concat([0xDB, 0xDC]);
+      } else {
+        encoded.push(byte);
+      }
+    }
+    encoded.push(0xC0);
+    return encoded;
+  };
+
+  /**
+   * @name macAddr
+   * The MAC address burned into the OTP memory of the ESP chip
+   */
+  macAddr() {
+    let macAddr = new Array(6).fill(0);
+    let mac0 = this._efuses[0];
+    let mac1 = this._efuses[1];
+    let mac2 = this._efuses[2];
+    let mac3 = this._efuses[3];
+    let oui;
+    if (this._chipfamily == ESP8266) {
+      if (mac3 != 0) {
+        oui = [(mac3 >> 16) & 0xFF, (mac3 >> 8) & 0xFF, mac3 & 0xFF];
+      } else if (((mac1 >> 16) & 0xFF) == 0) {
+        oui = [0x18, 0xFE, 0x34];
+      } else if (((mac1 >> 16) & 0xFF) == 1) {
+        oui = [0xAC, 0xD0, 0x74];
+      } else {
+        throw("Couldnt determine OUI");
+      }
+
+      macAddr[0] = oui[0];
+      macAddr[1] = oui[1];
+      macAddr[2] = oui[2];
+      macAddr[3] = (mac1 >> 8) & 0xFF;
+      macAddr[4] = mac1 & 0xFF;
+      macAddr[5] = (mac0 >> 24) & 0xFF;
+    } else if (this._chipfamily == ESP32) {
+      macAddr[0] = mac2 >> 8 & 0xFF;
+      macAddr[1] = mac2 & 0xFF;
+      macAddr[2] = mac1 >> 24 & 0xFF;
+      macAddr[3] = mac1 >> 16 & 0xFF;
+      macAddr[4] = mac1 >> 8 & 0xFF;
+      macAddr[5] = mac1 & 0xFF;
+    } else if (this._chipfamily == ESP32S2) {
+      macAddr[0] = mac2 >> 8 & 0xFF;
+      macAddr[1] = mac2 & 0xFF;
+      macAddr[2] = mac1 >> 24 & 0xFF;
+      macAddr[3] = mac1 >> 16 & 0xFF;
+      macAddr[4] = mac1 >> 8 & 0xFF;
+      macAddr[5] = mac1 & 0xFF;
     } else {
-        // we're good to continue probably 
-        for (let i = 0; i < raw_branches.length; i++) {
-            let element = raw_branches[i];
-            let commit_data = await getData(element["commit"]["url"]);
-            let bname = "branch-" + element["name"];
-            let date_version = (String(commit_data["commit"]["author"]["date"]).split("T"))[0];
-            let short_commit = String(element["commit"]["sha"]).substring(0,8);
-            let pretty_name = "Branch " + element["name"] + " (" + date_version + ")";
-            branches[bname]=commit_data; 
-            branches[bname]["name"]=pretty_name;
-            branches[bname]["tag_name"]=bname;
-            branches[bname]["version"]=date_version;
-            console.log(element["commit"]);
-            branches[bname]["short_commit"]=short_commit;
-            branches[bname]["author"]=commit_data["commit"]["author"]["name"];
-            // for now
-            branch_list.push(branches[bname]);
-        }
+      throw("Unknown chip family")
     }
-    return branches;
-}
+    return macAddr;
+  };
 
-async function buildReleaseSelectors(dr=["stable", "legacy-2.5", "beta"]){
-    let releases = await getFirmwareReleases();
-
-	// this should keep the logic the same 
-	// remove legacy versions to not confuse users
-	// add in stuff for dev when in dev mode
-	let skipped_releases = ["legacy-v1.5", "legacy-v2.0"]
-	if(debugState){
-		// throw everything together
-		let branches = await getFirmwareBranches();
-		let merged_resources = Object.assign({},releases,branches) 
-		releases = merged_resources;
-	} else {
-		skipped_releases.push("alpha")
-	}
-	console.log(releases);
-	for(let available_release in releases){
-		for (let skipped_release of skipped_releases) {
-			if(available_release.includes(skipped_release)){
-				delete(releases[available_release]);
-			}
-		}
-	}
-    // reset our list
-    butBranch.innerHTML="";
-    // get our defaults
-    let no_default = true;
-    for(let i =0; i<dr.length; i++){
-        if(dr[i] in releases){
-            // make sure it goes first
-            let dr_str = releases[dr[i]]["name"];
-            let dr_tag = releases[dr[i]]["tag_name"]
-            // select only one that is selected and default
-            if(no_default){
-                no_default = false;
-                dr_str = dr_str + " (Default)"
-            }
-            // ADD DEBUG IF
-            console.log("Adding a new release " + dr_str + " with tag " + dr_tag);
-            console.log(dr);
-            butBranch.options.add(new Option(dr_str, dr_tag,no_default,no_default));
-        }
-        delete(releases[dr[i]]);
+  debugMsg(...values) {
+    if (this.debug) {
+      this._debugMsg(...values);
     }
-    // now do the rest 
-    let release_map = new Map(Object.entries(releases));
-    for (const [branch, details] of release_map) {
-        if(debugState){
-            console.log(details);
-        }
-        butBranch.options.add(new Option(details["name"], details["tag_name"],no_default,no_default));
-    }
-}
+  }
 
-async function getFirmwareFiles(branch, erase = false, bytes = 0x00) {
-    // Helper function to read file as array buffer
-    const readAsArrayBuffer = (file) => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = () => reject(new Error("Failed to parse file"));
-            reader.readAsArrayBuffer(file);
-        });
-    };
-
-    // Get resource data from URL
-    const getResource = (url) => fetch(url).then(res => res.json());
-
-    // Construct base URL
-    const branchName = branch.includes("branch-") ? branch.split("-")[1] : branch;
-    const baseUrl = `${url_base}/${branchName}/firmware/`;
-
-    // Get firmware files map
-    const filesMap = await getResource(url_memmap);
-    const chipFlashSize = await espTool.getFlashID();
-    
-    // Validate flash size
-    if (!filesMap[chipFlashSize]) {
-        const consiseError = `Error, invalid flash size found ${chipFlashSize}`;
-        logMsg(consiseError);
-        sdstat("error", "invalid-flash-size");
-        setStatusAlert(consiseError, "danger");
-        throw new Error(consiseError);
-    }
-
-    const chipFiles = filesMap[chipFlashSize];
-    setProgressMax(chipFiles.length);
-    updateCoreProgress(25);
-
-    // Process each firmware file
-    const flashList = [];
-    for (const file of chipFiles) {
-        let contents, contentLength;
-        const isBlankFile = file.type === "blank";
-
-        if (isBlankFile) {
-            logMsg(`Attempting to empty generate file ${file.name}`);
-            contentLength = file.size ? parseInt(file.size) : 4096;
-            contents = new Uint8Array(contentLength).fill(bytes).buffer;
-        } else {
-            const requestFile = `${baseUrl}${file.name}`;
-            logMsg(`Attempting to download file ${requestFile}`);
-            const response = await fetchWithRetry(requestFile);
-            
-            if (!response) {
-                const consiseError = "An error has occurred downloading firmware files from the server. Please clearing your cache and restarting your browser, then try again. If this is due to content filtering and/or intermittent GitHub issues, you can use out <a href='https://github.com/O-MG/O.MG-Firmware/releases/tag/v2.5-230226.1'>Python Flasher</a> instead.";
-                logMsg(`Invalid file downloaded ${file.name}`);
-                sdstat("error", "server-error-undefined-firmware");
-                setStatusAlert(consiseError, "danger");
-                throw new Error(consiseError);
-            }
-
-            contents = await readAsArrayBuffer(response);
-            contentLength = contents.byteLength;
-            logMsg(`Loaded online version of ${requestFile}`);
-        }
-
-        if (erase) {
-            contents = new Uint8Array(contentLength).fill(bytes).buffer;
-        }
-
-        if (contentLength < 1) {
-            const consiseError = "Bad response from server, invalid downloaded file size. Cannot continue. Refresh WebFlasher page when ready to attempt flashing again.";
-            logMsg(`Empty file found for file ${file.name} with size ${contentLength}`);
-            sdstat("error", "invalid-firmware-bad-file");
-            setStatusAlert(consiseError, "danger");
-            throw new Error(consiseError);
-        }
-        logMsg(`File Added: ${file.name} with size ${contentLength} being written to ${file.offset}.`)
-        flashList.push({
-            url: `${baseUrl}${file.name}`,
-            name: file.name,
-            offset: file.offset,
-            size: contentLength,
-            data: contents
-        });
-    }
-
-    if (debugState) {
-        console.log(`Data queried for flash size ${chipFlashSize}`, flashList);
-    }
-
-    return flashList;
-}
-
-async function accordionExpand(item) {
-    function is_expanded(elem) {
-        if (elem.classList.contains("show")) {
-            return true;
-        } else {
-            return false;
-        }
-
-    }
-    // this may need to be more specific
-    let collapsable_elements = document.querySelectorAll(".collapse");
-    for (let i = 0; i < collapsable_elements.length; i++) {
-        let element = collapsable_elements[i];
-        let element_id = parseInt((element.id).replace("-collapse", "").replace("programmerStep", ""));
-        if (item === element_id) {
-            if (!is_expanded(element)) {
-                new bootstrap.Collapse(element);
-            }
-        } else {
-            if (is_expanded(element)) {
-                new bootstrap.Collapse(element);
-            }
-        }
-    }
-}
-
-
-async function switchStep(activeStep) {
-    // this may need to be more specific
-    let steps = stepBox.getElementsByClassName("step");
-    for (let i = 0; i < steps.length; i++) {
-        let step = steps[i];
-        if (activeStep === step.id) {
-            step.classList.remove("d-none");
-        } else {
-            step.classList.add("d-none");
-        }
-    }
-}
-
-async function accordionDisable(disabled = true) {
-    let collapsable_elements = document.querySelectorAll(".accordion-button");
-    for (let i = 0; i < collapsable_elements.length; i++) {
-        collapsable_elements[i].disabled = disabled;
-    }
-}
-
-async function doScrollAgreements(){
-    let res = this;
-    let progressbar = document.getElementById("agreement-progress"); // TODO: probably change this to be at top like the rest
-    let button = butWelcome;
-    let scrollPercentage = res.scrollTop / (res.scrollHeight - res.offsetHeight);
-    if(scrollPercentage>0.98){
-        if(button.disabled){
-            button.classList.remove("btn-secondary");
-            button.classList.add("btn-success");
-            button.disabled=false;
-        }
-    }
-    if(debugState){
-        console.log("User has read " + (scrollPercentage*100.0) + " of the TOS agreement");
-    }
-    progressbar.style.width=(scrollPercentage*100)+"%";
-}
-
-async function toggleDevConf(s = true) {
-    if (butCustomize.checked) {
-        s = false;
-        elementsDevConf.classList.remove("d-none");
+  /**
+   * @name _readEfuses
+   * Read the OTP data for this chip and store into this.efuses array
+   */
+  async _readEfuses() {
+    let baseAddr
+    if (this._chipfamily == ESP8266) {
+      baseAddr = 0x3FF00050;
+    } else if (this._chipfamily == ESP32) {
+      baseAddr = 0x3FF5A000;
+    } else if (this._chipfamily == ESP32S2) {
+      baseAddr = 0x6001A000;
     } else {
-        elementsDevConf.classList.add("d-none");
+      throw("Don't know what chip this is");
     }
-    let elems = elementsDevConf.querySelectorAll("input");
-    if (elems.length > 1) {
-        for (let i = 0; i < elems.length; i++) {
-            elems[i].disabled = s;
-        }
+    for (let i = 0; i < 4; i++) {
+      this._efuses[i] = await this.readRegister(baseAddr + 4 * i);
     }
-}
+  };
 
-async function toggleDiagnostics(s = false){
-    if(!diagnosticFirmware){
-        let m = confirm("You are about to enable Diagnostics Firmware Uploading. Do not use this feature unless instructed by support, it can break your device!");
-        if(m){
-            logMsg("! User has enabled Diagnostic Firmware Mode !");
-            logMsg("Disabling any customizations and standard firmware uploads until reloaded or unchecked");
-            diagnosticFirmware = true;
-        } else {
-            diagnosticFirmware = false;
-        }
-    } else {
-        diagnosticFirmware = false;
+  /**
+   * @name readRegister
+   * Read a register within the ESP chip RAM, returns a 4-element list
+   */
+  async readRegister(reg) {
+    if (this.debug) {
+      this.debugMsg("Reading from Register " + this.toHex(reg, 8));
     }
-    // continue
-    if(diagnosticFirmware){
-        for (var i=0; i<butBranch.options.length; i++) {
-            if (butBranch.options[i].defaultSelected){
-                butBranch.options[i].defaultSelected=false;
-            }
-        }
-        butBranch.options.add(new Option('Diagnostics', 'diagnostic',true,true));
-        butBranch.disabled=true;
-        butCustomize.checked = false;
-        butDiagnosticFirmware.checked = true;
-        butCustomize.disabled = true;
-        toggleDevConf(true);
-        fileDebugFirmware.disabled=false;
-        
-    } else {
-        for (var i=0; i<butBranch.options.length; i++) {
-            if (butBranch.options[i].value == 'diagnostic'){
-                butBranch.options.remove(i);
-                break;
-            }
-        } 
-        butBranch.disabled=false;
-        butDiagnosticFirmware.checked = false;
-        butCustomize.disabled = false;
-        toggleDevConf(false);
-        fileDebugFirmware.disabled=true;
+    let packet = struct.pack("<I", reg);
+    await this.sendCommand(ESP_READ_REG, packet);
+    let [val, data] = await this.getResponse(ESP_READ_REG);
+    return val;
+  };
+
+  /**
+   * @name writeRegister
+   * Write to a register within the ESP chip RAM, returns a 4-element list
+   */
+  async writeRegister(reg, value) {
+    if (this.debug) {
+      this.debugMsg("Writing to Register " + this.toHex(reg, 8));
     }
-    // reset if this was triggered just in case
-    logMsg("Persistent storage reset for diagnostic purposes.")
-    localStorage.clear();
-}
+    let packet = struct.pack("<I", reg);
+    return (await this.checkCommand(ESP_WRITE_REG, packet))[0];
+  };
 
-async function clickProgramErase() {
-    let shiftkeypress = false;
-    if(isConnected && keysPressed['Control'] && keysPressed['Shift']){
-        shiftkeypress = true;
-    } else {
-        shiftkeypress = false;
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * @name chipType
+   * ESP32 or ESP8266 based on which chip type we're talking to
+   */
+  async chipType() {
+    if (this._chipfamily === null) {
+      this._chipfamily = await this.detectChip()
     }
-    if (isConnected) {
-        /*if (shiftkeypress) {
-            clickErase();
-        } else {
-            clickProgram();
-        }*/
-        clickProgram();
-    } else {
-        if (debugState) {
-            console.log("Programmer clicked but cowardly refusing to " +
-                "do anything since we don't appear to be connected");
-        }
+    return this._chipfamily;
+  };
+
+
+  async detectChip() {
+    let chipMagicValue = await this.readRegister(CHIP_DETECT_MAGIC_REG_ADDR);
+
+    // Loop through magicValues and if the value matches, then the key is the chip ID
+    for (const [key, value] of Object.entries(magicValues)) {
+      if (chipMagicValue == value["magicVal"]) {
+        return value["chipId"]
+      }
     }
-}
+    this.logMsg("Detection failed and WebFlasher cannot continue.");
+    throw("Unable to detect OMG Device. If you are using a v1 Programmer from 2020 (lacks USB-C) please use the <a href='./v1/'>v1 Web Flasher</a> for now! <br> Otherwise, click the Help button below for common fixes & refresh this page to attempt flashing again.");
+  }
 
-async function clickProgram() {
-    baudRate.disabled = true;
-    butProgram.disabled = false;
-    btnProgram.getElementsByClassName("spinner-border")[0].classList.remove("d-none");
-    let flash_successful = true;
-    // and move on
-    let branch = String(butBranch.value);
-    let bins = []
-    logMsg("User requested flash of device using release branch  '" + branch + "'.")
-    if(!diagnosticFirmware){
-        console.log(branch);
-        // remove this conditional and replace it with just lines 991 and 992
-        if( (branch.includes("beta") || branch.includes("3.1")) && alertOnBeta){
-            let message = "Warning, you are about to use beta software that may contain bugs! Press OK to proceed, press cancel to select Stable";
-            if(confirm(message)){
-                logMsg("Loading Firmware from Remote Source (GitHub)");
-                bins = await getFirmwareFiles(branch);
-            } else {
-                return 0;
-            }
-        } else {
-            // to remove, take this 
-            logMsg("Loading Firmware from Remote Source (GitHub)");
-            bins = await getFirmwareFiles(branch);
-        } // and remove this closing 
-    } else {
-        logMsg("Loading Firmware from Local User Source (Diagnostics Firmware Load)");
-        bins = await getDiagnosticFirmwareFiles();
+  /**
+   * @name chipType
+   * The specific name of the chip, e.g. ESP8266EX, to the best
+   * of our ability to determine without a stub bootloader.
+   */
+  async chipName() {
+    let chipType = await this.chipType();
+    await this._readEfuses();
+
+    if (chipType == ESP32) {
+      return "ESP32";
     }
-    if (debugState) {
-        console.log("debug orig memory dump");
-        console.log(bins);
+    if (chipType == ESP32S2) {
+      return "ESP32-S2";
     }
-    updateCoreProgress(60);
-    if (!flashingReady) {
-        logMsg("Flashing not ready, an error has occurred, please check log above for more information");
-    } else {
-        sdstat("notice","flash-begin-" + branch);
-        logMsg("Flashing firmware based on code branch " + branch + ". ");
-        // erase 
-        if (butEraseCable.checked) {
-            logMsg("Erasing flash before performing writes. This may take some time... ");
-            if (debugState) {
-                console.log("performing flash erase before writing");
-            }
-            await eraseFlash(await espTool.getFlashID());
-            sdstat("notice","erase-begin");
-            logMsg("Erasing complete, continuing with flash process");
-            //toggleUIProgram(true);
-        }
-        // update the bins with patching
-        updateCoreProgress(70);
-        logMsg("Attempting to perform bit-patching on firmware");
-        if(!diagnosticFirmware){
-            bins = await patchFlash(bins);        
-            if (debugState) {
-                console.log("debug patched memory dump");
-                console.log(bins);
-            }
-        }
-        updateCoreProgress(100);
-        // continue
-        for (let bin of bins) {
-            try {
-                let offset = parseInt(bin["offset"], 16);
-                let contents = bin["data"];
-                let name = bin["name"];
-                // write
-                if(debugState){
-                       logMsg("Attempting to write " + name + " to " + offset);
-                   }
-                await espTool.flashData(contents, offset, name);
-                await sleep(1000);
-            } catch (e) {
-                flash_successful = false;
-                errorMsg(e);
-                setStatusAlert("Exception during flashing: " + e, "danger");
-                // for good measure
-                break;
-            }
-        }
-        
-        if (flash_successful&&diagnosticFirmware) {
-            setStatusAlert("Device Programmed, please follow support instructions and open Console  if needed.  ");
-            logMsg("Device Programmed, please follow support instructions and follow this console for further information if directed..");
-            logMsg(" ");
-            sdstat("success","flash-success-" + branch);
-            completeProgress();
-            // disable components and prepare to move on
-            endHelper();
-            toggleUIProgram(true);
-        } else if (flash_successful) {
-            setStatusAlert("Device Programmed, please reload web page and remove programmer and device. ");
-            logMsg("To run the new firmware, please unplug your device and plug into normal USB port.");
-            logMsg(" ");
-            sdstat("success","flash-success-" + branch);
-            completeProgress();
-            // disable components and prepare to move on
-            endHelper();
-            toggleUIProgram(true);
-        } else {
-            sdstat("error","flash-failure-" + branch);
-            setStatusAlert("Device flash failed and could not be completed. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
-            printSettings(true);
-            logMsg("Failed to flash device successfully");
-            toggleUIProgram(false);
-            logMsg(" ");
-            endHelper();
-        }
-        baudRate.disabled = false;
-    }
-}
-
-async function patchFlash(bin_list) {
-    // only work on lists
-    const findBase330 = (orig_data, search, replacement) => {
-        let mod_array = new Uint8Array(orig_data);
-        let pos = mod_array.indexOfString(search);
-        if (pos > -1) {
-            if (debugState) {
-                console.log("found match at " + pos + " for data ");
-                console.log(orig_data);
-                console.log(search);
-            }
-            let re_pos = 0;
-            for (let i = pos; i < pos + replacement.length; i++) {
-                mod_array[i] = replacement[re_pos];
-                re_pos += 1;
-            }
-            // reset again just in case? 
-            re_pos = 0;
-        }
-        // and send back
-        return mod_array.buffer;
-    }
-
-    const configPatcher = (orig_data,search) => {
-        let utf8Encoder = new TextEncoder();
-        let mod_array = new Uint8Array(orig_data);
-
-        let perform_patch = true; // set this to true once we verify html elements
- 
-        let configuration = {} 
-        configuration["flasher"] = "webflasherv2";
-        // this is deprecated/unused in v4 firmware, use new wifi controller instead
-        if(settings['customizeConfig'].checked){
-            perform_patch=true;
-            // edge case here, need error trapping
-            configuration["wifimode"] = loadSetting("devWifiMode").replace("wifiMode","");
-            configuration["wifissid"] = settings["devWiFiSSID"].value;
-            configuration["wifikey"] = settings["devWiFiPass"].value;
-        }
-	    configuration["devicename"] = "O.MG";
-        let pos = 0 ;
-        // mod_array.indexOfString(utf8Encoder.encode("INIT;"));
-        if (pos > -1 && perform_patch) {
-            if (debugState) {
-                console.log("found cfg match at " + pos + " for data ");
-            }
-            
-            // init and blank out file system
-            let ccfg = "INIT;F:keylog=0;"; // e=3;
-            for(let i = 1; i < 8; i++){
-            	ccfg+=`F:payload${i}=0;`
-            }
-            // prepare boot and hid file slots (for supported devices)
-            ccfg += "F:bootscript=4;F:hidxfile=16;";
-            // set the payload slots on supported devices
-            for(let i = 1; i < 51; i++){
-            	ccfg+=`F:payload${i}=4;`
-            }
-            // add keylog slot for supported devices, ignored on unsupported hw
-            ccfg+="F:keylog=100%F;"
-            for (var setting in configuration) {
-                ccfg+=`S:${setting}=${configuration[setting]};`;
-            }
-
-            ccfg += String.fromCharCode(0x00);
-
-            let cfglen = ccfg.length;
-            let final_cfg = utf8Encoder.encode(`${ccfg}`);
-            let re_pos = 0;
-            for (let i = pos; i < pos + final_cfg.length; i++) {
-                mod_array[i] = final_cfg[re_pos];   
-                re_pos += 1;
-            }
-            if(debugState){
-                logMsg("Writing Initialization Configuration: '" + ccfg + "'");
-                console.log(mod_array);
-            }
-            // reset again just in case? 
-            re_pos = 0;
-        }
-        // and send back
-        return mod_array.buffer;
-    }
-
-    const wifiPatch = (orig_data) => {
-        let mod_array = new Uint8Array(orig_data);
-        const utf8Encoder = new TextEncoder();
-
-        var config = {
-            "hostname": "OMG"
-        };
-        // this is now blank sometimes
-        if(!settings['customizeConfig'].checked || (!loadSetting("devWifiMode")||!loadSetting("devWiFiPass"))){
-            return mod_array.buffer
-        }
-        // continue
-        if(parseInt(loadSetting("devWifiMode").replace("wifiMode",""))==2){
-            config["soft_ap"]={"ssid": loadSetting("devWiFiSSID"), "key": loadSetting("devWiFiPass"), "channel": 1}
-        } else {
-            config["station"] = {
-                "ap_list": [{
-                        "ssid": loadSetting("devWiFiSSID"),
-                        "key": loadSetting("devWiFiPass"),
-                        "primary": 1
-                    }]
-            }
-        }
-
-        let wcfg = JSON.stringify(config);
-        wcfg += String.fromCharCode(0x00);
-        let cfglen = wcfg.length;
-
-        let final_cfg = utf8Encoder.encode(`WIFI${wcfg}`);
-
-        let pos = 0;
-        let re_pos = 0;
-        console.log(`pos:${pos}, repos:${re_pos}`)
-        for (let i = pos; i < pos + final_cfg.length; i++) {
-            mod_array[i] = final_cfg[re_pos];
-            re_pos += 1;
-        }
- 
-        if (debugState) {
-            console.log("Writing Wifi Configuration: '" + wcfg + "'");
-            console.log(mod_array);
-        }
-        re_pos = 0;
-        return mod_array.buffer;
-    }
-
-    // not the most elegant way of doing things 
-    if (debugState) {
-        console.log("original data");
-        console.log(bin_list);
-    }
-    for (let i = 0; i < bin_list.length; i++) {
-        let orig_bin = bin_list[i];
-        if (debugState) {
-            console.log("searching for potential match on offset " + orig_bin.offset + " with file name " + orig_bin.name);
-        }
-        if (orig_bin.offset == "0x00000") {
-            // replace the data
-            bin_list[i].data = findBase330(orig_bin.data, [0, 32], [3, 48]);
-        } else if(orig_bin.offset == "0x7f000"){
-            // search for INIT;
-            console.log("found match at " + i + " for file " + orig_bin.name + " with offset=" + (orig_bin.offset));
-            bin_list[i].data = configPatcher(orig_bin.data, [73, 78, 73, 84, 59]);
-            console.log(orig_bin);
-            console.log(bin_list[i]);
-        } else if(orig_bin.offset == "0x7e000"){
-            console.log("found match at " + i + " for file " + orig_bin.name + " with offset=" + (orig_bin.offset));
-            bin_list[i].data = wifiPatch(orig_bin.data);
-            console.log(bin_list[i]);
-        }
-    }
-    return bin_list
-}
-
-async function eraseFlash(size = 1024) {
-    await eraseSection(0x00000, 1022976, 0xff); // 1024000
-    let lower_flash_offset = 0xfc000;
-    if (size == 2048) {
-        lower_flash_offset = lower_flash_offset + 0x100000
-    }
-    //await eraseSection(lower_flash_offset, 16384, 0xff);
-}
-
-async function eraseSection(offset, ll = 1024, b = 0xff) {
-    let block_split = 4096 * 4;
-    let offset_end_size = offset + ll;
-    do {
-        let write_size = block_split;
-        if ((offset_end_size - offset) < block_split) {
-            write_size = offset_end_size - offset;
-        }
-        let contents = ((new Uint8Array(write_size)).fill(b)).buffer;
-        let status = await espTool.flashData(contents, offset, "blank.bin");
-        console.log(status);
-        await sleep(200); // cool down
-        offset = offset + block_split;
-    } while (offset < offset_end_size);
-}
-
-async function eraseFiles(offset, ll = 1024, b = 0xff) {
-    let erase_files = 0;
-    let block_split = 4096 * 4;
-    let offset_end_size = offset + ll;
-    do {
-        let write_size = block_split;
-        if ((offset_end_size - offset) < block_split) {
-            write_size = offset_end_size - offset;
-        }
-        erase_files += 1;
-        offset = offset + block_split;
-    } while (offset < offset_end_size);
-    return erase_files;
-}
-
-async function clickDebug() {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has("debug")) {
-        urlParams.delete("debug");
-    } else {
-        urlParams.set('debug', 'true');
-    }
-    window.location.search = urlParams;
-    //location.replace('http://example.com/#' + initialPage);
-}
-
-async function clickErase() {
-    baudRate.disabled = true;
-    butProgram.disabled = false;
-
-    var confirm_erase = confirm("Warning: Erasing should only be performed " +
-        "when recommended by support. This operations will require you to reload the " +
-        "web page to continue and disconnect and reconnect device to flasher. " +
-        "Normally this operation is not needed. Are you ready to proceed?");
-
-    if (confirm_erase) {
-        // and move on
-        let branch = String(document.querySelector("#branch").value);
-        let bins = await getFirmwareFiles(branch, true, eraseFillByte);
-        console.log(bins);
-        logMsg("Erasing based on block sizes based on code branch " +
-            branch + " with " + eraseFillByte);
-        for (let bin of bins) {
-            try {
-                let offset = parseInt(bin["offset"], 16);
-                let contents = bin["data"];
-                let name = bin["name"];
-                await espTool.flashData(contents, offset, name);
-                await sleep(100);
-            } catch (e) {
-                errorMsg(e);
-            }
-        }
-        setStatusAlert("Device Erased, please reload web page and remove programmer and device");
-        logMsg("Erasing complete, please continue with flash process after " +
-            "reloading web page (Ctrl+F5) and reconnecting to device");
-        logMsg(" ");
-    } else {
-        logMsg("Erasing operation skipped.");
-    }
-}
-
-async function clickDownload() {
-    let file_name = "flash.log";
-    logMsgs.push("\r\n");
-    const raw_log = logMsgs.join("\r\n");
-    saveFile(file_name, raw_log);
-}
-
-async function clickSave() {
-    saveSettings();
-}
-
-async function clickClear() {
-    reset();
-}
-
-function convertJSON(chunk) {
-    try {
-        let jsonObj = JSON.parse(chunk);
-        return jsonObj;
-    } catch (e) {
-        return chunk;
-    }
-}
-
-function statusPageUpdate(status=true){
-    // bit of a special function
-    // since we need to control things here internally
-    let successHeader = document.getElementById("success-notification");
-    let successMessage = document.getElementById("success-msg");
-    let stateIcon = document.getElementById("success-state");
-    let stateInfoMessage = document.getElementById("success-state-msg");    
-    let successInfo = document.getElementById("success-info");
-    let successWifiSSID = document.getElementById("success-wifi-ssid");
-    let successWifiPass = document.getElementById("success-wifi-pass");
-    let successStatusConfig = document.getElementById("success-config-type");                            
-    if(status&&diagnosticFirmware){
-        successHeader.textContent = "Success! Diagnostic Mode Active";
-    } else if(status) {
-        // update fields
-        successWifiSSID.textContent=txtSSIDName.value;
-        successWifiPass.textContent=txtSSIDPass.value;
-        if(butCustomize.checked){
-            successStatusConfig.textContent="Customized";
-        } else {
-            successStatusConfig.textContent="Defaults";
-        }
-        // set headers
-        successHeader.textContent = "Success!";
-        //stateInfoMessage.classList.remove("d-none");
-        //stateIcon.src=("assets/check.png");        
-        // unhide
-        successInfo.classList.remove("d-none");
-    } else {
-        // set headers
-        successHeader.textContent = "Failure!";
-        stateIcon.src=("assets/cross.png");
-        stateInfoMessage.classList.remove("d-none");
-        successMessage.textcontent = "Programming did not complete. Check log file!";
-    }
-}
-
-function toggleUIProgram(state) {
-    for (let i = 0; i < progress.length; i++) {
-        progress[i].classList.remove("progress-bar-animated");
-    }
-    //isConnected = true;
-    if (state) {
-        statusStep3.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
-        statusStep3.classList.add("bi-check-circle");
-        sleep(5000)
-        switchStep("step-success");
-        statusPageUpdate(state);
-    } else {
-        // error
-        statusStep3.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
-        statusStep3.classList.add("bi-x-circle");
-        setStatusAlert("Flashing failed! Click Help button for solutions. Then refresh this page to attempt flashing again.", "danger");
-        accordionExpand(3);
-        btnProgram.getElementsByClassName("spinner-border")[0].classList.add("d-none");
-        accordionDisable();
-    }
-}
-
-function toggleUIHardware(ready) {
-    let lbl = "Connect";
-    if (ready) {
-        statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
-        statusStep1.classList.add("bi-check-circle");
-        sdstat("notice","progressing");
-        accordionExpand(2);
-    } else {
-        // error
-        sdstat("error","hardware-missing");
-        setStatusAlert("Hardware is unavailable. Click \"Show me How\" to get further help. Refresh WebFlasher page when ready to attempt flashing again.", "danger");
-        statusStep1.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
-        statusStep1.classList.add("bi-x-circle");
-        accordionExpand(1);
-        accordionDisable();
-    }
-    butConnect.textContent = lbl;
-}
-
-function toggleUIConnected(connected, msg = "") {
-    let lbl = "Connect";
-    let message = "Cannot connect to O.MG Device.";
-    if (msg instanceof DOMException) {
-        message = msg.message.replace(/^[^:]*:/, '').trim();
-    } else if (typeof msg === "string") {
-        message = msg.replace(/^[^:]*:/, '').trim();
-    }
-    if (connected) {
-        butProgram.disabled = false;
-        statusStep2.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
-        statusStep2.classList.add("bi-check-circle");
-        lbl = "Disconnect";
-        accordionExpand(3);
-    } else {
-        // error
-        statusStep2.classList.remove("bi-x-circle", "bi-circle", "bi-check-circle");
-        statusStep2.classList.add("bi-x-circle");
-        //butProgram.disabled = true;
-        lbl = "Error";
-        sdstat("error","hardware-missing");
-        let err = `${message}`
-        // Click the Help button below for common fixes. Then refresh this page to attempt flashing again.`;
-        if (err.includes("Failed to set control signals")) {
-            const ua = navigator.userAgent;
-            const isWindows = ua.includes("Windows");
-            const chromeMatch = ua.match(/Chrome\/(\d+)/);
-            const chromeVersion = chromeMatch ? parseInt(chromeMatch[1], 10) : null;
-
-            if (!isWindows && chromeVersion != null && chromeVersion < 160) {
-                setStatusAlert("Mac & Linux users: Chrome currently has a bug in webserial, breaking this tool. Until fixed, you have 3 options:<br><ul><li>Switch to a windows machine</li><li>Use our <a href='https://github.com/O-MG/O.MG-Firmware/wiki/Advanced-Flasher'>Advanced Python Flasher</a></li><li>(Advanced) Modify chrome flags using <a href='https://issues.chromium.org/issues/420689824#comment10'>these instructions</a></li></ul>");
-            }
-        } else {
-            setStatusAlert(err, "danger");
-        }
-        
-        accordionExpand(2);
-        accordionDisable();
-    }
-    butConnect.textContent = lbl;
-}
-
-function saveSetting(setting, value) {
-    if (debugState) {
-        console.log("Saving data to setting '" + setting + "' with value '" + value + "'.");
-    }
-    window.localStorage.setItem(setting, value);
-}
-
-function loadSetting(setting) {
-
-    let data = window.localStorage.getItem(setting);
-    if (debugState) {
-        console.log("Fetching data from setting '" + setting + "' with value '" + data + "'.");
-    }
-    return data;
-}
-
-function setCookie(name, value, days) {
-    var expires = "";
-    if (days) {
-        var date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        expires = "; expires=" + date.toUTCString();
-    }
-    document.cookie = name + "=" + (value || "") + expires + "; path=/";
-}
-
-function getCookie(name) {
-    var nameEQ = name + "=";
-    var ca = document.cookie.split(";");
-    for (var i = 0; i < ca.length; i++) {
-        var c = ca[i];
-        while (c.charAt(0) == " ") c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+    if (chipType == ESP8266) {
+      if (this._efuses[0] & (1 << 4) || this._efuses[2] & (1 << 16)) {
+        return "ESP8285";
+      }
+      return "ESP8266EX";
     }
     return null;
-}
+  };
 
-function eraseCookie(name) {
-    document.cookie = name + "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-}
+  /**
+   * @name checkCommand
+   * Send a command packet, check that the command succeeded and
+   * return a tuple with the value and data.
+   * See the ESP Serial Protocol for more details on what value/data are
+   */
+  async checkCommand(opcode, buffer, checksum=0, timeout=DEFAULT_TIMEOUT) {
+    timeout = Math.min(timeout, MAX_TIMEOUT);
+    await this.sendCommand(opcode, buffer, checksum);
+    let [value, data] = await this.getResponse(opcode, timeout);
+    let statusLen;
+    if (data !== null) {
+      if (this.IS_STUB) {
+          statusLen = 2;
+      } else if (this._chipfamily == ESP8266) {
+          statusLen = 2;
+      } else if ([ESP32, ESP32S2].includes(this._chipfamily)) {
+          statusLen = 4;
+      } else {
+          if ([2, 4].includes(data.length)) {
+              statusLen = data.length;
+          }
+      }
+    }
 
-function loadSettings() {
-    // special setting here
-    let welcomeScreen = getCookie("OMGWebFlasherSkipWelcome");
-    if (welcomeScreen !== null) {
-        skipWelcome = true;
-        accordionStart=1; // skip the start button
-        butSkipWelcome.checked = true;
+    if (data === null || data.length < statusLen) {
+      this.logMsg("Error, flashing failed, please reload web page and try again");
+      this.logMsg("  ");
+      throw("Didn't get enough status bytes");
     }
-    for (var key in settings) {
-        if (settings[key] !== null) {
-            let value = null;
-            try {
-                let value = loadSetting(key);
-                let element = settings[key];
-                let element_state = element.disabled;
-                if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
-                    for (let i = 0; i < element.length; i++) {
-                        if (element[i].id !== undefined && element[i].id == value) {
-                            if (debugState) {
-                                console.log("Found element with id " + value + " to select to true");
-                            }
-                            element[i].checked = true;
-                        } else {
-                            if (debugState) {
-                                console.log("Searching for element with id " + value + " to select to false");
-                            }
-                            // odd way to check for null but ok
-                            if(value !== undefined && value !== null){
-                                if(debugState) {
-                                    console.log("Unsetting value for " + value);
-                                }
-                                element[i].checked = false;
-                            }
-                        }
-                    }
-                } else {
-                    if (typeof value !== "undefined" && value !== null) {
-                        const t = element.type == "checkbox" ? 'checked' : 'value';
-                        if (debugState) {
-                            console.log("\tsettings['" + key + "']['" + t + "']=" + value);
-                        }
-                        // this should be as simple as 
-                        // element[t]=value
-                        // but we need some added complexity due to all string inputs
-                        if (t == "value") {
-                            element.value = value;
-                        } else {
-                            // we don't evaluate json anymore so this is how we have to do it
-                            if (value === "true") {
-                                value = true;
-                            } else {
-                                console.log("running on element" + value)
-                                value = false;
-                            }
-                            element.checked = value;
-                        }
-                    } else {
-                        if (debugState) {
-                            console.log("element undefined: " + element);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.log("setting: " + key + " is invalid and being skipped");
-                console.error("Exception thrown", e);
-            }
-        }
+    let status = data.slice(-statusLen, data.length);
+    data = data.slice(0, -statusLen);
+    if (this.debug) {
+      this.debugMsg("status", status);
+      this.debugMsg("value", value);
+      this.debugMsg("data", data);
     }
-}
+    if (status[0] == 1) {
+      if (status[1] == ROM_INVALID_RECV_MSG) {
+        throw("Invalid (unsupported) command " + this.toHex(opcode));
+      } else {
+        throw("Command failure error code " + this.toHex(status[1]));
+      }
+    }
 
-function printSettings(traceReport = false) {
-    let tabs = "\t\t";
-    logMsg("")
-    logMsg("======================================");
-    if (traceReport) {
-        logMsg(tabs + "Settings Trace");
-        logMsg("[Please provide this information to support when asked]");
-    } else {
-        logMsg(tabs + "Configured Settings");
+    if (data.length > 0) {
+      return data;
     }
-    logMsg("======================================");
-    for (var key in settings) {
-        if (settings[key] !== null) {
-            try {
-                let value = loadSetting(key);
-                logMsg("Key: " + key + " \t=>\t Value: '" + value + "'");
-            } catch {}
-        }
-    }
-    logMsg("======================================");
-    logMsg("");
-}
+    return value;
+  };
 
-function saveSettings() {
-    // special setting here
-    if (butSkipWelcome.checked) {
-        setCookie("OMGWebFlasherSkipWelcome", "true", 30);
-        skipWelcome = true;
-        butSkipWelcome.checked = true; // so we save our settings
+  /**
+   * @name timeoutPerMb
+   * Scales timeouts which are size-specific
+   */
+  timeoutPerMb(secondsPerMb, sizeBytes) {
+      let result = Math.floor(secondsPerMb * (sizeBytes / 0x1e6));
+      if (result < DEFAULT_TIMEOUT) {
+        return DEFAULT_TIMEOUT;
+      }
+      return result;
+  };
+
+  /**
+   * @name sendCommand
+   * Send a slip-encoded, checksummed command over the UART,
+   * does not check response
+   */
+  async sendCommand(opcode, buffer, checksum=0) {
+    //inputBuffer = []; // Reset input buffer
+    let packet = struct.pack("<BBHI", 0x00, opcode, buffer.length, checksum);
+    packet = packet.concat(buffer);
+    packet = this.slipEncode(packet);
+    this.debugMsg("Writing " + packet.length + " byte" + (packet.length == 1 ? "" : "s") + ":", packet);
+    await this.writeToStream(packet);
+  };
+
+  /**
+   * @name connect
+   * Opens a Web Serial connection to a micro:bit and sets up the input and
+   * output stream.
+   */
+  async connect(bypassRequest = false) {
+    if (!bypassRequest) {
+      const filter = { usbVendorId: 0x10c4 };
+      var filters = []
+      if (!this.debug) {
+        filters.push(filter);
+      }
+      port = await navigator.serial.requestPort({ filters: filters });
+      const chromeVersion = this.getChromeVersion();
+      if (chromeVersion && chromeVersion < 86) {
+        await port.open({ baudrate: ESP_ROM_BAUD });
+      } else {
+        await port.open({ baudRate: ESP_ROM_BAUD });
+      }
     }
-    for (var key in settings) {
-        if (settings[key] !== null) {
-            let element = settings[key];
-            // shouldn't need to double check here but we do right now 
-            if (typeof element === "undefined" || element === null) {
-                console.log("unable to save setting " + key + " due to it not being defined")
+
+    const signals = await port.getSignals();
+
+    this.logMsg("Serial connection opened successfully.")
+
+    if(!bypassRequest){
+      this.logMsg("Try to reset.")
+      await this.preferredReset(true);
+    }
+    
+    outputStream = port.writable;
+    inputStream = port.readable;
+  }
+
+  connected() {
+    if (port) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * @name disconnect
+   * Closes the Web Serial connection.
+   */
+  async disconnect() {
+    if (reader) {
+      await reader.cancel();
+      reader = null;
+    }
+
+    if (outputStream) {
+      await outputStream.getWriter().close();
+      outputStream = null;
+    }
+
+    await port.close();
+    port = null;
+  }
+
+  /**
+   * @name writeToStream
+   * Gets a writer from the output stream and send the raw data over WebSerial.
+   */
+  async writeToStream(data) {
+    const writer = outputStream.getWriter();
+    await writer.write(new Uint8Array(data));
+    writer.releaseLock();
+  }
+
+  hexFormatter(bytes) {
+    return "[" + bytes.map(value => this.toHex(value)).join(", ") + "]"
+  }
+
+  /**
+   * @name readPacket
+   * Generator to read SLIP packets from a serial port.
+   * Yields one full SLIP packet at a time, raises exception on timeout or invalid data.
+   * Designed to avoid too many calls to serial.read(1), which can bog
+   * down on slow systems.
+   */
+
+  async readPacket() {
+    let partialPacket = null;
+    let inEscape = false;
+    let readBytes = [];
+    while (true) {
+        let stamp = Date.now();
+        readBytes = [];
+        while (Date.now() - stamp < this.readTimeout) {
+            if (inputBuffer.length > 0) {
+              readBytes.push(inputBuffer.shift());
+              break;
             } else {
-                if (NodeList.prototype.isPrototypeOf(element) || HTMLCollection.prototype.isPrototypeOf(element)) {
-
-                    for (let i = 0; i < element.length; i++) {
-                        console.log(element[i])
-                        if (element[i].checked) {
-                            saveSetting(key, element[i].id);
-                        }
-                    }
-                } else {
-                    const value = element.type == "checkbox" ? 'checked' : 'value';
-                    saveSetting(key, element[value]);
-                }
+                await this.sleep(10);
             }
         }
+        if (readBytes.length == 0) {
+            let waitingFor = partialPacket === null ? "header" : "content";
+            this.debugMsg("Timed out waiting for packet " + waitingFor);
+            throw new SlipReadError("Timed out waiting for packet " + waitingFor);
+        }
+        this.debugMsg("Read " + readBytes.length + " bytes: " + this.hexFormatter(readBytes));
+        for (let b of readBytes) {
+            if (partialPacket === null) {  // waiting for packet header
+                if (b == 0xc0) {
+                    partialPacket = [];
+                } else {
+                    this.debugMsg("Read invalid data: " + this.hexFormatter(readBytes));
+                    this.debugMsg("Remaining data in serial buffer: " + this.hexFormatter(inputBuffer));
+                    throw new SlipReadError('Invalid head of packet (' + this.toHex(b) + ')');
+                }
+            } else if (inEscape) {  // part-way through escape sequence
+                inEscape = false;
+                if (b == 0xdc) {
+                    partialPacket.push(0xc0);
+                } else if (b == 0xdd) {
+                    partialPacket.push(0xdb);
+                } else {
+                    this.debugMsg("Read invalid data: " + this.hexFormatter(readBytes));
+                    this.debugMsg("Remaining data in serial buffer: " + this.hexFormatter(inputBuffer));
+                    throw new SlipReadError('Invalid SLIP escape (0xdb, ' + this.toHex(b) + ')');
+                }
+            } else if (b == 0xdb) {  // start of escape sequence
+                inEscape = true;
+            } else if (b == 0xc0) {  // end of packet
+                this.debugMsg("Received full packet: " + this.hexFormatter(partialPacket))
+                return partialPacket;
+                partialPacket = null;
+            } else {  // normal byte in packet
+                partialPacket.push(b);
+            }
+        }
+      }
+    return '';
+  }
+
+  /**
+   * @name getResponse
+   * Read response data and decodes the slip packet, then parses
+   * out the value/data and returns as a tuple of (value, data) where
+   * each is a list of bytes
+   */
+  async getResponse(opcode, timeout=DEFAULT_TIMEOUT) {
+    this.readTimeout = timeout;
+    let packet;
+    let packetLength = 0;
+    let resp, opRet, lenRet, val, data;
+    for (let i = 0; i < 100; i++) {
+        try {
+          packet = await this.readPacket();
+        } catch(e) {
+          this.logMsg("Timed out after " + this.readTimeout + " milliseconds");
+          return [null, null];
+        }
+
+        if (packet.length < 8) {
+          continue;
+        }
+
+        [resp, opRet, lenRet, val] = struct.unpack('<BBHI', packet.slice(0, 8));
+        if (resp != 1) {
+          continue;
+        }
+        data = packet.slice(8);
+        if (opcode == null || opRet == opcode) {
+            return [val, data];
+        }
+        if (data[0] != 0 && data[1] == ROM_INVALID_RECV_MSG) {
+          inputBuffer = [];
+          throw("Invalid (unsupported) command " + this.toHex(opcode));
+        }
+    }
+    throw("Response doesn't match request");
+  };
+
+/**
+   * @name read
+   * Read response data and decodes the slip packet.
+   * Keeps reading until we hit the timeout or get
+   * a packet closing byte
+   */
+  async readBuffer(timeout=DEFAULT_TIMEOUT) {
+    this.readTimeout = timeout;
+    let packet;
+    try {
+      packet = await this.readPacket();
+    } catch(e) {
+      this.logMsg("Timed out after " + this.readTimeout + " milliseconds");
+      return null;
     }
 
-}
+    return packet;
+  };
 
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  /**
+   * @name checksum
+   * Calculate checksum of a blob, as it is defined by the ROM
+   */
+  checksum(data, state=ESP_CHECKSUM_MAGIC) {
+    for (let b of data) {
+      state ^= b;
+    }
+    return state;
+  };
+
+  setPortBaudRate(baud) {
+    const chromeVersion = this.getChromeVersion();
+    if (chromeVersion && chromeVersion < 86) {
+      port.baudrate = baud;
+    } else {
+      port.baudRate = baud;
+    }
+  }
+
+  getPortBaudRate() {
+    const chromeVersion = this.getChromeVersion();
+    if (chromeVersion && chromeVersion < 86) {
+      return port.baudrate;
+    }
+    return port.baudRate;
+  }
+
+  async setBaudrate(baud) {
+    if (this._chipfamily == ESP8266) {
+      this.logMsg("Baud rate can only change on ESP32 and ESP32-S2");
+    } else {
+      this.logMsg("Attempting to change baud rate to " + baud + "...");
+      try {
+        // stub takes the new baud rate and the old one
+        let oldBaud = this.IS_STUB ? this.getPortBaudRate() : 0;
+        let buffer = struct.pack("<II", baud, oldBaud);
+        await this.checkCommand(ESP_CHANGE_BAUDRATE, buffer);
+        this.setPortBaudRate(baud);
+        await this.sleep(50);
+        //inputBuffer = [];
+        this.logMsg("Changed baud rate to " + baud);
+      } catch (e) {
+        throw("Unable to change the baud rate, please try setting the connection speed from " + baud + " to 115200 and reconnecting.");
+      }
+    }
+  };
+
+  /**
+   * @name sync
+   * Put into ROM bootload mode & attempt to synchronize with the
+   * ESP ROM bootloader, we will retry a few times
+   */
+  async sync() {
+    for (let i = 0; i < 5; i++) {
+      inputBuffer = []
+      let response = await this._sync();
+      if (response) {
+        await this.sleep(200);
+        return true;
+      }
+      await this.sleep(200);
+    }
+
+    throw("Couldn't sync to O.MG Device. Try unplugging & replugging the programmer and try again.");
+  };
+
+  /**
+   * @name _sync
+   * Perform a soft-sync using AT sync packets, does not perform
+   * any hardware resetting
+   */
+  async _sync() {
+    await this.sendCommand(ESP_SYNC, SYNC_PACKET);
+    let [val, data] = await this.getResponse(ESP_SYNC, SYNC_TIMEOUT);
+    this.syncStubDetected = (val === 0 ? 1 : 0);
+    for (let i = 0; i < 8; i++) {
+      let [val, data] = await this.getResponse(ESP_SYNC, SYNC_TIMEOUT);
+      this.syncStubDetected &= (val === 0 ? 1 : 0);
+      if (data === null) {
+        continue;
+      }
+      if (data.length > 1 && data[0] == 0 && data[1] == 0) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  async getFlashID(){ 
+      // try to read data if its unset
+      if(!this._flash_size){
+      	console.log(this)
+		  if(this._efuses[0] == 0 && this._efuses[1] == 0 && this._efuses[3] == 0){
+			  //await this._readEfuses();
+        this.logMsg("Unable to fetch Chip ID");
+		  }
+		  let lfuse=this._efuses[3];
+		  console.log(this._efuses);
+		  // try to read one more time before doing defaults
+		  var mem_size;
+		  if(lfuse===undefined){
+			mem_size=0x0;
+		  } else {
+			mem_size = (lfuse&0xFF000000)>>24;
+		  }
+		let calculated_mem = 1;
+		switch(mem_size){
+			case (0x4):
+				calculated_mem = 2;
+				break;
+			case (0x1):
+			case (0x0):
+				calculated_mem = 1;
+        throw("Your O.MG Device needs to use the Advanced Flasher. Please follow the <a href='github.com/O-MG/O.MG-Firmware/wiki#setup---advanced-method'>Advanced Flasher Guide</>a>");
+				break;
+		}
+		this._flash_size = (0x400*calculated_mem);
+		this._flashsize = (1024*1024*calculated_mem);
+		// initial set
+		//FLASH_WRITE_SIZE=this._flash_size;
+		//STUBLOADER_FLASH_WRITE_SIZE=this._flash_size;
+		//FLASH_SECTOR_SIZE=this._flash_size;
+	}
+	let m = this._flash_size;
+	console.log("detected memory is " + m);
+    return m;
+  }
+  
+  async getFlashMB(){
+  	let flash_id = await this.getFlashID();
+  	return (flash_id/1024) + " MB";
+  }
+
+  /**
+   * @name getFlashWriteSize
+   * Get the Flash write size based on the chip
+   */
+  getFlashWriteSize() {
+      return this.getFlashID();
+  };
+  
+
+  /**
+   * @name flashData
+   * Program a full, uncompressed binary file into SPI Flash at
+   *   a given offset. If an ESP32 and md5 string is passed in, will also
+   *   verify memory. ESP8266 does not have checksum memory verification in
+   *   ROM
+   */
+  async flashData(binaryData, offset=0, part=0) {
+    let filesize = binaryData.byteLength;
+    this.logMsg("\nWriting data with filesize: " + filesize);
+    let blocks = await this.flashBegin(filesize, offset);
+    let block = [];
+    let seq = 0;
+    let written = 0;
+    let address = offset;
+    let position = 0;
+    let stamp = Date.now();
+    let flashWriteSize = await this.getFlashWriteSize();
+
+    while (filesize - position > 0) {
+      let percentage = Math.floor(100 * (seq + 1) / blocks);
+      this.logMsg(
+          "Writing at " + this.toHex(address + seq * flashWriteSize, 8) + "... (" + percentage + " %)"
+      );
+      this.updateProgress(this.currFile,percentage);
+      if (filesize - position >= flashWriteSize) {
+        block = Array.from(new Uint8Array(binaryData, position, flashWriteSize));
+      } else {
+        // Pad the last block
+        block = Array.from(new Uint8Array(binaryData, position, filesize - position));
+        block = block.concat(new Array(flashWriteSize - block.length).fill(0xFF));
+      }
+      await this.flashBlock(block, seq);
+      // add a delay for sanity (FIX)
+      await this.sleep(120);
+      seq += 1;
+      written += block.length;
+      position += flashWriteSize;
+    }
+    this.logMsg("Took " + (Date.now() - stamp) + "ms to write " + filesize + " bytes");
+    this.currFile+=1;
+  };
+
+  /**
+   * @name flashBlock
+   * Send one block of data to program into SPI Flash memory
+   */
+  async flashBlock(data, seq, timeout=DEFAULT_TIMEOUT) {
+    await this.checkCommand(
+      ESP_FLASH_DATA,
+      struct.pack("<IIII", data.length, seq, 0, 0).concat(data),
+      this.checksum(data),
+      timeout,
+    );
+  };
+
+  /**
+   * @name flashBegin
+   * Prepare for flashing by attaching SPI chip and erasing the
+   *   number of blocks requred.
+   */
+  async flashBegin(size=0, offset=0, encrypted=false) {
+    let buffer;
+    let flashWriteSize = await this.getFlashWriteSize();
+    if (!this.IS_STUB) {
+        if ([ESP32, ESP32S2].includes(this._chipfamily)) {
+          await this.checkCommand(ESP_SPI_ATTACH, new Array(8).fill(0));
+        }
+    }
+    if (this._chipfamily == ESP32) {
+      // We are hardcoded for 4MB flash on ESP32
+      buffer = struct.pack(
+          "<IIIIII", 0, this._flashsize, 0x10000, 4096, 256, 0xFFFF
+      )
+      await this.checkCommand(ESP_SPI_SET_PARAMS, buffer);
+    }
+    let numBlocks = Math.floor((size + flashWriteSize - 1) / flashWriteSize);
+    let eraseSize = this.getEraseSize(offset, size);
+
+    let timeout;
+    if (this.IS_STUB) {
+      timeout = DEFAULT_TIMEOUT;
+    } else {
+      timeout = this.timeoutPerMb(ERASE_REGION_TIMEOUT_PER_MB, size);
+    }
+
+    let stamp = Date.now();
+    buffer = struct.pack(
+        "<IIII", eraseSize, numBlocks, flashWriteSize, offset
+    );
+    if ([ESP32S2].includes(this._chipfamily) && !this.IS_STUB) {
+      buffer = buffer.concat(struct.pack(
+        "<I", encrypted ? 1 : 0
+      ));
+    }
+    this.logMsg(
+        "Operation size " + eraseSize + ", blocks " + numBlocks + ", block size " + flashWriteSize + ", offset " + this.toHex(offset, 4) + ", encrypted " + (encrypted ? "yes" : "no")
+    );
+    await this.checkCommand(ESP_FLASH_BEGIN, buffer, 0, timeout);
+    if (size != 0 && !this.IS_STUB) {
+      this.logMsg("Took " + (Date.now() - stamp) + "ms to erase " + numBlocks + " bytes");
+    }
+    return numBlocks;
+  };
+
+  async flashFinish() {
+    let buffer = struct.pack('<I', 1);
+    await this.checkCommand(ESP_FLASH_END, buffer);
+  };
+
+  /**
+   * @name getEraseSize
+   * Calculate an erase size given a specific size in bytes.
+   *   Provides a workaround for the bootloader erase bug on ESP8266.
+   */
+  getEraseSize(offset, size) {
+    if (this._chipfamily != ESP8266 || this.IS_STUB) {
+      return size;
+    }
+    let sectorsPerBlock = 16;
+    let sectorSize = FLASH_SECTOR_SIZE;
+    let numSectors = Math.floor((size + sectorSize - 1) / sectorSize);
+    let startSector = Math.floor(offset / sectorSize);
+
+    let headSectors = sectorsPerBlock - (startSector % sectorsPerBlock);
+    if (numSectors < headSectors) {
+      headSectors = numSectors;
+    }
+
+    if (numSectors < 2 * headSectors) {
+      return Math.floor((numSectors + 1) / 2 * sectorSize);
+    }
+
+    return (numSectors - headSectors) * sectorSize;
+  };
+
+    /**
+   * @name memBegin (592)
+   * Start downloading an application image to RAM
+   */
+  async memBegin(size, blocks, blocksize, offset) {
+    if (this.IS_STUB) {
+      let stub = await this.getStubCode();
+      let load_start = offset;
+      let load_end = offset + size;
+      for (let [start, end] of [
+        [stub.data_start, stub.data_start + stub.data.length],
+        [stub.text_start, stub.text_start + stub.text.length]]
+      ) {
+        if (load_start < end && load_end > start) {
+          throw("Software loader is resident at " + this.toHex(start, 8) + "-" + this.toHex(end, 8) + ". " +
+                "Can't load binary at overlapping address range " + this.toHex(load_start, 8) + "-" + this.toHex(load_end, 8) + ". " +
+                "Try changing the binary loading address.");
+        }
+      }
+    }
+
+    return this.checkCommand(ESP_MEM_BEGIN, struct.pack('<IIII', size, blocks, blocksize, offset));
+  }
+
+  /**
+   * @name memBlock (609)
+   * Send a block of an image to RAM
+   */
+  async memBlock(data, seq) {
+    return await this.checkCommand(
+      ESP_MEM_DATA,
+      struct.pack('<IIII', data.length, seq, 0, 0).concat(data),
+      this.checksum(data)
+    );
+  }
+
+  /**
+   * @name memFinish (615)
+   * Leave download mode and run the application
+   *
+   * Sending ESP_MEM_END usually sends a correct response back, however sometimes
+   * (with ROM loader) the executed code may reset the UART or change the baud rate
+   * before the transmit FIFO is empty. So in these cases we set a short timeout and
+   * ignore errors.
+   */
+  async memFinish(entrypoint=0) {
+    let timeout = this.IS_STUB ? DEFAULT_TIMEOUT : MEM_END_ROM_TIMEOUT;
+    let data = struct.pack('<II', parseInt(entrypoint == 0), entrypoint);
+    try {
+      return await this.checkCommand(ESP_MEM_END, data, 0, timeout);
+    } catch (e) {
+      if (this.IS_STUB) {
+        throw(e);
+      }
+    }
+  }
+  
+  async hardReset(r = false) {
+    logMsg("Trying Serial Reset....")
+    await port.setSignals({
+      dataTerminalReady: false,
+      requestToSend: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await port.setSignals({
+      dataTerminalReady: r,
+      requestToSend: false,
+      break: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  async preferredReset(r = false) {
+    logMsg("Power Off...")
+    await port.setSignals({
+      dataTerminalReady: false,
+      requestToSend: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await port.setSignals({
+      dataTerminalReady: r,
+      requestToSend: false,
+      //break: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+
+
+  async getStubCode() {
+    let response = await fetch('stubs/' + this.getStubFile() + '.json');
+    let stubcode = await response.json();
+
+    // Base64 decode the text and data
+    stubcode.text = toByteArray(atob(stubcode.text));
+    stubcode.data = toByteArray(atob(stubcode.data));
+    return stubcode;
+  }
+
+  getStubFile() {
+    if (this._chipfamily == ESP32) {
+      return "esp32";
+    } else if (this._chipfamily == ESP32S2) {
+      return "esp32s2";
+    } else if (this._chipfamily == ESP8266) {
+      return "esp8266";
+    }
+  }
+
+  getStubLoaderClass() {
+    // Based on current chip, we return the appropriate stub loader class
+  }
+
+  getRomClass() {
+    // Based on current chip, we return the appropriate Rom class
+  }
+
+  async runStub(stub=null) {
+    if (stub === null) {
+      stub = await this.getStubCode();
+    }
+
+    if (this.syncStubDetected) {
+        this.logMsg("Stub is already running. No upload is necessary.");
+        return this.stubClass;
+    }
+
+    let ramBlock = ESP_RAM_BLOCK;
+    // We're transferring over USB, right?
+    if ([ESP32S2].includes(this._chipfamily)) {
+      ramBlock = USB_RAM_BLOCK;
+    }
+
+    // Upload
+    this.logMsg("Uploading stub...")
+    for (let field of ['text', 'data']) {
+      if (Object.keys(stub).includes(field)) {
+        let offset = stub[field + "_start"];
+        let length = stub[field].length;
+        let blocks = Math.floor((length + ramBlock - 1) / ramBlock);
+        await this.memBegin(length, blocks, ramBlock, offset);
+        for (let seq of Array(blocks).keys()) {
+          let fromOffs = seq * ramBlock;
+          let toOffs = fromOffs + ramBlock;
+          if (toOffs > length) {
+            toOffs = length;
+          }
+          await this.memBlock(stub[field].slice(fromOffs, toOffs), seq);
+        }
+      }
+    }
+    this.logMsg("Running stub...")
+    await this.memFinish(stub['entry']);
+
+    let p = await this.readBuffer(500);
+    p = String.fromCharCode(...p);
+
+    if (p != 'OHAI') {
+      throw "Failed to start stub. Unexpected response: " + p;
+    }
+    this.logMsg("Stub is now running...");
+    this.stubClass = new EspStubLoader({
+      updateProgress: this.updateProgress,
+      logMsg: this.logMsg,
+      debugMsg: this._debugMsg,
+      debug: this.debug,
+      flash_size: this._flash_size,
+      efuses: this._efuses
+    });
+    return this.stubClass;
+  }
 }
+
+class EspStubLoader extends EspLoader {
+  /*
+    The Stubloader has commands that run on the uploaded Stub Code in RAM
+    rather than built in commands.
+  */
+  constructor(params) {
+    super(params);
+    this.IS_STUB = true;
+  }
+  /**
+   * @name eraseFlash
+   * depending on flash chip model the erase may take this long (maybe longer!)
+   */
+  async eraseFlash() {
+    await this.checkCommand(ESP_ERASE_FLASH, [], 0, CHIP_ERASE_TIMEOUT);
+  };
+
+  /**
+   * @name getFlashWriteSize
+   * Get the Flash write size based on the chip
+   */
+  getFlashWriteSize() {
+      return this.getFlashID();
+  };
+  
+}
+
+class Esp32StubLoader extends EspStubLoader {
+
+}
+
+/*
+Represents error when NVS Partition size given is insufficient
+to accomodate the data in the given csv file
+*/
+class SlipReadError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "SlipReadError";
+    }
+}
+
