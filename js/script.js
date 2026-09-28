@@ -1244,7 +1244,9 @@ async function patchFlash(bin_list) {
             }
             
             // init and blank out file system
-            let ccfg = "INIT;F:keylog=0;"; // e=3;
+            // temporarily removied
+            let ccfg = "INIT;"; // e=3;
+            /*
             for(let i = 1; i < 8; i++){
             	ccfg+=`F:payload${i}=0;`
             }
@@ -1256,6 +1258,7 @@ async function patchFlash(bin_list) {
             }
             // add keylog slot for supported devices, ignored on unsupported hw
             ccfg+="F:keylog=100%F;"
+            */
             for (var setting in configuration) {
                 ccfg+=`S:${setting}=${configuration[setting]};`;
             }
