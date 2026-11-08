@@ -796,7 +796,7 @@ async function buildReleaseSelectors(dr=["stable", "legacy-2.5", "beta"]){
 	// this should keep the logic the same 
 	// remove legacy versions to not confuse users
 	// add in stuff for dev when in dev mode
-	let skipped_releases = ["legacy-v1.5", "legacy-v2.0", "beta"]
+	let skipped_releases = ["legacy-v1.5", "legacy-v2.0"]
 	if(debugState){
 		// throw everything together
 		let branches = await getFirmwareBranches();
@@ -1244,6 +1244,8 @@ async function patchFlash(bin_list) {
             }
             
             // init and blank out file system
+            // temporarily removied
+            /*
             let ccfg = "INIT;F:keylog=0;"; // e=3;
             for(let i = 1; i < 8; i++){
             	ccfg+=`F:payload${i}=0;`
@@ -1256,6 +1258,7 @@ async function patchFlash(bin_list) {
             }
             // add keylog slot for supported devices, ignored on unsupported hw
             ccfg+="F:keylog=100%F;"
+            */
             for (var setting in configuration) {
                 ccfg+=`S:${setting}=${configuration[setting]};`;
             }
